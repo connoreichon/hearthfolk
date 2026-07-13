@@ -26,6 +26,8 @@ func _exit_tree() -> void:
 
 
 func _build_border() -> void:
+	if rect.size.x < 0.5 or rect.size.y < 0.5:
+		return
 	var palette: PaletteData = PaletteData.get_default()
 	var corners: Array[Vector2] = [
 		rect.position,

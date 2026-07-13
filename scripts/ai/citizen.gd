@@ -31,12 +31,14 @@ var _last_pos: Vector3 = Vector3.ZERO
 var _stuck_timer: float = 0.0
 var _cfg: SimConfig
 var _critical_sent: bool = false
+var _step_distance: float = 0.0
 
 @onready var nav_agent: NavigationAgent3D = $NavAgent
 
 
 func _ready() -> void:
-	entity_id = EntityRegistry.register(self, &"citizen")
+	if entity_id == 0:
+		entity_id = EntityRegistry.register(self, &"citizen")
 	local_rng.seed = hash([GameState.world_seed, "citizen", data.display_name])
 	collision_layer = (1 << 1) | (1 << 7)
 	collision_mask = 53
@@ -303,6 +305,10 @@ func _on_velocity_computed(safe_velocity: Vector3) -> void:
 	move_and_slide()
 	var horizontal: float = Vector2(velocity.x, velocity.z).length()
 	visual.set_motion(horizontal)
+	_step_distance += horizontal * get_physics_process_delta_time()
+	if _step_distance > 1.1:
+		_step_distance = 0.0
+		AudioDirector.play_footstep(global_position)
 	if horizontal > 0.2:
 		var yaw: float = atan2(velocity.x, velocity.z)
 		visual.rotation.y = lerp_angle(
@@ -336,6 +342,10 @@ func stop_moving() -> void:
 
 func nav_finished() -> bool:
 	return not _moving or nav_agent.is_navigation_finished()
+
+
+func is_moving() -> bool:
+	return _moving
 
 
 ## Detección de bloqueo (§7.4): sin avanzar 0.05 m durante stuck_seconds.

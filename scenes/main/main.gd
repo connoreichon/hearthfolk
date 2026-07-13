@@ -12,6 +12,10 @@ func _ready() -> void:
 	tool_manager.name = "ToolManager"
 	tool_manager.camera = ($CameraRig as CameraRig).camera
 	add_child(tool_manager)
+	var hud: Hud = Hud.new()
+	hud.name = "Hud"
+	hud.tool_manager = tool_manager
+	add_child(hud)
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	for i: int in args.size():
 		if args[i] == "--screenshot" and i + 1 < args.size():
@@ -70,6 +74,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		SimClock.set_speed(SimClock.Speed.FAST)
 	elif event.is_action_pressed(&"sim_speed_3"):
 		SimClock.set_speed(SimClock.Speed.ULTRA)
+	elif event.is_action_pressed(&"save_game"):
+		SaveManager.save_game()
+	elif event.is_action_pressed(&"load_game"):
+		SaveManager.load_game()
 
 
 func _capture(path: String, wait_s: float) -> void:

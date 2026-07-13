@@ -22,3 +22,21 @@
 ## P4 — (herramienta) stash conflictivo durante la bisección
 
 - Incidencia de proceso, no del juego: un `git stash pop` con conflictos revirtió 4 ficheros a P3 en mitad del diagnóstico y enmascaró el estado real. Reaplicados y verificados con la suite.
+
+## P7 — IDs re-registrados al cargar partida
+
+- **Síntoma**: el round-trip guardar→cargar→guardar producía IDs de habitante distintos (47-50 → 53-56); el segundo guardado dejaba de ser idéntico.
+- **Causa**: `Citizen._ready` llamaba a `EntityRegistry.register` sin el guard `if entity_id == 0` que sí tenían el resto de entidades: al recrear desde guardado ignoraba el ID restaurado.
+- **Diagnóstico**: diff carácter a carácter de las entidades serializadas dentro del test de round-trip.
+- **Arreglo**: guard añadido; el test compara campo a campo y entidad a entidad.
+
+## P7 — Lambda tipada rompe con objetos liberados
+
+- **Síntoma**: spam de `Cannot convert argument 1 from Object to Object` en el limitador de voces al liberarse reproductores de audio.
+- **Causa**: `filter(func(p: Node) ...)` no puede convertir un objeto ya liberado al tipo `Node`.
+- **Arreglo**: parámetro `Variant` + `is_instance_valid`.
+
+## P7 — current_scene nulo en headless
+
+- **Síntoma**: errores al parentar partículas/ghost/línea de destino y al buscar World/CameraRig en el runner de tests (`current_scene` no existe en modo `-s`).
+- **Arreglo**: parenting local (`get_parent()`) y lookups por los grupos `world` / `camera_rig`.

@@ -99,6 +99,7 @@ func take_hit() -> bool:
 	var lean: float = deg_to_rad(LEAN_MAX_DEG) * (1.0 - float(hp) / float(MAX_HP))
 	_visual.rotation.x = lean
 	_spawn_splinters()
+	AudioDirector.play_at(&"chop", global_position, -4.0)
 	if hp <= 0:
 		_fall()
 		return true
@@ -242,7 +243,7 @@ func _one_shot_particles(at: Vector3, color: Color, count: int, life: float) -> 
 	mat.albedo_color = color
 	quad.material = mat
 	particles.draw_pass_1 = quad
-	get_tree().current_scene.add_child(particles)
+	get_parent().add_child(particles)
 	particles.global_position = at
 	particles.emitting = true
 	var cleanup: Tween = particles.create_tween()

@@ -70,6 +70,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"tool_zone"):
 		set_tool(&"zone")
 		return
+	if event.is_action_pressed(&"tool_demolish"):
+		set_tool(&"demolish")
+		return
+	if event.is_action_pressed(&"tool_info"):
+		set_tool(&"info")
+		return
 	if event.is_action_pressed(&"tool_cancel") and current_tool != &"none":
 		set_tool(&"none")
 		return
@@ -77,6 +83,68 @@ func _unhandled_input(event: InputEvent) -> void:
 		_zone_input(event)
 	elif current_tool == &"chop":
 		_chop_input(event)
+	elif current_tool == &"demolish":
+		_demolish_input(event)
+	else:
+		_select_input(event)
+
+
+## Selección (herramienta por defecto e Información): clic → panel lateral.
+func _select_input(event: InputEvent) -> void:
+	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+	if mouse_button == null or not mouse_button.pressed:
+		return
+	if mouse_button.button_index != MOUSE_BUTTON_LEFT or mouse_button.double_click:
+		return
+	var collider: Node = _selectable_at(mouse_button.position)
+	var entity_id: int = -1
+	if collider != null and collider.get(&"entity_id") != null:
+		entity_id = int(collider.get(&"entity_id"))
+	EventBus.selection_changed.emit(entity_id)
+
+
+## Demoler/Cancelar (C): obras y zonas; también desmarca árboles.
+func _demolish_input(event: InputEvent) -> void:
+	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+	if mouse_button == null or not mouse_button.pressed:
+		return
+	if mouse_button.button_index == MOUSE_BUTTON_RIGHT:
+		set_tool(&"none")
+		return
+	if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var collider: Node = _selectable_at(mouse_button.position)
+	if collider is TreeEntity:
+		_unmark(collider as TreeEntity)
+		return
+	var site: ConstructionSite = collider as ConstructionSite
+	if site == null:
+		return
+	if site.completed:
+		EventBus.toast.emit("La cabaña terminada no se puede demoler en esta build", &"warn")
+		return
+	GameState.add_resource(&"wood", site.delivered_total)
+	EventBus.toast.emit(
+		"Obra cancelada: %d de madera devuelta al carro" % site.delivered_total, &"info"
+	)
+	var site_pos: Vector2 = Vector2(site.global_position.x, site.global_position.z)
+	for node: Node in get_tree().get_nodes_in_group(&"zones"):
+		var zone: ZoneEntity = node as ZoneEntity
+		if zone != null and zone.rect.grow(1.0).has_point(site_pos):
+			zone.queue_free()
+	site.queue_free()
+
+
+func _selectable_at(screen_pos: Vector2) -> Node:
+	var origin: Vector3 = camera.project_ray_origin(screen_pos)
+	var direction: Vector3 = camera.project_ray_normal(screen_pos)
+	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
+		origin, origin + direction * 400.0, 1 << 7
+	)
+	var hit: Dictionary = camera.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return null
+	return hit["collider"]
 
 
 func _chop_input(event: InputEvent) -> void:
@@ -256,7 +324,7 @@ func _refresh_ghost() -> void:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		_ghost.material_override = mat
-		get_tree().current_scene.add_child(_ghost)
+		get_parent().add_child(_ghost)
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = Vector2(maxf(_zone_rect.size.x, 0.5), maxf(_zone_rect.size.y, 0.5))
 	_ghost.mesh = plane
@@ -344,7 +412,10 @@ func _zone_access_error(rect: Rect2, world: World3D) -> String:
 
 
 func _confirm_zone() -> void:
-	var world_root: Node3D = get_tree().current_scene.get_node("World/NavigationRegion3D")
+	var worlds: Array[Node] = get_tree().get_nodes_in_group(&"world")
+	if worlds.is_empty():
+		return
+	var world_root: Node3D = (worlds[0] as Node).get_node("NavigationRegion3D") as Node3D
 	var zone: ZoneEntity = ZoneEntity.create(_zone_rect)
 	world_root.add_child(zone)
 	EventBus.zone_confirmed.emit(zone.entity_id, _zone_rect, &"residential")

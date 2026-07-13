@@ -1,5 +1,17 @@
 # CHANGELOG — Hearthfolk
 
+## P7 — UI, audio, guardado y depuración (2026-07-13)
+
+- `tools/gen_audio.py` (solo numpy): 17 WAVs sintetizados — ambiente de bosque (ruido rosa Voss + LFO), viento, 4 pájaros (glissando), insectos nocturnos (AM), tala, caída de árbol, recogida, 4 pasos, martillo, fuego (ruido marrón + crepitación), clic/confirmación/error de UI.
+- `AudioDirector`: buses Master/Music/Ambience/SFX/UI, ambiente día/noche con crossfade, fuego posicional nocturno, pájaros espaciados, one-shots con límite de 3 voces, pasos por distancia recorrida, hooks de EventBus (tala, caída, recogida, toasts, fases de obra).
+- HUD (§12): barra superior día·hora·población·madera·comida + botones ⏸/×1/×2/×4 con estado; barra inferior de 5 herramientas con tooltips y atajos; panel lateral de habitante (actividad legible, hambre, energía, tarea) y de obra (fase, progreso, entregado, quién trabaja); línea sutil al destino del seleccionado; toasts apilados máx. 4 con auto-desvanecido.
+- Herramientas nuevas: Selección/Información (clic → panel) y Demoler (cancela obras con reembolso de madera y zonas; desmarca árboles).
+- Guardado completo (§14): captura por IDs estables, autosave 60 s reales (no en pausa), F5/F9, migraciones con defaults. Carga: regeneración determinista del mapa (mismos IDs de árboles), poda de árboles talados, recreación por ID de tocones/items/zonas/obras/habitantes, tareas regeneradas desde el mundo, cámara restaurada.
+- F3 completo (§15): FPS/ms, ticks/s, estados de habitantes, tareas libres/reservadas/fallos, rutas fallidas, atascos, entidades/nodos/cuerpos físicos, últimos avisos + 8 cheats + sliders de volumen.
+- Bugs cazados: `Citizen._ready` re-registraba IDs al cargar (round-trip roto), lambda tipada del limitador de voces reventaba con objetos liberados, `current_scene` nulo en headless (parenting robusto por grupos).
+- Tests: round-trip guardar→cargar→guardar semánticamente idéntico (campo a campo + diff por carácter), migración con campos ausentes. 28 métodos, 377 comprobaciones, 0 fallos.
+- Evidencia: `docs/screenshots/p7_hud.png`.
+
 ## P6 — Zonas y construcción (2026-07-13)
 
 - Receta `cottage_a.tres` (BuildingRecipe + 4 BuildingPhase: Cimientos 3, Estructura 4, Paredes 3, Tejado 2 = 12 madera).

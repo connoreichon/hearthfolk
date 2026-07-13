@@ -99,3 +99,9 @@ Verificado: suite → `Métodos: 24  Comprobaciones: 336  Fallos: 0` (madera del
 Hecho: receta/fases .tres, cabaña procedural por piezas con variación de semilla, ConstructionSite con demanda de material y 2 constructores, herramienta de zona con validación en vivo y razones, estados Supply/Build, rehorneado de navmesh, sueño en cabaña.
 
 Verificado: suite → `Métodos: 26  Comprobaciones: 353  Fallos: 0` (obra completa sola: 4 fases, madera 12→0, edificio final). Runs reales: `p6_building.png` (cimientos pieza a pieza + estacas… la fase de plano con cuerdas se ve al inicio), `p6_done.png` (cabaña terminada con tejado #A9503E). Ajuste anti-atasco: stand-off 4.0 m alrededor del agujero de navmesh de la obra.
+
+### P7 — UI, audio, guardado, depuración ✅
+
+Hecho: 17 WAVs por síntesis numpy (`python tools/gen_audio.py` → exit 0), AudioDirector completo con ambiente por fase y límite de voces, HUD §12 completo, herramientas Selección/Información/Demoler, guardado §14 con regeneración determinista y tareas reconstruidas del mundo, F3 §15 con 8 cheats y volúmenes.
+
+Verificado: suite → `Métodos: 28  Comprobaciones: 377  Fallos: 0` — incluye round-trip de guardado comparado campo a campo y entidad a entidad (diff por carácter). `docs/screenshots/p7_hud.png` (HUD + toast + árbol marcado, FPS=60). Tres bugs de raíz corregidos (BUGFIXES.md).

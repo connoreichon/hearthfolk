@@ -26,13 +26,18 @@ var _build_tasks: Array[int] = []
 var _sleepers: Array[int] = []
 
 
-static func place(parent: Node3D, at: Vector3, yaw: float, seed_value: int) -> ConstructionSite:
+static func place(
+	parent: Node3D, at: Vector3, yaw: float, seed_value: int, preset_id: int = 0
+) -> ConstructionSite:
 	var site: ConstructionSite = ConstructionSite.new()
 	site.name = "ConstructionSite"
 	site.building_seed = seed_value
 	site.recipe = load("res://data/buildings/cottage_a.tres")
 	site.collision_layer = (1 << 4) | (1 << 7)
 	site.collision_mask = 0
+	if preset_id != 0:
+		site.entity_id = preset_id
+		EntityRegistry.register_with_id(site, &"construction_site", preset_id)
 	parent.add_child(site)
 	site.global_position = at
 	site.rotation.y = yaw
@@ -260,10 +265,11 @@ func _reveal_pieces(phase: int, fraction: float) -> void:
 		pop.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 		pop.tween_property(piece, "scale", Vector3.ONE, 0.15)
 		_spawn_sawdust(piece.global_position)
+		AudioDirector.play_at(&"hammer", piece.global_position, -8.0)
 		_shown[phase] += 1
 
 
-func _complete() -> void:
+func _complete(announce: bool = true) -> void:
 	completed = true
 	stalled = false
 	phase_index = recipe.phases.size() + 1
@@ -271,8 +277,17 @@ func _complete() -> void:
 		_stakes.queue_free()
 		_stakes = null
 	add_to_group(&"buildings")
-	EventBus.construction_completed.emit(entity_id)
-	EventBus.toast.emit("¡Cabaña terminada!", &"success")
+	if announce:
+		EventBus.construction_completed.emit(entity_id)
+		EventBus.toast.emit("¡Cabaña terminada!", &"success")
+
+
+func debug_complete() -> void:
+	delivered_total = recipe.total_wood_cost()
+	if phase_index == 0:
+		phase_index = 1
+	while not completed:
+		apply_work(recipe.phases[phase_index - 1].work_units + 0.1)
 
 
 func _build_stakes() -> Node3D:
@@ -333,7 +348,7 @@ func _spawn_sawdust(at: Vector3) -> void:
 	mat.albedo_color = PaletteData.get_default().wood_light
 	quad.material = mat
 	particles.draw_pass_1 = quad
-	get_tree().current_scene.add_child(particles)
+	get_parent().add_child(particles)
 	particles.global_position = at
 	particles.emitting = true
 	var cleanup: Tween = particles.create_tween()
@@ -374,4 +389,4 @@ func load_data(d: Dictionary) -> void:
 		elif phase == phase_index:
 			_reveal_pieces(phase, work_progress / recipe.phases[phase - 1].work_units)
 	if completed:
-		_complete()
+		_complete(false)

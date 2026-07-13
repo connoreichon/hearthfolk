@@ -13,6 +13,7 @@ var _focus_tween: Tween
 
 
 func _ready() -> void:
+	add_to_group(&"camera_rig")
 	_cfg = CameraConfig.get_default()
 	arm.spring_length = _target_zoom
 	arm.collision_mask = 1
@@ -83,6 +84,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func set_zoom(zoom: float) -> void:
 	_target_zoom = clampf(zoom, _cfg.zoom_min, _cfg.zoom_max)
+
+
+func get_state() -> Dictionary:
+	return {
+		"pos": [position.x, position.y, position.z],
+		"yaw": rotation.y,
+		"zoom": _target_zoom,
+	}
+
+
+func set_state(d: Dictionary) -> void:
+	var pos: Array = d.get("pos", [0.0, 0.0, 6.0])
+	position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
+	rotation.y = float(d.get("yaw", 0.0))
+	set_zoom(float(d.get("zoom", 40.0)))
+	arm.spring_length = _target_zoom
 
 
 ## Centra suavemente el pivot en un punto (tween 0.4 s, ease out).

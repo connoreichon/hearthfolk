@@ -2,6 +2,7 @@ extends Node3D
 ## Monta el mundo: mapa procedural por semilla, luz, entorno y navmesh.
 
 const DEFAULT_SEED: int = 20260713
+const CITIZEN_SCENE: PackedScene = preload("res://scenes/citizens/citizen.tscn")
 
 var terrain_data: TerrainData
 var map_counts: Dictionary = {}
@@ -14,6 +15,7 @@ var _sky_mat: ProceduralSkyMaterial
 
 
 func _ready() -> void:
+	add_to_group(&"world")
 	if GameState.world_seed == 0:
 		GameState.setup_new_game(DEFAULT_SEED)
 		GameState.add_resource(&"food", 12)
@@ -36,6 +38,131 @@ func _ready() -> void:
 
 func _on_construction_changed(_building_id: int) -> void:
 	_bake_navmesh()
+
+
+## Reconstrucción completa desde un guardado (§14): purga, regeneración
+## determinista del mapa (mismos IDs de árboles) y recreación por ID.
+func rebuild_from_save(data: Dictionary) -> void:
+	TaskBoard.clear()
+	for child: Node in nav_region.get_children():
+		child.free()
+	var old_citizens: Array[Node] = get_tree().get_nodes_in_group(&"citizens")
+	for node: Node in old_citizens:
+		node.free()
+	var old_day_night: Node = get_node_or_null("DayNight")
+	if old_day_night != null:
+		old_day_night.free()
+	EntityRegistry.clear()
+
+	GameState.setup_new_game(int(data.get("seed", DEFAULT_SEED)))
+	var inv: Dictionary = data.get("inventory", {})
+	GameState.inventory = {
+		&"wood": int(inv.get("wood", 0)),
+		&"food": int(inv.get("food", 0)),
+		&"tools": int(inv.get("tools", 0)),
+	}
+	SimClock.day = int(data.get("day", 1))
+	SimClock.time_of_day = float(data.get("time_of_day", 0.25))
+	SimClock.elapsed_sim_seconds = (
+		float(SimClock.day - 1) * SimClock.DAY_LENGTH_SECONDS
+		+ SimClock.time_of_day * SimClock.DAY_LENGTH_SECONDS
+	)
+	SimClock.set_speed(int(data.get("speed", 1)))
+
+	var result: Dictionary = MapGenerator.generate(nav_region, GameState.derive_seed(["map"]))
+	terrain_data = result["terrain"]
+	map_counts = result["counts"]
+	GameState.terrain = terrain_data
+	_setup_day_night()
+
+	var saved_trees: Dictionary = {}
+	var others: Array = []
+	for entry: Dictionary in data.get("entities", []):
+		var kind: String = entry.get("kind", "")
+		var entity_data: Dictionary = entry.get("data", {})
+		if kind == "tree":
+			saved_trees[int(entity_data.get("id", 0))] = entity_data
+		else:
+			others.append(entry)
+
+	# Árboles: mismo orden de creación → mismos IDs; el que falta fue talado
+	var regenerated: Array[Node] = get_tree().get_nodes_in_group(&"trees")
+	for node: Node in regenerated:
+		var tree: TreeEntity = node as TreeEntity
+		if tree == null:
+			continue
+		if saved_trees.has(tree.entity_id):
+			tree.load_data(saved_trees[tree.entity_id])
+		else:
+			tree.free()
+
+	for entry: Dictionary in others:
+		_spawn_saved_entity(String(entry.get("kind", "")), entry.get("data", {}))
+
+	# Regenerar tareas desde la realidad del mundo (nunca se persisten)
+	for node: Node in get_tree().get_nodes_in_group(&"trees"):
+		var tree: TreeEntity = node as TreeEntity
+		if tree != null and tree.marked:
+			TaskBoard.publish(&"chop", tree.entity_id, {}, 5)
+	var dispatcher: HaulDispatcher = get_node_or_null("HaulDispatcher") as HaulDispatcher
+	if dispatcher != null:
+		dispatcher.rescan()
+	_bake_navmesh()
+
+
+func _spawn_saved_entity(kind: String, d: Dictionary) -> void:
+	var entity_id: int = int(d.get("id", 0))
+	match kind:
+		"citizen":
+			var citizen: Citizen = CITIZEN_SCENE.instantiate()
+			var citizen_name: String = String(d.get("name", "Elian")).to_lower()
+			citizen.data = load("res://data/citizens/%s.tres" % citizen_name)
+			citizen.entity_id = entity_id
+			EntityRegistry.register_with_id(citizen, &"citizen", entity_id)
+			add_child(citizen)
+			citizen.load_data(d)
+			# Los estados ligados a tareas no se restauran: las tareas se
+			# regeneran desde el mundo y FindTask las volverá a reclamar.
+			var state: StringName = StringName(String(d.get("state", "Idle")))
+			var restorable: Array[StringName] = [
+				&"Idle", &"Wander", &"Eat", &"Rest", &"ReturnToSettlement"
+			]
+			if state in restorable and citizen.state_machine.states.has(state):
+				citizen.state_machine.change(state)
+		"resource":
+			var item: ResourceItem = ResourceItem.create(
+				StringName(String(d.get("type", "wood"))),
+				int(d.get("amount", 2)),
+				int(d.get("seed", 0))
+			)
+			item.entity_id = entity_id
+			EntityRegistry.register_with_id(item, &"resource", entity_id)
+			nav_region.add_child(item)
+			item.load_data(d)
+		"stump":
+			var stump: StumpEntity = StumpEntity.create(int(d.get("seed", 0)))
+			stump.entity_id = entity_id
+			EntityRegistry.register_with_id(stump, &"stump", entity_id)
+			nav_region.add_child(stump)
+			stump.load_data(d)
+		"zone":
+			var zone: ZoneEntity = ZoneEntity.create(Rect2())
+			zone.entity_id = entity_id
+			EntityRegistry.register_with_id(zone, &"zone", entity_id)
+			nav_region.add_child(zone)
+			zone.load_data(d)
+		"construction_site":
+			var pos: Array = d.get("pos", [0.0, 0.0, 0.0])
+			var site: ConstructionSite = ConstructionSite.place(
+				nav_region,
+				Vector3(float(pos[0]), float(pos[1]), float(pos[2])),
+				float(d.get("rot_y", 0.0)),
+				int(d.get("seed", 0)),
+				entity_id
+			)
+			site.load_data(d)
+		_:
+			push_warning("World: tipo de entidad desconocido al cargar: %s" % kind)
 
 
 func _setup_light_and_environment() -> void:
@@ -97,10 +224,9 @@ func _bake_navmesh() -> void:
 
 ## Cuatro habitantes en anillo de 3 m alrededor de la fogata (§4).
 func _spawn_citizens() -> void:
-	var scene: PackedScene = load("res://scenes/citizens/citizen.tscn")
 	var names: Array[String] = ["elian", "mara", "tobin", "nessa"]
 	for i: int in names.size():
-		var citizen: Citizen = scene.instantiate()
+		var citizen: Citizen = CITIZEN_SCENE.instantiate()
 		citizen.data = load("res://data/citizens/%s.tres" % names[i])
 		add_child(citizen)
 		var ang: float = TAU * float(i) / float(names.size()) + 0.7

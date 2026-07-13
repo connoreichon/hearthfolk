@@ -69,6 +69,18 @@ func get_clock_text() -> String:
 	return "%02d:%02d" % [hours, minutes]
 
 
+## Cheat de depuración: saltar horas del reloj del juego.
+func advance_hours(hours: float) -> void:
+	var prev_phase: int = get_phase()
+	time_of_day += hours / 24.0
+	while time_of_day >= 1.0:
+		time_of_day -= 1.0
+		day += 1
+		day_changed.emit(day)
+	if get_phase() != prev_phase:
+		phase_changed.emit(get_phase())
+
+
 func reset(new_day: int = 1, new_time_of_day: float = 0.25) -> void:
 	day = new_day
 	time_of_day = new_time_of_day
