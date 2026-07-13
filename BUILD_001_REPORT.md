@@ -1,17 +1,11 @@
 # BUILD_001_REPORT — Hearthfolk
 
-## Repositorio remoto — ACCIÓN DEL USUARIO REQUERIDA
+## Repositorio remoto — RESUELTO
 
-La orden indicaba `https://github.com/connoreichon/hearthfolk.git`. Comprobado con `git ls-remote` (§-1.4): **el repositorio no existe** (`remote: Repository not found`, exit 128). Además pertenece a otra cuenta (la identidad git local es `fontanalex12`), así que siguiendo la propia orden se ha trabajado **solo en local** (un commit por fase, P0…P8) y sin crear repos ni introducir credenciales en tu nombre. Para subirlo a un repo tuyo:
+La orden indicaba `https://github.com/connoreichon/hearthfolk.git`. Durante la build, `git ls-remote` (§-1.4) confirmó que **no existía**, y como la identidad git local era otra (`fontanalex12`) se trabajó solo en local con un commit por fase. Tras confirmar el usuario que `connoreichon` es su cuenta (gh CLI autenticado en esta máquina), el repo se creó como **privado** y se subió todo:
 
-```powershell
-# 1. Crea el repo (con gh CLI autenticado):
-gh repo create hearthfolk --private --source "C:\Users\Usuario\Desktop\Hearthfolk" --push
-# — o a mano: crea el repo vacío en github.com y luego:
-cd "C:\Users\Usuario\Desktop\Hearthfolk"
-git remote add origin https://github.com/fontanalex12/hearthfolk.git
-git push -u origin main
-```
+- **https://github.com/connoreichon/hearthfolk** — rama `main`, historial completo P0…P8 + repaso.
+- Para hacerlo público: `gh repo edit connoreichon/hearthfolk --visibility public --accept-visibility-change-consequences`.
 
 ## Entorno
 
