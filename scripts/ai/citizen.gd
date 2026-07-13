@@ -19,6 +19,8 @@ var safety: float = 100.0
 var bond: float = 100.0
 
 var speed_modifier: float = 1.0
+var current_task_id: int = -1
+var status_icon: StatusIcon
 
 var _moving: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
@@ -46,6 +48,10 @@ func _ready() -> void:
 
 	nav_agent.path_desired_distance = 0.5
 	nav_agent.target_desired_distance = 0.35
+	# El navmesh queda hasta ~0.6 m por encima del origen (rasterizado con
+	# cell_height 0.3): sin este offset la comprobación 3D de llegada al
+	# waypoint nunca se cumple y el agente oscila en el sitio.
+	nav_agent.path_height_offset = 0.6
 	nav_agent.avoidance_enabled = true
 	nav_agent.radius = 0.35
 	nav_agent.neighbor_distance = 2.5
@@ -59,7 +65,16 @@ func _ready() -> void:
 	state_machine.add(StateEat.new())
 	state_machine.add(StateRest.new())
 	state_machine.add(StateReturnToSettlement.new())
+	state_machine.add(StateFindTask.new())
+	state_machine.add(StateMoveToResource.new())
+	state_machine.add(StateHarvest.new())
+	state_machine.add(StateRecoverFromStuck.new())
 	state_machine.change(&"Idle")
+
+	status_icon = StatusIcon.new()
+	status_icon.position = Vector3(0.0, 2.05, 0.0)
+	add_child(status_icon)
+	EventBus.citizen_state_changed.connect(_on_state_changed)
 
 	_last_pos = global_position
 	SimClock.sim_tick.connect(_on_sim_tick)
@@ -67,6 +82,11 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	EntityRegistry.unregister(entity_id)
+
+
+func _on_state_changed(changed_id: int, state: StringName) -> void:
+	if changed_id == entity_id and status_icon != null:
+		status_icon.show_for_state(state)
 
 
 func _on_sim_tick(dt: float) -> void:
@@ -94,17 +114,63 @@ func _decay_needs(dt: float) -> void:
 		_critical_sent = false
 
 
-## Prioridades (§7.3): comer y descansar interrumpen; la noche recoge a todos.
+## Prioridades (§7.3): comer y descansar interrumpen el trabajo; de noche
+## solo se termina la tarea en curso (los ociosos vuelven al asentamiento).
 func _check_interrupts() -> void:
 	var current: StringName = state_machine.current_name()
 	if current in [&"Eat", &"Rest", &"RecoverFromStuck"]:
 		return
 	if hunger < _cfg.hunger_threshold_eat and GameState.get_resource(&"food") > 0:
+		abandon_task(&"yield")
 		state_machine.change(&"Eat")
 	elif energy < _cfg.energy_threshold_rest:
+		abandon_task(&"yield")
 		state_machine.change(&"Rest")
-	elif SimClock.is_night() and current != &"ReturnToSettlement":
+	elif SimClock.is_night() and current in [&"Idle", &"Wander", &"FindTask"]:
 		state_machine.change(&"ReturnToSettlement")
+
+
+func current_task() -> TaskBoard.Task:
+	if current_task_id == -1:
+		return null
+	return TaskBoard.get_task(current_task_id)
+
+
+func task_target() -> Node3D:
+	var task: TaskBoard.Task = current_task()
+	if task == null:
+		return null
+	return EntityRegistry.get_node_by_id(task.target_id) as Node3D
+
+
+func abandon_task(reason: StringName) -> void:
+	if current_task_id == -1:
+		return
+	TaskBoard.release(current_task_id, entity_id, reason)
+	current_task_id = -1
+
+
+func face_towards(point: Vector3) -> void:
+	var dir: Vector3 = point - global_position
+	dir.y = 0.0
+	if dir.length_squared() > 0.001:
+		visual.rotation.y = atan2(dir.x, dir.z)
+
+
+## Apartarse del arco de caída de un árbol (§16).
+func dodge_away(from: Vector3, fall_dir: Vector3) -> void:
+	var side: Vector3 = fall_dir.cross(Vector3.UP).normalized()
+	if local_rng.randf() < 0.5:
+		side = -side
+	move_to(global_position + side * 3.0 + (global_position - from).normalized() * 1.5)
+
+
+## Teleport suave con fundido de escala (0.2 s).
+func fade_teleport(point: Vector3) -> void:
+	var tween: Tween = create_tween()
+	tween.tween_property(visual, "scale", Vector3.ONE * 0.05, 0.1)
+	tween.tween_callback(func() -> void: global_position = point)
+	tween.tween_property(visual, "scale", Vector3.ONE * data.height_scale, 0.1)
 
 
 func find_storage() -> Node3D:
@@ -164,6 +230,18 @@ func move_to(point: Vector3) -> void:
 	_moving = true
 
 
+## Acercarse a una entidad sin chocar con ella: objetivo desplazado
+## stand_off metros hacia el habitante y pegado al navmesh.
+func move_to_near(point: Vector3, stand_off: float) -> void:
+	var dir: Vector3 = global_position - point
+	dir.y = 0.0
+	if dir.length_squared() < 0.01:
+		dir = Vector3.FORWARD
+	var approach: Vector3 = point + dir.normalized() * stand_off
+	var map: RID = get_world_3d().navigation_map
+	move_to(NavigationServer3D.map_get_closest_point(map, approach))
+
+
 func stop_moving() -> void:
 	_moving = false
 	velocity = Vector3.ZERO
@@ -189,17 +267,7 @@ func _check_stuck(dt: float) -> void:
 	if _stuck_timer >= _cfg.stuck_seconds:
 		_stuck_timer = 0.0
 		EventBus.citizen_stuck.emit(entity_id, global_position)
-		_recover_from_stuck()
-
-
-func _recover_from_stuck() -> void:
-	var map: RID = get_world_3d().navigation_map
-	var ang: float = local_rng.randf() * TAU
-	var radius: float = local_rng.randf_range(2.0, 4.0)
-	var side_step: Vector3 = global_position + Vector3(cos(ang) * radius, 0.0, sin(ang) * radius)
-	var safe_point: Vector3 = NavigationServer3D.map_get_closest_point(map, side_step)
-	global_position = global_position.lerp(safe_point, 0.15)
-	state_machine.on_stuck()
+		state_machine.on_stuck()
 
 
 func entity_kind() -> StringName:

@@ -18,4 +18,4 @@ func enter() -> void:
 func tick(dt: float) -> void:
 	_wait -= dt
 	if _wait <= 0.0:
-		citizen.state_machine.change(&"Wander")
+		citizen.state_machine.change(&"FindTask")

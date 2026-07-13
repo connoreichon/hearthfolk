@@ -74,3 +74,16 @@ Verificado:
 - Run real: `docs/screenshots/p3_night.png` — noche con fogata encendida y habitantes tumbados (FPS=60).
 
 Nota (documentada en DECISIONS): "minuto de simulación" interpretado como 60 s de `elapsed_sim_seconds`; con los valores del contrato la primera comida por hambre natural tarda ~días in-game — el cheat F3 "Vaciar necesidades" (P7) permite demostrarlo al momento; el descanso nocturno ocurre cada día igualmente.
+
+### P4 — TaskBoard + tala + madera física ✅
+
+Hecho: FSM de trabajo completa (FindTask/MoveToResource/Harvest/RecoverFromStuck), TreeEntity con caída segura y 6 maderas físicas en 3 haces + tocón, herramienta de marcado con drag-box y validaciones, iconos de estado §5.5, obstáculos de navegación dinámicos.
+
+Verificado:
+
+- `gdformat`/`gdlint` limpios.
+- Tests → `Métodos: 23  Comprobaciones: 332  Fallos: 0` (tala end-to-end, claim único, wander y día/noche intactos).
+- Run real: `docs/screenshots/p4_chop.png` — árbol marcado con hacha flotante y habitante talando (FPS=60).
+- Dos bugs de raíz diagnosticados con sondas y corregidos (BUGFIXES.md): navegación congelada por desnivel navmesh/origen y repulsión en la llegada al tronco.
+
+Pendiente conocido: los mensajes "RID leaked at exit" aparecen solo al salir del runner de tests (recursos estáticos vivos en el momento del quit); se revisará en P8.

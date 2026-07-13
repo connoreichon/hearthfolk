@@ -1,5 +1,18 @@
 # CHANGELOG — Hearthfolk
 
+## P4 — TaskBoard, tala y madera física (2026-07-13)
+
+- Estados de trabajo: `FindTask` (prioridades §7.3, nunca actúa sin claim), `MoveToResource` (stand-off 1.15 m, timeout, purga de targets muertos), `Harvest` (golpe cada 1.2 s), `RecoverFromStuck` (reintento → apartarse → teleport suave + soltar tarea).
+- `TreeEntity` completo: hp 10, inclinación progresiva 6° con astillas, caída hacia el sector seguro (8 sectores, nunca hacia habitantes/obras; los del arco se apartan), rebote al caer, polvo, desvanecido y spawn de 6 unidades de madera en 3 haces + tocón persistente con anillos.
+- `ResourceItem` (haz físico de 1–2 troncos con ID y persistencia) y `StumpEntity`.
+- Árboles: NavigationObstacle3D dinámico en vez de horneado (talar no rehornea el navmesh).
+- Herramienta "Marcar tala" (T): cursor de hacha pixel-art procedural, hover con contorno (blanco válido / rojo "Demasiado joven" con tooltip), clic marca/desmarca publicando/cancelando tareas, caja de arrastre para marcado múltiple, validación de alcanzabilidad con toast "Sin acceso".
+- Marcado visual: contorno dorado permanente + hacha 3D flotante con giro.
+- Icono de estado sobre la cabeza (§5.5): hacha/fardo/martillo/pan/luna/interrogación como mini-meshes procedurales billboard, desvanecido a >32 m.
+- Bugs graves arreglados (ver BUGFIXES.md): congelación de navegación dependiente de semilla (`path_height_offset`), repulsión al llegar al tronco (stand-off).
+- Tests: tala completa (6 maderas + tocón + tarea purgada), sin doble reclamación. 23 métodos, 332 comprobaciones, 0 fallos.
+- Evidencia: `docs/screenshots/p4_chop.png`.
+
 ## P3 — Necesidades y día/noche (2026-07-13)
 
 - `DayNight`: sol rotando por `time_of_day`, color desde `daylight_gradient.tres` (Gradient) y energía desde `daylight_energy.tres` (Curve) — cero colores hardcodeados. Cielo y ambiente oscurecen de noche.

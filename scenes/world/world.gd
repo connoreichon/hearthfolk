@@ -78,8 +78,9 @@ func _bake_navmesh() -> void:
 	nav_mesh.cell_size = 0.3
 	nav_mesh.cell_height = 0.3
 	nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
-	# terrain(1) | tree(4) | building(16) | prop_static(32)
-	nav_mesh.geometry_collision_mask = 53
+	# terrain(1) | building(16) | prop_static(32). Los árboles NO se hornean:
+	# usan NavigationObstacle3D dinámico y así talar no obliga a rehornear.
+	nav_mesh.geometry_collision_mask = 49
 	nav_region.navigation_mesh = nav_mesh
 	nav_region.bake_navigation_mesh(false)
 
