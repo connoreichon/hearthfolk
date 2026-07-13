@@ -2,6 +2,10 @@
 
 Simulador de asentamiento orgánico. El jugador marca intenciones; los habitantes las interpretan, transportan materiales y construyen por fases.
 
+## Jugar directamente
+
+`build/Hearthfolk_001.exe` — ejecutable Windows autocontenido (pck embebido). Controles en `docs/CONTROLS.md`.
+
 ## Requisitos
 
 - Windows 10/11.

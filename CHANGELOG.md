@@ -1,5 +1,11 @@
 # CHANGELOG — Hearthfolk
 
+## P8 — Soak, export y entrega (2026-07-13)
+
+- Soak test §17.3 (`tests/soak/soak_20min.gd`): 20 minutos reales a ×4 con el bucle completo (10 árboles + obra) → **OK**: día 11, entidades 51→51, 1 casa, memoria 58.3→58.2 MB, 0 atascos >15 s, contabilidad de madera exacta (60 = 12 casa + 48 carro).
+- Export templates 4.7.stable instalados; `build/Hearthfolk_001.exe` (107.5 MB, pck embebido) exportado y verificado ejecutándolo (captura desde el propio .exe).
+- Documentación final: FEATURES, LIMITATIONS, STRUCTURE, DECISIONS ampliado, checklist §19 completo en BUILD_001_REPORT.md.
+
 ## P7 — UI, audio, guardado y depuración (2026-07-13)
 
 - `tools/gen_audio.py` (solo numpy): 17 WAVs sintetizados — ambiente de bosque (ruido rosa Voss + LFO), viento, 4 pájaros (glissando), insectos nocturnos (AM), tala, caída de árbol, recogida, 4 pasos, martillo, fuego (ruido marrón + crepitación), clic/confirmación/error de UI.

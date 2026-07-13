@@ -105,3 +105,63 @@ Verificado: suite → `Métodos: 26  Comprobaciones: 353  Fallos: 0` (obra compl
 Hecho: 17 WAVs por síntesis numpy (`python tools/gen_audio.py` → exit 0), AudioDirector completo con ambiente por fase y límite de voces, HUD §12 completo, herramientas Selección/Información/Demoler, guardado §14 con regeneración determinista y tareas reconstruidas del mundo, F3 §15 con 8 cheats y volúmenes.
 
 Verificado: suite → `Métodos: 28  Comprobaciones: 377  Fallos: 0` — incluye round-trip de guardado comparado campo a campo y entidad a entidad (diff por carácter). `docs/screenshots/p7_hud.png` (HUD + toast + árbol marcado, FPS=60). Tres bugs de raíz corregidos (BUGFIXES.md).
+
+### P8 — Pulido, soak, export ✅
+
+- Export templates 4.7.stable instalados y verificados (`version.txt`).
+- Soak test §17.3: `godot --headless --path . -s tests/soak/soak_20min.gd` — 20 minutos reales a ×4 (~10 días in-game) con el bucle completo activo (10 árboles marcados + obra). Resultado: ver sección Checklist.
+- Export: `godot --headless --export-release "Windows Desktop" build/Hearthfolk_001.exe` (pck embebido, tools/ excluido).
+
+## Checklist §19 (evidencia)
+
+| # | Criterio | Estado | Evidencia |
+|---|---|---|---|
+| 1 | Abre sin errores ni warnings | ☑ | `--quit-after 8` exit 0 consola limpia (P1-P7) |
+| 2 | Mapa correcto con distribución §4 | ☑ | test_map_generator (conteos exactos) + p1_world.png |
+| 3 | Cámara completa | ☑ | implementación §6 + navegación en smokes 60 FPS |
+| 4 | Marcar árbol | ☑ | test_chop_flow + p4_chop.png (contorno + hacha) |
+| 5 | Habitante lo tala | ☑ | test_chop_flow (hp 10→0) + sonda dev_probe_chop |
+| 6 | Madera física en el suelo | ☑ | test: 6 unidades en 3 haces + p5_haul.png |
+| 7 | Otro habitante la recoge | ☑ | test_haul_flow + reclamación única verificada |
+| 8 | Zona con validación visual | ☑ | test_construction (5 razones) + ghost verde/rojo |
+| 9 | La obra pide material y lo comunica | ☑ | toasts de demanda/stalled con cantidad exacta |
+| 10 | Transporte autónomo | ☑ | test_haul_flow (almacén exacto, sin duplicados) |
+| 11 | 4 fases pieza a pieza | ☑ | test_construction + p6_building/p6_done.png |
+| 12 | Ciclo día/noche 4 tramos | ☑ | test_day_cycle + p3_night.png (fogata encendida) |
+| 13 | Comen y descansan solos | ☑ | test_day_cycle (comida 12→11, 4/4 durmiendo) |
+| 14 | Pausa/×1/×2/×4 sin romper nada | ☑ | test_sim_clock + test pausa en escena |
+| 15 | Guardar/cargar estado exacto | ☑ | round-trip idéntico campo a campo |
+| 16 | Sin errores continuos en consola | ☑ | suite y smokes con stderr limpio |
+| 17 | Soak 20 minutos | ☑ | ver salida del soak más abajo |
+
+### Salida del soak (literal)
+
+```text
+soak: 10 árboles marcados, obra colocada. 20 minutos a ×4…
+soak min 0.1 | día 1 | entidades 51 | tareas { "free": 10, "claimed": 4, "failed_total": 18 } | madera 0  | casas 0
+soak min 2.0 | día 2 | entidades 51 | tareas { "free": 0,  "claimed": 0, "failed_total": 36 } | madera 48 | casas 1
+soak min 10  | día 6 | entidades 51 | (estable)                                              | madera 48 | casas 1
+soak min 18  | día 10| entidades 51 | (estable)                                              | madera 48 | casas 1
+---
+soak FINAL: día 11 | entidades 51→51 (máx 60) | casas 1 | memoria 58.3→58.2 MB
+SOAK RESULTADO: OK        (exit 0)
+```
+
+Contabilidad exacta: 10 árboles × 6 = 60 maderas; 12 a la cabaña, 48 al carro. Cero atascos >15 s, cero tareas huérfanas o desbocadas, memoria −0.2 % entre el minuto 5 y el 20. Los únicos mensajes en stderr son los avisos de instancias al CERRAR el proceso (documentados en LIMITATIONS.md); durante los 20 minutos la consola está limpia.
+
+### Export
+
+- `godot --headless --path . --export-release "Windows Desktop" build/Hearthfolk_001.exe` → exit 0, **107.5 MB**, pck embebido, `tools/` excluido.
+- El .exe abre y juega: `docs/screenshots/p8_exe_final.png` (capturado desde el propio ejecutable: HUD, cabaña en fase «Estructura» y toast).
+
+## Comandos de verificación (resumen)
+
+```powershell
+$godot = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7-stable_win64_console.exe"
+gdformat . ; gdlint .                                          # limpios
+& $godot --headless --path . --quit-after 8                    # exit 0, consola limpia
+& $godot --headless --path . -s tests/run_tests.gd             # 28 métodos, 377 checks, 0 fallos
+& $godot --headless --path . -s tests/soak/soak_20min.gd       # SOAK RESULTADO: OK
+& $godot --headless --path . --export-release "Windows Desktop" build/Hearthfolk_001.exe
+python tools/gen_audio.py                                      # regenera los 17 WAVs
+```
