@@ -11,3 +11,4 @@ Formato: `[FECHA] [ÁREA] Ambigüedad → Decisión → Motivo`
 - [2026-07-13] [ARQ] `TaskBoard.best_task_for(citizen: Citizen)` referenciaría una clase que no existe hasta P2 → firma `best_task_for(citizen_id: int, from_position: Vector3, kinds)` → evita dependencia circular autoload→clase de gameplay.
 - [2026-07-13] [DATOS] Sentido de la barra de hambre → 100 = saciado, 0 = famélico (recomendación de §7.1 adoptada) → todas las barras "más = mejor", consistente en código y UI.
 - [2026-07-13] [ENTORNO] Godot instalado vía winget (4.7 stable, sin symlink en PATH) → los scripts y docs usan la ruta completa del paquete winget → reproducible sin tocar PATH del usuario.
+- [2026-07-13] [DATOS] «minuto de simulación» ambiguo (¿60 s de sim o minuto in-game?) → 60 s de elapsed_sim_seconds → los valores del contrato §3 son literales; el hambre natural tarda días in-game en llegar al umbral, el cheat F3 lo acelera para demos. El descanso nocturno no depende de esto.

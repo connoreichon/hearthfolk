@@ -24,6 +24,7 @@ var _moving: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
 var _stuck_timer: float = 0.0
 var _cfg: SimConfig
+var _critical_sent: bool = false
 
 @onready var nav_agent: NavigationAgent3D = $NavAgent
 
@@ -55,6 +56,9 @@ func _ready() -> void:
 	state_machine = StateMachine.new(self)
 	state_machine.add(StateIdle.new())
 	state_machine.add(StateWander.new())
+	state_machine.add(StateEat.new())
+	state_machine.add(StateRest.new())
+	state_machine.add(StateReturnToSettlement.new())
 	state_machine.change(&"Idle")
 
 	_last_pos = global_position
@@ -66,8 +70,61 @@ func _exit_tree() -> void:
 
 
 func _on_sim_tick(dt: float) -> void:
+	_decay_needs(dt)
+	_check_interrupts()
 	state_machine.tick(dt)
 	_check_stuck(dt)
+
+
+func _decay_needs(dt: float) -> void:
+	var current: StringName = state_machine.current_name()
+	var working: bool = current in [&"Harvest", &"Build", &"CarryResource", &"DeliverResource"]
+	hunger = maxf(0.0, hunger - _cfg.hunger_per_sim_minute * dt / 60.0)
+	if current != &"Rest":
+		var rate: float = (
+			_cfg.energy_per_sim_minute_working if working else _cfg.energy_per_sim_minute_idle
+		)
+		energy = maxf(0.0, energy - rate * dt / 60.0)
+	# Sin comida y famélico: trabaja un 35 % más lento (§7.5). No hay muerte.
+	speed_modifier = 0.65 if hunger < 10.0 else 1.0
+	if hunger < 5.0 and not _critical_sent:
+		_critical_sent = true
+		EventBus.citizen_need_critical.emit(entity_id, &"hunger")
+	elif hunger > 30.0:
+		_critical_sent = false
+
+
+## Prioridades (§7.3): comer y descansar interrumpen; la noche recoge a todos.
+func _check_interrupts() -> void:
+	var current: StringName = state_machine.current_name()
+	if current in [&"Eat", &"Rest", &"RecoverFromStuck"]:
+		return
+	if hunger < _cfg.hunger_threshold_eat and GameState.get_resource(&"food") > 0:
+		state_machine.change(&"Eat")
+	elif energy < _cfg.energy_threshold_rest:
+		state_machine.change(&"Rest")
+	elif SimClock.is_night() and current != &"ReturnToSettlement":
+		state_machine.change(&"ReturnToSettlement")
+
+
+func find_storage() -> Node3D:
+	var nodes: Array[Node] = get_tree().get_nodes_in_group(&"storage")
+	if nodes.is_empty():
+		return null
+	return nodes[0] as Node3D
+
+
+## Punto de descanso repartido en círculo alrededor de la fogata.
+func rest_spot() -> Vector3:
+	var center: Vector3 = Vector3.ZERO
+	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
+	if not fires.is_empty():
+		center = (fires[0] as Node3D).global_position
+	var ang: float = float(entity_id % 8) * TAU / 8.0 + 0.4
+	var spot: Vector3 = center + Vector3(cos(ang) * 2.3, 0.0, sin(ang) * 2.3)
+	if GameState.terrain != null:
+		spot.y = GameState.terrain.get_height(spot.x, spot.z)
+	return spot
 
 
 func _physics_process(_delta: float) -> void:

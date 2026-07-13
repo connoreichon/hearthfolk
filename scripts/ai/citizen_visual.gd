@@ -127,8 +127,15 @@ func _process(delta: float) -> void:
 		match mode:
 			&"work":
 				_animate_work(delta)
+			&"rest":
+				_animate_rest(delta)
+				return
+			&"eat":
+				_animate_eat(delta)
 			_:
 				_animate_idle(delta)
+	# Volver de tumbado si no está descansando
+	rotation.x = lerp_angle(rotation.x, 0.0, 1.0 - exp(-5.0 * delta))
 
 
 func _animate_walk(delta: float) -> void:
@@ -184,6 +191,33 @@ func _animate_work(delta: float) -> void:
 	var squash: float = 1.0 - (0.06 if cycle >= 0.68 and cycle <= 0.78 else 0.0)
 	_hips.scale = Vector3(1.0, squash, 1.0)
 	_hips.position.y = _base_hips_y
+
+
+## Dormir: tumbado, respiración lenta (§5.4).
+func _animate_rest(delta: float) -> void:
+	var k: float = 1.0 - exp(-4.0 * delta)
+	rotation.x = lerp_angle(rotation.x, deg_to_rad(-84.0), k)
+	_leg_l.rotation.x = lerp_angle(_leg_l.rotation.x, deg_to_rad(6.0), k)
+	_leg_r.rotation.x = lerp_angle(_leg_r.rotation.x, deg_to_rad(-4.0), k)
+	_arm_l.rotation.x = lerp_angle(_arm_l.rotation.x, deg_to_rad(12.0), k)
+	_arm_r.rotation.x = lerp_angle(_arm_r.rotation.x, deg_to_rad(-10.0), k)
+	_torso.rotation.x = lerp_angle(_torso.rotation.x, 0.0, k)
+	_hips.position.y = lerpf(_hips.position.y, _base_hips_y * 0.55, k)
+	_work_t += delta
+	_chest.scale = Vector3.ONE * (1.0 + sin(_work_t * 1.1) * 0.025)
+
+
+## Comer: sentado, mano hacia la cara en bucle.
+func _animate_eat(delta: float) -> void:
+	var k: float = 1.0 - exp(-6.0 * delta)
+	_leg_l.rotation.x = lerp_angle(_leg_l.rotation.x, deg_to_rad(82.0), k)
+	_leg_r.rotation.x = lerp_angle(_leg_r.rotation.x, deg_to_rad(78.0), k)
+	_hips.position.y = lerpf(_hips.position.y, _base_hips_y * 0.55, k)
+	_work_t += delta
+	var chew: float = deg_to_rad(-95.0 + sin(_work_t * 4.0) * 18.0)
+	_arm_r.rotation.x = lerp_angle(_arm_r.rotation.x, chew, k)
+	_arm_l.rotation.x = lerp_angle(_arm_l.rotation.x, deg_to_rad(-20.0), k)
+	_torso.rotation.x = lerp_angle(_torso.rotation.x, deg_to_rad(6.0), k)
 
 
 func _limb_pivot(pivot_name: String, offset: Vector3) -> Node3D:

@@ -1,5 +1,17 @@
 # CHANGELOG — Hearthfolk
 
+## P3 — Necesidades y día/noche (2026-07-13)
+
+- `DayNight`: sol rotando por `time_of_day`, color desde `daylight_gradient.tres` (Gradient) y energía desde `daylight_energy.tres` (Curve) — cero colores hardcodeados. Cielo y ambiente oscurecen de noche.
+- Fogata: se enciende al atardecer (OmniLight con parpadeo por ruido, llamas emisivas con pulso, chispas GPUParticles3D).
+- Necesidades: decaimiento por sim_config (hambre 1.4/min sim; energía 1.8 trabajando / 0.6 idle; recuperación 8/min descansando). Hambre < 10 → −35 % velocidad. `citizen_need_critical` al cruzar 5.
+- Estados nuevos: `Eat` (va al carro, consume 1 comida, 4 s, hambre→100, toast si no hay), `Rest` (círculo alrededor de la fogata, tumbado con respiración, despierta al amanecer), `ReturnToSettlement` (noche recoge a todos).
+- Interrupciones §7.3: hambre < 25 → Eat; energía < 20 → Rest; noche → Return.
+- Velocidades: Espacio pausa (reanuda a la anterior), 1/2/3 = ×1/×2/×4.
+- Animaciones: comer sentado con bucle de mano, dormir tumbado con respiración lenta.
+- Tests: comer del carro (comida 12→11), 4/4 descansando de noche con fogata encendida, pausa congela reloj y movimiento. 21 métodos, 126 comprobaciones, 0 fallos.
+- Evidencia: `docs/screenshots/p3_night.png`.
+
 ## P2 — Habitantes visuales (2026-07-13)
 
 - `CitizenVisual`: figura humana estilizada por primitivas biseladas (piernas, cintura+pecho, brazos con manos, cuello, cabeza ovoide, pelo casquete+flequillo), cabeza ≈1/5 de altura, ~1.6 m. Cero cápsulas visibles.

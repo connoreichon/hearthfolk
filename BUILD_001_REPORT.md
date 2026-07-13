@@ -62,3 +62,15 @@ Verificado:
 - Run real: `docs/screenshots/p2_citizens.png`, FPS=60.
 
 Fuera de alcance de P2: icono de estado sobre la cabeza (§5.5) → llega en P4 cuando existen estados de trabajo distinguibles.
+
+### P3 — SimClock, necesidades, día/noche ✅
+
+Hecho: ciclo día/noche con gradientes .tres, fogata nocturna con llamas/chispas/parpadeo, necesidades con decaimiento de sim_config, estados Eat/Rest/Return con interrupciones §7.3, velocidades Espacio/1/2/3.
+
+Verificado:
+
+- `gdformat`/`gdlint` limpios.
+- Tests → `Métodos: 21  Comprobaciones: 126  Fallos: 0` (comer, dormir de noche 4/4, fogata >0.5 de energía, pausa congela reloj y posiciones).
+- Run real: `docs/screenshots/p3_night.png` — noche con fogata encendida y habitantes tumbados (FPS=60).
+
+Nota (documentada en DECISIONS): "minuto de simulación" interpretado como 60 s de `elapsed_sim_seconds`; con los valores del contrato la primera comida por hambre natural tarda ~días in-game — el cheat F3 "Vaciar necesidades" (P7) permite demostrarlo al momento; el descanso nocturno ocurre cada día igualmente.

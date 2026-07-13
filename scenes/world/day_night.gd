@@ -1,0 +1,65 @@
+class_name DayNight
+extends Node
+## Ciclo día/noche (§11): rota el sol, aplica gradientes de color/energía
+## desde .tres (nada hardcodeado) y enciende la fogata al atardecer.
+
+var sun: DirectionalLight3D
+var environment: Environment
+var sky_material: ProceduralSkyMaterial
+var fire_light: OmniLight3D
+var flame: Node3D
+var sparks: GPUParticles3D
+
+var _color_gradient: Gradient = load("res://data/config/daylight_gradient.tres")
+var _energy_curve: Curve = load("res://data/config/daylight_energy.tres")
+var _flicker_noise: FastNoiseLite = FastNoiseLite.new()
+var _flicker_t: float = 0.0
+
+var _day_sky_top: Color = Color("#6E9BC4")
+var _day_horizon: Color = Color("#C9D6C2")
+var _night_sky_top: Color = Color("#141C2B")
+var _night_horizon: Color = Color("#28364B")
+
+
+func _ready() -> void:
+	_flicker_noise.seed = 99
+	_flicker_noise.frequency = 3.0
+
+
+func _process(delta: float) -> void:
+	if sun == null:
+		return
+	var t: float = SimClock.time_of_day
+	# Sol: horizonte en t≈0.05, cénit en t≈0.375, se pone en t≈0.70
+	sun.rotation_degrees.x = -((t - 0.05) / 0.65) * 180.0
+	sun.light_color = _color_gradient.sample(t)
+	sun.light_energy = _energy_curve.sample_baked(t)
+
+	var night_f: float = 1.0 - clampf(inverse_lerp(0.14, 0.9, sun.light_energy), 0.0, 1.0)
+	if sky_material != null:
+		sky_material.sky_top_color = _day_sky_top.lerp(_night_sky_top, night_f)
+		sky_material.sky_horizon_color = _day_horizon.lerp(_night_horizon, night_f)
+		sky_material.ground_horizon_color = _day_horizon.lerp(_night_horizon, night_f)
+	if environment != null:
+		environment.ambient_light_energy = lerpf(1.0, 0.4, night_f)
+
+	_update_fire(delta)
+
+
+func _update_fire(delta: float) -> void:
+	if fire_light == null:
+		return
+	var lit: bool = SimClock.get_phase() >= SimClock.Phase.DUSK
+	var target: float = 2.4 if lit else 0.0
+	if sparks != null and sparks.emitting != lit:
+		sparks.emitting = lit
+	# Parpadeo con ruido (delta real: cosmético)
+	_flicker_t += delta
+	var flicker: float = 1.0 + _flicker_noise.get_noise_1d(_flicker_t * 60.0) * 0.25
+	fire_light.light_energy = lerpf(
+		fire_light.light_energy, target * flicker, 1.0 - exp(-4.0 * delta)
+	)
+	if flame != null:
+		flame.visible = fire_light.light_energy > 0.15
+		var pulse: float = 1.0 + _flicker_noise.get_noise_1d(_flicker_t * 45.0 + 500.0) * 0.12
+		flame.scale = Vector3.ONE * pulse

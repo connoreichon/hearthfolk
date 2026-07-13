@@ -146,6 +146,50 @@ static func campfire(seed_value: int) -> Node3D:
 	light.position = Vector3(0.0, 0.8, 0.0)
 	light.shadow_enabled = true
 	root.add_child(light)
+
+	var flame: Node3D = Node3D.new()
+	flame.name = "Flame"
+	flame.visible = false
+	var flame_mat: StandardMaterial3D = StandardMaterial3D.new()
+	flame_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flame_mat.albedo_color = palette.warm_light
+	flame_mat.emission_enabled = true
+	flame_mat.emission = palette.warm_light
+	flame_mat.emission_energy_multiplier = 2.6
+	for flame_i: int in 3:
+		var cone: MeshInstance3D = MeshInstance3D.new()
+		cone.name = "Cone%d" % flame_i
+		cone.mesh = MeshLib.cone(0.16 - float(flame_i) * 0.04, 0.5 + float(flame_i) * 0.2, 7)
+		cone.material_override = flame_mat
+		cone.position = Vector3(rng.randf_range(-0.06, 0.06), 0.14, rng.randf_range(-0.06, 0.06))
+		flame.add_child(cone)
+	root.add_child(flame)
+
+	var sparks: GPUParticles3D = GPUParticles3D.new()
+	sparks.name = "Sparks"
+	sparks.amount = 14
+	sparks.lifetime = 1.3
+	sparks.emitting = false
+	sparks.position = Vector3(0.0, 0.5, 0.0)
+	var proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
+	proc.direction = Vector3(0.0, 1.0, 0.0)
+	proc.spread = 14.0
+	proc.initial_velocity_min = 0.7
+	proc.initial_velocity_max = 1.6
+	proc.gravity = Vector3(0.0, 0.4, 0.0)
+	proc.scale_min = 0.03
+	proc.scale_max = 0.07
+	proc.color = palette.warm_light
+	sparks.process_material = proc
+	var spark_mesh: QuadMesh = QuadMesh.new()
+	spark_mesh.size = Vector2(0.06, 0.06)
+	var spark_mat: StandardMaterial3D = StandardMaterial3D.new()
+	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	spark_mat.albedo_color = palette.warm_light
+	spark_mesh.material = spark_mat
+	sparks.draw_pass_1 = spark_mesh
+	root.add_child(sparks)
 	return root
 
 

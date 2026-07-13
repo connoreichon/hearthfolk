@@ -6,6 +6,10 @@ const DEFAULT_SEED: int = 20260713
 var terrain_data: TerrainData
 var map_counts: Dictionary = {}
 
+var _sun: DirectionalLight3D
+var _env: Environment
+var _sky_mat: ProceduralSkyMaterial
+
 @onready var nav_region: NavigationRegion3D = $NavigationRegion3D
 
 
@@ -21,11 +25,13 @@ func _ready() -> void:
 	_setup_light_and_environment()
 	_bake_navmesh()
 	_spawn_citizens()
+	_setup_day_night()
 
 
 func _setup_light_and_environment() -> void:
 	var palette: PaletteData = PaletteData.get_default()
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
+	_sun = sun
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-52.0, 35.0, 0.0)
 	sun.light_energy = 1.15
@@ -47,6 +53,8 @@ func _setup_light_and_environment() -> void:
 	var sky: Sky = Sky.new()
 	sky.sky_material = sky_mat
 	env.sky = sky
+	_sky_mat = sky_mat
+	_env = env
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.0
@@ -89,3 +97,18 @@ func _spawn_citizens() -> void:
 		pos.y = terrain_data.get_height(pos.x, pos.z) + 0.05
 		citizen.global_position = pos
 		citizen.visual.rotation.y = ang + PI * 0.5
+
+
+func _setup_day_night() -> void:
+	var day_night: DayNight = DayNight.new()
+	day_night.name = "DayNight"
+	day_night.sun = _sun
+	day_night.environment = _env
+	day_night.sky_material = _sky_mat
+	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
+	if not fires.is_empty():
+		var fire: Node = fires[0]
+		day_night.fire_light = fire.get_node_or_null("Campfire/FireLight") as OmniLight3D
+		day_night.flame = fire.get_node_or_null("Campfire/Flame") as Node3D
+		day_night.sparks = fire.get_node_or_null("Campfire/Sparks") as GPUParticles3D
+	add_child(day_night)
