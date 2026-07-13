@@ -29,6 +29,13 @@ func _ready() -> void:
 	var dispatcher: HaulDispatcher = HaulDispatcher.new()
 	dispatcher.name = "HaulDispatcher"
 	add_child(dispatcher)
+	# Las obras alteran la navegación: rehornear al empezar y al terminar
+	EventBus.construction_started.connect(_on_construction_changed)
+	EventBus.construction_completed.connect(_on_construction_changed)
+
+
+func _on_construction_changed(_building_id: int) -> void:
+	_bake_navmesh()
 
 
 func _setup_light_and_environment() -> void:

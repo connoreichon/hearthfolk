@@ -74,6 +74,8 @@ func _ready() -> void:
 	state_machine.add(StateHarvest.new())
 	state_machine.add(StateCarryResource.new())
 	state_machine.add(StateDeliverResource.new())
+	state_machine.add(StateSupply.new())
+	state_machine.add(StateBuild.new())
 	state_machine.add(StateRecoverFromStuck.new())
 	state_machine.change(&"Idle")
 
@@ -188,6 +190,15 @@ func pick_up(item: ResourceItem) -> void:
 	EventBus.resource_picked.emit(item.entity_id, entity_id)
 	item.queue_free()
 	_carry_visual = _build_carry_visual(carrying_amount)
+	visual.hands_node().add_child(_carry_visual)
+	visual.mode = &"carry"
+
+
+## Cargar madera tomada del almacén (sin item físico de por medio).
+func load_carry(type: StringName, amount: int) -> void:
+	carrying_type = type
+	carrying_amount = amount
+	_carry_visual = _build_carry_visual(amount)
 	visual.hands_node().add_child(_carry_visual)
 	visual.mode = &"carry"
 

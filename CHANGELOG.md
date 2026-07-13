@@ -1,5 +1,18 @@
 # CHANGELOG — Hearthfolk
 
+## P6 — Zonas y construcción (2026-07-13)
+
+- Receta `cottage_a.tres` (BuildingRecipe + 4 BuildingPhase: Cimientos 3, Estructura 4, Paredes 3, Tejado 2 = 12 madera).
+- `CottageGen`: cabaña 5×4 m por ~36 piezas biseladas con variación por semilla (ventana 3 opciones, tejado ±6°, banco 50 %, color secundario); puerta orientada hacia la fogata en pasos de 90° al colocar. Luz cálida en la ventana cuando alguien duerme dentro de noche.
+- `ConstructionSite`: fase 0 con estacas y cuerdas, demanda de material por tareas `supply` (con reserva y cancelación si llega madera del suelo), hasta 2 constructores (`build` tasks), piezas apareciendo una a una con pop 0.9→1.0 y serrín, `construction_stalled` con toast del material exacto que falta, conversión a edificio al terminar (2 plazas de sueño).
+- Estados `Supply` (carro→obra con carga visible) y `Build` (martilleo, suelta si falta material).
+- La madera del suelo va primero a la obra que la necesita, después al carro (§7.3).
+- Herramienta "Zona residencial" (R): rectángulo con snap 0.5 m, ghost verde/rojo translúcido y texto explicando POR QUÉ es inválida (pequeña/fuera/agua/pendiente/árboles/obstáculos/solapes/sin acceso); al confirmar nace zona persistente + obra.
+- Navmesh rehorneado al empezar y terminar obras; stand-off de obra 4.0 m (evita atascos en el agujero del navmesh).
+- Dormir en cabaña: hasta 2 dentro (ocultos), resto junto a la fogata.
+- Tests: obra completa de principio a fin (4 fases, 12 maderas consumidas, ≥30 piezas visibles), reglas de validación de zona. 26 métodos, 353 comprobaciones, 0 fallos.
+- Evidencia: `docs/screenshots/p6_building.png` (cimientos), `p6_done.png` (terminada).
+
 ## P5 — Transporte (2026-07-13)
 
 - `HaulDispatcher`: publica tareas `haul` (prioridad 4, por delante de la tala) cuando aparece madera; al cargar partida regenera tareas desde el mundo real.

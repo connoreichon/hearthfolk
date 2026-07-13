@@ -20,7 +20,7 @@ func enter() -> void:
 		citizen.state_machine.change(&"FindTask")
 		return
 	citizen.visual.mode = &"carry"
-	citizen.move_to_near(dest.global_position, 1.6)
+	citizen.move_to_near(dest.global_position, 4.0 if dest is ConstructionSite else 1.6)
 
 
 func tick(dt: float) -> void:
@@ -31,7 +31,8 @@ func tick(dt: float) -> void:
 		citizen.abandon_task(&"unreachable")
 		citizen.state_machine.change(&"FindTask")
 		return
-	var close: bool = citizen.global_position.distance_to(dest.global_position) < 2.4
+	var arrive_dist: float = 4.8 if dest is ConstructionSite else 2.4
+	var close: bool = citizen.global_position.distance_to(dest.global_position) < arrive_dist
 	if citizen.nav_finished() or close:
 		citizen.stop_moving()
 		citizen.deliver_carry(dest)
@@ -46,9 +47,24 @@ func on_stuck() -> void:
 	citizen.state_machine.change(&"RecoverFromStuck")
 
 
-## P5: siempre el carro. En P6 las obras que esperan material tienen prioridad.
+## La madera del suelo va primero a la obra que la necesita (§7.3);
+## si no hay obra con demanda, al carro.
 func _destination() -> Node3D:
 	var task: TaskBoard.Task = citizen.current_task()
 	if task != null and task.payload.has("site_id"):
 		return EntityRegistry.get_node_by_id(int(task.payload["site_id"])) as Node3D
+	var best_site: ConstructionSite = null
+	var best_d: float = INF
+	for node: Node in citizen.get_tree().get_nodes_in_group(&"construction_sites"):
+		var site: ConstructionSite = node as ConstructionSite
+		if site == null or site.completed:
+			continue
+		if site.delivered_total >= site.recipe.total_wood_cost():
+			continue
+		var d: float = site.global_position.distance_to(citizen.global_position)
+		if d < best_d:
+			best_d = d
+			best_site = site
+	if best_site != null:
+		return best_site
 	return citizen.find_storage()

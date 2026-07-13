@@ -15,6 +15,14 @@ var _drag_start: Vector2 = Vector2.ZERO
 var _box: Panel
 var _axe_cursor: ImageTexture
 
+var _zone_dragging: bool = false
+var _zone_start: Vector3 = Vector3.ZERO
+var _zone_rect: Rect2 = Rect2()
+var _zone_valid: bool = false
+var _zone_reason: String = ""
+var _ghost: MeshInstance3D
+var _zone_label: Label
+
 
 func _ready() -> void:
 	var layer: CanvasLayer = CanvasLayer.new()
@@ -30,6 +38,13 @@ func _ready() -> void:
 	style.set_border_width_all(2)
 	_box.add_theme_stylebox_override(&"panel", style)
 	layer.add_child(_box)
+	_zone_label = Label.new()
+	_zone_label.visible = false
+	_zone_label.add_theme_color_override(&"font_color", palette.ui_text)
+	_zone_label.add_theme_color_override(&"font_shadow_color", palette.ui_panel)
+	_zone_label.add_theme_constant_override(&"shadow_offset_x", 1)
+	_zone_label.add_theme_constant_override(&"shadow_offset_y", 1)
+	layer.add_child(_zone_label)
 	_axe_cursor = _make_axe_cursor()
 
 
@@ -39,10 +54,12 @@ func set_tool(tool: StringName) -> void:
 	current_tool = tool
 	_set_hover(null)
 	_cancel_drag()
+	_cancel_zone()
 	if tool == &"chop":
 		Input.set_custom_mouse_cursor(_axe_cursor, Input.CURSOR_ARROW, Vector2(4.0, 4.0))
 	else:
 		Input.set_custom_mouse_cursor(null)
+	Input.set_default_cursor_shape(Input.CURSOR_CROSS if tool == &"zone" else Input.CURSOR_ARROW)
 	EventBus.tool_changed.emit(current_tool)
 
 
@@ -50,12 +67,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"tool_chop"):
 		set_tool(&"chop")
 		return
+	if event.is_action_pressed(&"tool_zone"):
+		set_tool(&"zone")
+		return
 	if event.is_action_pressed(&"tool_cancel") and current_tool != &"none":
 		set_tool(&"none")
 		return
-	if current_tool != &"chop":
-		return
+	if current_tool == &"zone":
+		_zone_input(event)
+	elif current_tool == &"chop":
+		_chop_input(event)
 
+
+func _chop_input(event: InputEvent) -> void:
 	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
 	if mouse_button != null:
 		if mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
@@ -166,6 +190,189 @@ func _cancel_drag() -> void:
 	_pressing = false
 	_dragging = false
 	_box.visible = false
+
+
+## --- Zona residencial (R): dibujar rectángulo con validación en vivo ---
+func _zone_input(event: InputEvent) -> void:
+	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+	if mouse_button != null:
+		if mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
+			set_tool(&"none")
+			return
+		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_button.pressed:
+				var hit: Vector3 = _terrain_point(mouse_button.position)
+				if hit != Vector3.INF:
+					_zone_dragging = true
+					_zone_start = hit
+					_update_zone_rect(hit)
+			elif _zone_dragging:
+				if _zone_valid:
+					_confirm_zone()
+				else:
+					EventBus.toast.emit("Zona inválida: %s" % _zone_reason, &"warn")
+				_cancel_zone()
+		return
+	var motion: InputEventMouseMotion = event as InputEventMouseMotion
+	if motion != null and _zone_dragging:
+		var hit: Vector3 = _terrain_point(motion.position)
+		if hit != Vector3.INF:
+			_update_zone_rect(hit)
+		_zone_label.position = motion.position + Vector2(18.0, 12.0)
+
+
+func _terrain_point(screen_pos: Vector2) -> Vector3:
+	var origin: Vector3 = camera.project_ray_origin(screen_pos)
+	var direction: Vector3 = camera.project_ray_normal(screen_pos)
+	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
+		origin, origin + direction * 500.0, 1
+	)
+	var hit: Dictionary = camera.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return Vector3.INF
+	return hit["position"]
+
+
+func _update_zone_rect(current: Vector3) -> void:
+	var min_x: float = snappedf(minf(_zone_start.x, current.x), 0.5)
+	var min_z: float = snappedf(minf(_zone_start.z, current.z), 0.5)
+	var max_x: float = snappedf(maxf(_zone_start.x, current.x), 0.5)
+	var max_z: float = snappedf(maxf(_zone_start.z, current.z), 0.5)
+	var size_x: float = minf(max_x - min_x, 14.0)
+	var size_z: float = minf(max_z - min_z, 14.0)
+	_zone_rect = Rect2(min_x, min_z, size_x, size_z)
+	var verdict: Dictionary = validate_zone(_zone_rect, camera.get_world_3d())
+	_zone_valid = verdict["valid"]
+	_zone_reason = verdict["reason"]
+	_refresh_ghost()
+
+
+func _refresh_ghost() -> void:
+	var palette: PaletteData = PaletteData.get_default()
+	if _ghost == null:
+		_ghost = MeshInstance3D.new()
+		_ghost.name = "ZoneGhost"
+		var mat: StandardMaterial3D = StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_ghost.material_override = mat
+		get_tree().current_scene.add_child(_ghost)
+	var plane: PlaneMesh = PlaneMesh.new()
+	plane.size = Vector2(maxf(_zone_rect.size.x, 0.5), maxf(_zone_rect.size.y, 0.5))
+	_ghost.mesh = plane
+	var center: Vector2 = _zone_rect.get_center()
+	var y: float = 0.1
+	if GameState.terrain != null:
+		y = GameState.terrain.get_height(center.x, center.y) + 0.12
+	_ghost.position = Vector3(center.x, y, center.y)
+	var mat: StandardMaterial3D = _ghost.material_override
+	mat.albedo_color = (
+		Color(palette.grass_light, 0.35) if _zone_valid else Color(palette.roof, 0.4)
+	)
+	_ghost.visible = true
+	_zone_label.visible = true
+	_zone_label.text = ("Zona válida — suelta para confirmar" if _zone_valid else _zone_reason)
+
+
+## Validación §9. Siempre explica POR QUÉ no es válida.
+func validate_zone(rect: Rect2, world: World3D) -> Dictionary:
+	var reason: String = _zone_geometry_error(rect)
+	if reason.is_empty():
+		reason = _zone_overlap_error(rect)
+	if reason.is_empty():
+		reason = _zone_access_error(rect, world)
+	return {"valid": reason.is_empty(), "reason": reason}
+
+
+func _zone_geometry_error(rect: Rect2) -> String:
+	if rect.size.x < 6.0 or rect.size.y < 6.0:
+		return "Demasiado pequeña (mínimo 6×6 m)"
+	var terrain: TerrainData = GameState.terrain
+	if terrain == null:
+		return "Sin terreno"
+	var corners: Array[Vector2] = [
+		rect.position,
+		rect.end,
+		Vector2(rect.position.x, rect.end.y),
+		Vector2(rect.end.x, rect.position.y),
+	]
+	for corner: Vector2 in corners:
+		if not terrain.is_inside(corner.x, corner.y, 2.0):
+			return "Fuera del mapa"
+	if rect.position.x < -44.0:
+		return "Sobre el agua"
+	var slope_total: float = 0.0
+	for ix: int in 5:
+		for iz: int in 5:
+			var sx: float = rect.position.x + rect.size.x * float(ix) / 4.0
+			var sz: float = rect.position.y + rect.size.y * float(iz) / 4.0
+			slope_total += terrain.get_slope_deg(sx, sz)
+	if slope_total / 25.0 > 8.0:
+		return "Terreno demasiado inclinado"
+	return ""
+
+
+func _zone_overlap_error(rect: Rect2) -> String:
+	var grown: Rect2 = rect.grow(0.5)
+	for group: StringName in [&"trees", &"rocks_big", &"storage", &"campfire"]:
+		for node: Node in get_tree().get_nodes_in_group(group):
+			var pos: Vector3 = (node as Node3D).global_position
+			if grown.has_point(Vector2(pos.x, pos.z)):
+				return "Hay árboles dentro" if group == &"trees" else "Hay obstáculos dentro"
+	for node: Node in get_tree().get_nodes_in_group(&"construction_sites"):
+		var pos: Vector3 = (node as Node3D).global_position
+		if grown.grow(2.5).has_point(Vector2(pos.x, pos.z)):
+			return "Solapa otra construcción"
+	for node: Node in get_tree().get_nodes_in_group(&"zones"):
+		var zone: ZoneEntity = node as ZoneEntity
+		if zone != null and grown.intersects(zone.rect):
+			return "Solapa otra zona"
+	return ""
+
+
+func _zone_access_error(rect: Rect2, world: World3D) -> String:
+	var terrain: TerrainData = GameState.terrain
+	var center: Vector2 = rect.get_center()
+	var fire_pos: Vector3 = Vector3.ZERO
+	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
+	if not fires.is_empty():
+		fire_pos = (fires[0] as Node3D).global_position
+	var center_3d: Vector3 = Vector3(center.x, terrain.get_height(center.x, center.y), center.y)
+	if not NavUtil.is_reachable(world, fire_pos, center_3d, 3.5):
+		return "Sin acceso desde el asentamiento"
+	return ""
+
+
+func _confirm_zone() -> void:
+	var world_root: Node3D = get_tree().current_scene.get_node("World/NavigationRegion3D")
+	var zone: ZoneEntity = ZoneEntity.create(_zone_rect)
+	world_root.add_child(zone)
+	EventBus.zone_confirmed.emit(zone.entity_id, _zone_rect, &"residential")
+	var center: Vector2 = _zone_rect.get_center()
+	var at: Vector3 = Vector3(center.x, GameState.terrain.get_height(center.x, center.y), center.y)
+	# Orientación: la puerta (+X local) hacia la fogata, en pasos de 90°
+	var fire_pos: Vector3 = Vector3.ZERO
+	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
+	if not fires.is_empty():
+		fire_pos = (fires[0] as Node3D).global_position
+	var to_fire: Vector3 = fire_pos - at
+	var yaw: float = snappedf(atan2(to_fire.x, to_fire.z) - PI * 0.5, PI * 0.5)
+	var site_seed: int = GameState.derive_seed(["cottage", zone.entity_id])
+	var site: ConstructionSite = ConstructionSite.place(world_root, at, yaw, site_seed)
+	EventBus.toast.emit(
+		"Zona residencial confirmada: la cabaña pide %d de madera" % site.recipe.total_wood_cost(),
+		&"info"
+	)
+	set_tool(&"none")
+
+
+func _cancel_zone() -> void:
+	_zone_dragging = false
+	if _ghost != null and is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+	if _zone_label != null:
+		_zone_label.visible = false
 
 
 ## Cursor de hacha 24×24 dibujado a mano, sin assets externos.

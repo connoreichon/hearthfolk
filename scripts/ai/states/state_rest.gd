@@ -4,6 +4,7 @@ extends CitizenState
 ## La energía sube según sim_config; despiertan al amanecer.
 
 var _sleeping: bool = false
+var _cottage: ConstructionSite
 
 
 func state_name() -> StringName:
@@ -12,9 +13,12 @@ func state_name() -> StringName:
 
 func enter() -> void:
 	_sleeping = false
-	var spot: Vector3 = citizen.rest_spot()
+	_cottage = _claim_cottage()
 	citizen.visual.mode = &"walk"
-	citizen.move_to(spot)
+	if _cottage != null:
+		citizen.move_to(_cottage.door_position())
+	else:
+		citizen.move_to(citizen.rest_spot())
 
 
 func tick(dt: float) -> void:
@@ -23,7 +27,11 @@ func tick(dt: float) -> void:
 			return
 		citizen.stop_moving()
 		_sleeping = true
-		citizen.visual.mode = &"rest"
+		if _cottage != null and is_instance_valid(_cottage):
+			# Duerme dentro: se oculta y la ventana se enciende de noche
+			citizen.visible = false
+		else:
+			citizen.visual.mode = &"rest"
 		return
 	var cfg: SimConfig = SimConfig.get_default()
 	citizen.energy = minf(
@@ -37,4 +45,17 @@ func tick(dt: float) -> void:
 
 
 func exit() -> void:
+	citizen.visible = true
 	citizen.visual.mode = &"idle"
+	if _cottage != null and is_instance_valid(_cottage):
+		_cottage.release_sleep_slot(citizen.entity_id)
+	_cottage = null
+
+
+## Hasta 2 habitantes duermen en una cabaña terminada (§7.5).
+func _claim_cottage() -> ConstructionSite:
+	for node: Node in citizen.get_tree().get_nodes_in_group(&"buildings"):
+		var building: ConstructionSite = node as ConstructionSite
+		if building != null and building.claim_sleep_slot(citizen.entity_id):
+			return building
+	return null

@@ -1,0 +1,92 @@
+extends HFTestCase
+## Integración P6: obra completa de principio a fin sin intervención.
+
+var _main: Node
+var _tree_scene: SceneTree
+var _phases_seen: Array[int] = []
+var _completed_id: int = -1
+
+
+func before_each() -> void:
+	_tree_scene = Engine.get_main_loop() as SceneTree
+	GameState.setup_new_game(2222)
+	GameState.add_resource(&"food", 12)
+	GameState.add_resource(&"wood", 12)
+	_main = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()
+	_tree_scene.root.add_child(_main)
+	SimClock.reset(1, 0.2)
+	SimClock.set_speed(4)
+	_phases_seen = []
+	_completed_id = -1
+	EventBus.construction_phase_advanced.connect(_on_phase)
+	EventBus.construction_completed.connect(_on_completed)
+
+
+func after_each() -> void:
+	EventBus.construction_phase_advanced.disconnect(_on_phase)
+	EventBus.construction_completed.disconnect(_on_completed)
+	_main.free()
+	SimClock.set_speed(1)
+	SimClock.reset()
+	GameState.world_seed = 0
+	GameState.terrain = null
+	EntityRegistry.clear()
+	TaskBoard.clear()
+
+
+func _on_phase(_id: int, phase: int) -> void:
+	_phases_seen.append(phase)
+
+
+func _on_completed(building_id: int) -> void:
+	_completed_id = building_id
+
+
+func test_cottage_builds_through_all_phases() -> void:
+	for _f: int in 20:
+		await _tree_scene.process_frame
+	var world_root: Node3D = _main.get_node("World/NavigationRegion3D") as Node3D
+	var at: Vector3 = Vector3(9.0, GameState.terrain.get_height(9.0, 9.0), 9.0)
+	var site: ConstructionSite = ConstructionSite.place(world_root, at, 0.0, 777)
+	assert_eq(site.recipe.total_wood_cost(), 12, "la cabaña cuesta 12 de madera")
+
+	for _f: int in 5200:
+		await _tree_scene.process_frame
+		if _completed_id != -1:
+			break
+	assert_eq(_completed_id, site.entity_id, "la cabaña se completa sola")
+	assert_true(site.completed)
+	for phase: int in [1, 2, 3, 4]:
+		assert_true(phase in _phases_seen, "pasó por la fase %d" % phase)
+	assert_eq(GameState.get_resource(&"wood"), 0, "las 12 maderas se consumieron")
+	assert_true(site.is_in_group(&"buildings"), "la obra terminada es un edificio")
+	var visible_pieces: int = 0
+	var cottage: Node3D = site.get_node("Cottage") as Node3D
+	for child: Node in cottage.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).visible:
+			visible_pieces += 1
+	assert_true(visible_pieces >= 30, "todas las piezas visibles (%d)" % visible_pieces)
+
+
+func test_zone_validation_rules() -> void:
+	for _f: int in 20:
+		await _tree_scene.process_frame
+	var tool_manager: ToolManager = _main.get_node("ToolManager") as ToolManager
+	var world: World3D = (_main as Node3D).get_world_3d()
+
+	var too_small: Dictionary = tool_manager.validate_zone(Rect2(6.0, 6.0, 4.0, 4.0), world)
+	assert_false(too_small["valid"])
+	assert_true("pequeña" in String(too_small["reason"]))
+
+	var outside: Dictionary = tool_manager.validate_zone(Rect2(70.0, 70.0, 8.0, 8.0), world)
+	assert_false(outside["valid"], "fuera del mapa inválida")
+
+	var on_water: Dictionary = tool_manager.validate_zone(Rect2(-56.0, -4.0, 8.0, 8.0), world)
+	assert_false(on_water["valid"], "sobre el agua inválida")
+
+	var over_fire: Dictionary = tool_manager.validate_zone(Rect2(-4.0, -4.0, 8.0, 8.0), world)
+	assert_false(over_fire["valid"], "sobre la fogata inválida")
+	assert_true("obstáculos" in String(over_fire["reason"]))
+
+	var good: Dictionary = tool_manager.validate_zone(Rect2(5.0, 5.0, 8.0, 8.0), world)
+	assert_true(good["valid"], "zona limpia válida (%s)" % good["reason"])

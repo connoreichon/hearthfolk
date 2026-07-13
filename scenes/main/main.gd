@@ -27,8 +27,18 @@ func _ready() -> void:
 			SimClock.time_of_day = clampf(float(args[i + 1]), 0.0, 0.999)
 		elif args[i] == "--mark-tree":
 			_debug_mark_nearest_tree.call_deferred()
+		elif args[i] == "--build-house":
+			_debug_place_house.call_deferred()
 		elif args[i] == "--speed" and i + 1 < args.size():
 			SimClock.set_speed(int(args[i + 1]))
+
+
+## Solo para smoke tests automatizados: coloca una obra con material listo.
+func _debug_place_house() -> void:
+	GameState.add_resource(&"wood", 12)
+	var world_root: Node3D = get_node("World/NavigationRegion3D") as Node3D
+	var at: Vector3 = Vector3(9.0, GameState.terrain.get_height(9.0, 9.0), 9.0)
+	ConstructionSite.place(world_root, at, PI * 0.75, 777)
 
 
 ## Solo para smoke tests automatizados: marca el árbol adulto más cercano.

@@ -3,8 +3,8 @@ extends CitizenState
 ## Caminar hasta el objetivo de la tarea reclamada.
 
 const TIMEOUT: float = 40.0
-const STAND_OFF: float = 1.15
-const REACH: float = 1.7
+const STAND_OFFS: Dictionary = {&"chop": 1.15, &"haul": 0.6, &"build": 4.0}
+const REACHES: Dictionary = {&"chop": 1.7, &"haul": 1.2, &"build": 4.8}
 
 var _timeout: float = 0.0
 
@@ -16,12 +16,13 @@ func state_name() -> StringName:
 func enter() -> void:
 	_timeout = TIMEOUT
 	var target: Node3D = citizen.task_target()
-	if target == null:
+	var task: TaskBoard.Task = citizen.current_task()
+	if target == null or task == null:
 		citizen.abandon_task(&"target_gone")
 		citizen.state_machine.change(&"FindTask")
 		return
 	citizen.visual.mode = &"walk"
-	citizen.move_to_near(target.global_position, STAND_OFF)
+	citizen.move_to_near(target.global_position, float(STAND_OFFS.get(task.kind, 1.15)))
 
 
 func tick(dt: float) -> void:
@@ -36,8 +37,9 @@ func tick(dt: float) -> void:
 		citizen.state_machine.change(&"FindTask")
 		return
 	var target: Node3D = citizen.task_target()
+	var reach: float = float(REACHES.get(task.kind, 1.7))
 	var close_enough: bool = (
-		target != null and citizen.global_position.distance_to(target.global_position) < REACH
+		target != null and citizen.global_position.distance_to(target.global_position) < reach
 	)
 	if citizen.nav_finished() or close_enough:
 		citizen.stop_moving()

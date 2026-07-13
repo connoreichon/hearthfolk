@@ -93,3 +93,9 @@ Pendiente conocido: los mensajes "RID leaked at exit" aparecen solo al salir del
 Hecho: HaulDispatcher, CarryResource/DeliverResource, carga visible en manos (máx. 2), soltado al interrumpir, persistencia de la carga.
 
 Verificado: suite → `Métodos: 24  Comprobaciones: 336  Fallos: 0` (madera del suelo → almacén sin duplicados, exactamente 6). Run real: `docs/screenshots/p5_haul.png` (FPS=60).
+
+### P6 — Zonas y construcción ✅
+
+Hecho: receta/fases .tres, cabaña procedural por piezas con variación de semilla, ConstructionSite con demanda de material y 2 constructores, herramienta de zona con validación en vivo y razones, estados Supply/Build, rehorneado de navmesh, sueño en cabaña.
+
+Verificado: suite → `Métodos: 26  Comprobaciones: 353  Fallos: 0` (obra completa sola: 4 fases, madera 12→0, edificio final). Runs reales: `p6_building.png` (cimientos pieza a pieza + estacas… la fase de plano con cuerdas se ve al inicio), `p6_done.png` (cabaña terminada con tejado #A9503E). Ajuste anti-atasco: stand-off 4.0 m alrededor del agujero de navmesh de la obra.
