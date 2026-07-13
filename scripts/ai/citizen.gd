@@ -21,6 +21,10 @@ var bond: float = 100.0
 var speed_modifier: float = 1.0
 var current_task_id: int = -1
 var status_icon: StatusIcon
+var carrying_type: StringName = &""
+var carrying_amount: int = 0
+
+var _carry_visual: Node3D
 
 var _moving: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
@@ -68,6 +72,8 @@ func _ready() -> void:
 	state_machine.add(StateFindTask.new())
 	state_machine.add(StateMoveToResource.new())
 	state_machine.add(StateHarvest.new())
+	state_machine.add(StateCarryResource.new())
+	state_machine.add(StateDeliverResource.new())
 	state_machine.add(StateRecoverFromStuck.new())
 	state_machine.change(&"Idle")
 
@@ -121,9 +127,11 @@ func _check_interrupts() -> void:
 	if current in [&"Eat", &"Rest", &"RecoverFromStuck"]:
 		return
 	if hunger < _cfg.hunger_threshold_eat and GameState.get_resource(&"food") > 0:
+		drop_carry(true)
 		abandon_task(&"yield")
 		state_machine.change(&"Eat")
 	elif energy < _cfg.energy_threshold_rest:
+		drop_carry(true)
 		abandon_task(&"yield")
 		state_machine.change(&"Rest")
 	elif SimClock.is_night() and current in [&"Idle", &"Wander", &"FindTask"]:
@@ -171,6 +179,72 @@ func fade_teleport(point: Vector3) -> void:
 	tween.tween_property(visual, "scale", Vector3.ONE * 0.05, 0.1)
 	tween.tween_callback(func() -> void: global_position = point)
 	tween.tween_property(visual, "scale", Vector3.ONE * data.height_scale, 0.1)
+
+
+## Coger un haz del suelo: desaparece del mundo y va a las manos (§8.4).
+func pick_up(item: ResourceItem) -> void:
+	carrying_type = item.resource_type
+	carrying_amount = mini(item.amount, _cfg.carry_capacity)
+	EventBus.resource_picked.emit(item.entity_id, entity_id)
+	item.queue_free()
+	_carry_visual = _build_carry_visual(carrying_amount)
+	visual.hands_node().add_child(_carry_visual)
+	visual.mode = &"carry"
+
+
+## Depositar la carga en el destino (inventario global o obra).
+func deliver_carry(destination: Node3D) -> void:
+	if carrying_amount <= 0:
+		return
+	var dest_id: int = 0
+	if destination != null and destination.get(&"entity_id") != null:
+		dest_id = int(destination.get(&"entity_id"))
+	if destination != null and destination.has_method(&"receive_material"):
+		destination.call(&"receive_material", carrying_type, carrying_amount)
+	else:
+		GameState.add_resource(carrying_type, carrying_amount)
+	EventBus.resource_delivered.emit(carrying_type, carrying_amount, dest_id)
+	_clear_carry()
+
+
+## Soltar la carga al suelo (interrupciones): vuelve a ser un item físico.
+func drop_carry(spawn_on_ground: bool) -> void:
+	if carrying_amount <= 0:
+		return
+	if spawn_on_ground:
+		var item: ResourceItem = ResourceItem.create(
+			carrying_type, carrying_amount, local_rng.randi()
+		)
+		get_parent().add_child(item)
+		var pos: Vector3 = global_position + visual.basis.z * 0.5
+		if GameState.terrain != null:
+			pos.y = GameState.terrain.get_height(pos.x, pos.z)
+		item.global_position = pos
+	_clear_carry()
+
+
+func _clear_carry() -> void:
+	carrying_type = &""
+	carrying_amount = 0
+	if _carry_visual != null and is_instance_valid(_carry_visual):
+		_carry_visual.queue_free()
+	_carry_visual = null
+	if visual.mode == &"carry":
+		visual.mode = &"idle"
+
+
+func _build_carry_visual(amount: int) -> Node3D:
+	var palette: PaletteData = PaletteData.get_default()
+	var bundle: Node3D = Node3D.new()
+	bundle.name = "CarryBundle"
+	for log_i: int in amount:
+		var wood_log: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.log_cylinder(0.08, 0.6, 7), palette.wood_light, "Log%d" % log_i
+		)
+		wood_log.rotation_degrees = Vector3(0.0, 0.0, 90.0)
+		wood_log.position = Vector3(0.3, float(log_i) * 0.17, 0.0)
+		bundle.add_child(wood_log)
+	return bundle
 
 
 func find_storage() -> Node3D:
@@ -285,6 +359,8 @@ func save_data() -> Dictionary:
 		"rest": rest_need,
 		"safety": safety,
 		"bond": bond,
+		"carry_type": String(carrying_type),
+		"carry_amount": carrying_amount,
 	}
 
 
@@ -296,6 +372,12 @@ func load_data(d: Dictionary) -> void:
 	rest_need = float(d.get("rest", 100.0))
 	safety = float(d.get("safety", 100.0))
 	bond = float(d.get("bond", 100.0))
+	var carry_amount: int = int(d.get("carry_amount", 0))
+	if carry_amount > 0:
+		carrying_type = StringName(String(d.get("carry_type", "wood")))
+		carrying_amount = carry_amount
+		_carry_visual = _build_carry_visual(carrying_amount)
+		visual.hands_node().add_child(_carry_visual)
 
 
 func _add_blob_shadow() -> void:

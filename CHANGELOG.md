@@ -1,5 +1,15 @@
 # CHANGELOG — Hearthfolk
 
+## P5 — Transporte (2026-07-13)
+
+- `HaulDispatcher`: publica tareas `haul` (prioridad 4, por delante de la tala) cuando aparece madera; al cargar partida regenera tareas desde el mundo real.
+- Estados `CarryResource` (pausa de recogida, el haz desaparece del mundo y aparece en las manos vía Marker3D) y `DeliverResource` (entrega en carro o en obra vía payload `site_id`, listo para P6).
+- `Citizen.pick_up/deliver_carry/drop_carry`: capacidad 2, carga visible (2 troncos en manos), interrupciones (comer/dormir) sueltan la carga al suelo como item físico que se re-publica solo.
+- Andar cargando: brazos fijos hacia delante, inclinación hacia atrás (modo carry).
+- Persistencia de la carga en save_data/load_data.
+- Test: 3 haces sembrados → todo acaba en el almacén, inventario exactamente 6, cero items huérfanos. 24 métodos, 336 comprobaciones, 0 fallos.
+- Evidencia: `docs/screenshots/p5_haul.png` (tocón + haces + habitante cargando).
+
 ## P4 — TaskBoard, tala y madera física (2026-07-13)
 
 - Estados de trabajo: `FindTask` (prioridades §7.3, nunca actúa sin claim), `MoveToResource` (stand-off 1.15 m, timeout, purga de targets muertos), `Harvest` (golpe cada 1.2 s), `RecoverFromStuck` (reintento → apartarse → teleport suave + soltar tarea).

@@ -87,3 +87,9 @@ Verificado:
 - Dos bugs de raíz diagnosticados con sondas y corregidos (BUGFIXES.md): navegación congelada por desnivel navmesh/origen y repulsión en la llegada al tronco.
 
 Pendiente conocido: los mensajes "RID leaked at exit" aparecen solo al salir del runner de tests (recursos estáticos vivos en el momento del quit); se revisará en P8.
+
+### P5 — Transporte ✅
+
+Hecho: HaulDispatcher, CarryResource/DeliverResource, carga visible en manos (máx. 2), soltado al interrumpir, persistencia de la carga.
+
+Verificado: suite → `Métodos: 24  Comprobaciones: 336  Fallos: 0` (madera del suelo → almacén sin duplicados, exactamente 6). Run real: `docs/screenshots/p5_haul.png` (FPS=60).

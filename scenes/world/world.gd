@@ -26,6 +26,9 @@ func _ready() -> void:
 	_bake_navmesh()
 	_spawn_citizens()
 	_setup_day_night()
+	var dispatcher: HaulDispatcher = HaulDispatcher.new()
+	dispatcher.name = "HaulDispatcher"
+	add_child(dispatcher)
 
 
 func _setup_light_and_environment() -> void:
