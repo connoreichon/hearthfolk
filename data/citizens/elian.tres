@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CitizenData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/citizens/citizen_data.gd" id="1_cd"]
+
+[resource]
+script = ExtResource("1_cd")
+display_name = "Elian"
+shirt_color = Color(0.3255, 0.4353, 0.5255, 1)
+pants_color = Color(0.2902, 0.251, 0.2196, 1)
+hair_color = Color(0.2314, 0.1725, 0.1333, 1)
+skin_color = Color(0.8471, 0.6627, 0.5176, 1)
+height_scale = 1.0
+move_speed = 2.6
+work_speed = 1.0

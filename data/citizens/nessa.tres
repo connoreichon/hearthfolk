@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CitizenData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/citizens/citizen_data.gd" id="1_cd"]
+
+[resource]
+script = ExtResource("1_cd")
+display_name = "Nessa"
+shirt_color = Color(0.5451, 0.4196, 0.5725, 1)
+pants_color = Color(0.3176, 0.2667, 0.2588, 1)
+hair_color = Color(0.1412, 0.1137, 0.0941, 1)
+skin_color = Color(0.7255, 0.5451, 0.4118, 1)
+height_scale = 0.93
+move_speed = 2.6
+work_speed = 1.0

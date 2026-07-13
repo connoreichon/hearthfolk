@@ -12,6 +12,10 @@ func _ready() -> void:
 			if i + 2 < args.size() and args[i + 2].is_valid_float():
 				wait_s = float(args[i + 2])
 			_capture(args[i + 1], wait_s)
+		elif args[i] == "--zoom" and i + 1 < args.size():
+			var rig: CameraRig = get_node_or_null("CameraRig") as CameraRig
+			if rig != null:
+				rig.set_zoom(float(args[i + 1]))
 
 
 func _capture(path: String, wait_s: float) -> void:

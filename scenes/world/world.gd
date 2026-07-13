@@ -20,6 +20,7 @@ func _ready() -> void:
 	GameState.terrain = terrain_data
 	_setup_light_and_environment()
 	_bake_navmesh()
+	_spawn_citizens()
 
 
 func _setup_light_and_environment() -> void:
@@ -73,3 +74,18 @@ func _bake_navmesh() -> void:
 	nav_mesh.geometry_collision_mask = 53
 	nav_region.navigation_mesh = nav_mesh
 	nav_region.bake_navigation_mesh(false)
+
+
+## Cuatro habitantes en anillo de 3 m alrededor de la fogata (§4).
+func _spawn_citizens() -> void:
+	var scene: PackedScene = load("res://scenes/citizens/citizen.tscn")
+	var names: Array[String] = ["elian", "mara", "tobin", "nessa"]
+	for i: int in names.size():
+		var citizen: Citizen = scene.instantiate()
+		citizen.data = load("res://data/citizens/%s.tres" % names[i])
+		add_child(citizen)
+		var ang: float = TAU * float(i) / float(names.size()) + 0.7
+		var pos: Vector3 = Vector3(cos(ang) * 3.0, 0.0, sin(ang) * 3.0)
+		pos.y = terrain_data.get_height(pos.x, pos.z) + 0.05
+		citizen.global_position = pos
+		citizen.visual.rotation.y = ang + PI * 0.5

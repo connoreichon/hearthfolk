@@ -81,6 +81,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		focus_settlement()
 
 
+func set_zoom(zoom: float) -> void:
+	_target_zoom = clampf(zoom, _cfg.zoom_min, _cfg.zoom_max)
+
+
 ## Centra suavemente el pivot en un punto (tween 0.4 s, ease out).
 func focus_on(point: Vector3) -> void:
 	_kill_focus_tween()

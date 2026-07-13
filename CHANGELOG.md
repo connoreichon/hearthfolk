@@ -1,5 +1,15 @@
 # CHANGELOG — Hearthfolk
 
+## P2 — Habitantes visuales (2026-07-13)
+
+- `CitizenVisual`: figura humana estilizada por primitivas biseladas (piernas, cintura+pecho, brazos con manos, cuello, cabeza ovoide, pelo casquete+flequillo), cabeza ≈1/5 de altura, ~1.6 m. Cero cápsulas visibles.
+- Animación procedural: caminar (piernas ±25°, brazos contrafase ±20°, bobbing, inclinación 3°), idle (respiración + micro-mirada 2–5 s), esqueleto de trabajo/carga para fases siguientes. Todo interpolado.
+- `Citizen` (CharacterBody3D): NavigationAgent3D con RVO (radius 0.35, neighbor_distance 2.5, max_neighbors 6), target_desired_distance 0.35, corte seco de velocidad al llegar, velocidad = move_speed × velocidad de simulación (sin Engine.time_scale), sombra blob, detección de bloqueo 5 s + recuperación.
+- FSM: `StateMachine` + `CitizenState` (enter/tick/exit), estados Idle y Wander en archivos propios.
+- 4 habitantes (`elian/mara/tobin/nessa.tres`) en anillo de 3 m alrededor de la fogata.
+- Test de integración: 4 habitantes aparecen, ≥3 se mueven, sin atravesarse. 18 métodos, 119 comprobaciones, 0 fallos.
+- Evidencia: `docs/screenshots/p2_citizens.png` (60 FPS).
+
 ## P1 — Mundo y cámara (2026-07-13)
 
 - Paleta, SimConfig y CameraConfig como Resources `.tres` editables.

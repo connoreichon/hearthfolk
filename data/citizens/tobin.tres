@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CitizenData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/citizens/citizen_data.gd" id="1_cd"]
+
+[resource]
+script = ExtResource("1_cd")
+display_name = "Tobin"
+shirt_color = Color(0.4392, 0.5137, 0.302, 1)
+pants_color = Color(0.3059, 0.2902, 0.2706, 1)
+hair_color = Color(0.2902, 0.2196, 0.149, 1)
+skin_color = Color(0.8784, 0.7059, 0.5608, 1)
+height_scale = 1.05
+move_speed = 2.6
+work_speed = 1.0

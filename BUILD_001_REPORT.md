@@ -50,3 +50,15 @@ Verificado:
 Detalle técnico: sonda empírica (`tools/dev_probe_winding.gd`) demostró que Godot usa winding horario para caras frontales; `MeshLib` auto-orienta cada triángulo contra su vector exterior.
 
 Fuera de alcance de P1: interacción con ratón sobre entidades (P4), habitantes (P2).
+
+### P2 — Habitantes visuales ✅
+
+Hecho: figura procedural biselada (§5.3, sin cápsulas), animación procedural §5.4 (walk/idle + esqueleto work/carry), navegación con RVO y anti-vibración (§7.4 parcial: detección de bloqueo + recuperación básica; el estado RecoverFromStuck completo llega con la FSM de trabajo en P4), FSM por archivos, 4 habitantes en anillo.
+
+Verificado:
+
+- `gdformat`/`gdlint` limpios; import exit 0.
+- `godot --headless -s tests/run_tests.gd` → `Métodos: 18  Comprobaciones: 119  Fallos: 0` (incluye integración: 4 habitantes, ≥3 en movimiento, sin solaparse tras ~450 frames a ×4).
+- Run real: `docs/screenshots/p2_citizens.png`, FPS=60.
+
+Fuera de alcance de P2: icono de estado sobre la cabeza (§5.5) → llega en P4 cuando existen estados de trabajo distinguibles.
