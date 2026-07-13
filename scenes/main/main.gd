@@ -33,8 +33,16 @@ func _ready() -> void:
 			_debug_mark_nearest_tree.call_deferred()
 		elif args[i] == "--build-house":
 			_debug_place_house.call_deferred()
+		elif args[i] == "--hungry":
+			_debug_make_hungry.call_deferred()
 		elif args[i] == "--speed" and i + 1 < args.size():
 			SimClock.set_speed(int(args[i + 1]))
+
+
+## Solo para smoke tests automatizados: hambre baja para verlos comer.
+func _debug_make_hungry() -> void:
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		(node as Citizen).hunger = 20.0
 
 
 ## Solo para smoke tests automatizados: coloca una obra con material listo.

@@ -2,7 +2,7 @@
 
 ## Repositorio remoto — ACCIÓN DEL USUARIO REQUERIDA
 
-La orden indicaba `https://github.com/connoreichon/hearthfolk.git`, pero la identidad git de esta máquina es `fontanalex12`. Ese repo pertenece a otra cuenta, así que **no se ha hecho push** (no se publica trabajo en repos ajenos sin confirmación). Todos los commits por fase están en local. Para subirlo a un repo tuyo:
+La orden indicaba `https://github.com/connoreichon/hearthfolk.git`. Comprobado con `git ls-remote` (§-1.4): **el repositorio no existe** (`remote: Repository not found`, exit 128). Además pertenece a otra cuenta (la identidad git local es `fontanalex12`), así que siguiendo la propia orden se ha trabajado **solo en local** (un commit por fase, P0…P8) y sin crear repos ni introducir credenciales en tu nombre. Para subirlo a un repo tuyo:
 
 ```powershell
 # 1. Crea el repo (con gh CLI autenticado):
@@ -128,7 +128,7 @@ Verificado: suite → `Métodos: 28  Comprobaciones: 377  Fallos: 0` — incluye
 | 10 | Transporte autónomo | ☑ | test_haul_flow (almacén exacto, sin duplicados) |
 | 11 | 4 fases pieza a pieza | ☑ | test_construction + p6_building/p6_done.png |
 | 12 | Ciclo día/noche 4 tramos | ☑ | test_day_cycle + p3_night.png (fogata encendida) |
-| 13 | Comen y descansan solos | ☑ | test_day_cycle (comida 12→11, 4/4 durmiendo) |
+| 13 | Comen y descansan solos | ☑ | test_day_cycle + test_needs (umbrales) + p8_eating.png (comida 12→8) + p3_night.png |
 | 14 | Pausa/×1/×2/×4 sin romper nada | ☑ | test_sim_clock + test pausa en escena |
 | 15 | Guardar/cargar estado exacto | ☑ | round-trip idéntico campo a campo |
 | 16 | Sin errores continuos en consola | ☑ | suite y smokes con stderr limpio |
@@ -154,13 +154,19 @@ Contabilidad exacta: 10 árboles × 6 = 60 maderas; 12 a la cabaña, 48 al carro
 - `godot --headless --path . --export-release "Windows Desktop" build/Hearthfolk_001.exe` → exit 0, **107.5 MB**, pck embebido, `tools/` excluido.
 - El .exe abre y juega: `docs/screenshots/p8_exe_final.png` (capturado desde el propio ejecutable: HUD, cabaña en fase «Estructura» y toast).
 
+### Complementos post-entrega (repaso contra la orden)
+
+- `git ls-remote` del remoto de la orden ejecutado y documentado arriba (§-1.4: repo inexistente → solo local).
+- Test unitario de necesidades añadido (§17.1): tasas de decaimiento exactas de sim_config, Rest congela el decaimiento de energía, umbrales hambre<25→Eat y energía<20→Rest, penalización −35 % con hambre <10. Suite final: **33 métodos, 385 comprobaciones, 0 fallos**.
+- Hitos del smoke §17.4 completados: `p8_eating.png` (los 4 comen del carro, comida 12→8) y `p8_dawn.png` (amanecer con sombras rasantes, siguen solos).
+
 ## Comandos de verificación (resumen)
 
 ```powershell
 $godot = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7-stable_win64_console.exe"
 gdformat . ; gdlint .                                          # limpios
 & $godot --headless --path . --quit-after 8                    # exit 0, consola limpia
-& $godot --headless --path . -s tests/run_tests.gd             # 28 métodos, 377 checks, 0 fallos
+& $godot --headless --path . -s tests/run_tests.gd             # 33 métodos, 385 checks, 0 fallos
 & $godot --headless --path . -s tests/soak/soak_20min.gd       # SOAK RESULTADO: OK
 & $godot --headless --path . --export-release "Windows Desktop" build/Hearthfolk_001.exe
 python tools/gen_audio.py                                      # regenera los 17 WAVs
