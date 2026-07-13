@@ -35,3 +35,18 @@ Verificado (comandos y salida):
 - `godot --headless --path . -s tests/run_tests.gd` → `Métodos: 2  Comprobaciones: 11  Fallos: 0`, exit 0
 
 Fuera de alcance de P0: nada pendiente.
+
+### P1 — Mundo y cámara ✅
+
+Hecho: terreno procedural completo (§4), meshes biselados (§5.3), shaders wind/terrain/outline, props por Poisson con conteos exactos, navmesh horneado por código, cámara §6 completa.
+
+Verificado:
+
+- `gdformat .` + `gdlint .` → limpios.
+- `godot --headless --path . --quit-after 8` → exit 0, consola limpia (warnings de navegación resueltos ajustando cell_size 0.3 y merge_rasterizer_cell_scale 0.5).
+- `godot --headless --path . -s tests/run_tests.gd` → `Métodos: 17  Comprobaciones: 107  Fallos: 0`.
+- Run real con GPU (RTX 4060 Ti): `screenshot docs/screenshots/p1_world.png -> OK (FPS=60)`.
+
+Detalle técnico: sonda empírica (`tools/dev_probe_winding.gd`) demostró que Godot usa winding horario para caras frontales; `MeshLib` auto-orienta cada triángulo contra su vector exterior.
+
+Fuera de alcance de P1: interacción con ratón sobre entidades (P4), habitantes (P2).

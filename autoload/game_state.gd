@@ -4,6 +4,7 @@ extends Node
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var world_seed: int = 0
 var inventory: Dictionary = {&"wood": 0, &"food": 0, &"tools": 0}
+var terrain: TerrainData
 
 
 func setup_new_game(seed_value: int) -> void:

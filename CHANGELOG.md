@@ -1,5 +1,17 @@
 # CHANGELOG — Hearthfolk
 
+## P1 — Mundo y cámara (2026-07-13)
+
+- Paleta, SimConfig y CameraConfig como Resources `.tres` editables.
+- `MeshLib`: cajas biseladas (24 caras + 12 chaflanes + 8 esquinas, auto-winding), cilindros con ruido, esferas low-res deformables. Verificado empíricamente que Godot usa winding horario para caras frontales.
+- Shaders: `wind` (balanceo por altura), `terrain_blend` (hierba/tierra por vertex color + pendiente), `outline` (back-face inflado).
+- `MapGenerator`: terreno 120×120 con semilla (centro plano r=25, colina NE ~4 m, arroyo oeste con canal, camino sur pintado en vertex color), HeightMapShape3D, navmesh horneado por código sin warnings.
+- Props por Poisson (Bridson) + Fisher-Yates: 34+12 árboles, 4+14 rocas, 6 flores, 8 arbustos, carro (almacén), fogata central. Jitter de rotación y escala ±12 %.
+- `TreeEntity` persistente con IDs estables; `TreeGen` con 5 variantes de silueta.
+- Cámara completa: WASD/QE/rueda exponencial 12–80 m, inclinación 48→55°, pan con botón central, doble clic centra, F centra asentamiento, clamp de límites, SpringArm contra terreno, viva en pausa.
+- Tests: SimClock (día=480 s, pausa, ×4, anti-espiral, fases), TaskBoard (claim atómico, TTL, blacklist, cooldown, purga de targets), MapGenerator (determinismo, límites de altura, conteos exactos). 17 métodos, 107 comprobaciones, 0 fallos.
+- Smoke test visual: `docs/screenshots/p1_world.png` a 60 FPS.
+
 ## P0 — Entorno (2026-07-13)
 
 - Godot 4.7 stable instalado (winget) y verificado (`4.7.stable.official.5b4e0cb0f`).
