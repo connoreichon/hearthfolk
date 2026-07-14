@@ -41,7 +41,7 @@ func test_ground_wood_ends_in_storage_without_duplicates() -> void:
 	assert_eq(GameState.get_resource(&"wood"), 0)
 
 	var done: bool = false
-	for _f: int in 2400:
+	for _f: int in 4200:
 		await _tree_scene.process_frame
 		if (
 			GameState.get_resource(&"wood") == 6

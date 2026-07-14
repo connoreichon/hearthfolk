@@ -21,7 +21,10 @@ func _run() -> void:
 	var sim_clock: Node = root.get_node("/root/SimClock")
 	var task_board: Node = root.get_node("/root/TaskBoard")
 	var registry: Node = root.get_node("/root/EntityRegistry")
-	game_state.call("setup_new_game", 24680)
+	var soak_seed: int = 24680
+	if OS.get_environment("HF_SOAK_SEED") != "":
+		soak_seed = int(OS.get_environment("HF_SOAK_SEED"))
+	game_state.call("setup_new_game", soak_seed)
 	game_state.call("add_resource", &"food", 12)
 	game_state.call("add_resource", &"tools", 4)
 	var main: Node = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()
