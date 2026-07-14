@@ -327,20 +327,30 @@ func find_storage() -> Node3D:
 	return nodes[0] as Node3D
 
 
-## Punto de descanso repartido en círculo alrededor de la fogata,
-## pegado al navmesh (el carro talla un agujero que puede comerse un hueco).
+## Punto de descanso repartido en círculo alrededor de la fogata.
+## El snap al navmesh puede caer en una ISLA-esquirla entre los agujeros
+## de la fogata y el carro (visto en el soak 002: reachable=false y el
+## agente congelado): se valida con ruta real y se rota de hueco si el
+## propio está aislado. Último recurso: descansar donde se está.
 func rest_spot() -> Vector3:
 	var center: Vector3 = Vector3.ZERO
 	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
 	if not fires.is_empty():
 		center = (fires[0] as Node3D).global_position
-	var ang: float = float(entity_id % 8) * TAU / 8.0 + 0.4
-	var spot: Vector3 = center + Vector3(cos(ang) * 2.3, 0.0, sin(ang) * 2.3)
-	if GameState.terrain != null:
-		spot.y = GameState.terrain.get_height(spot.x, spot.z)
-	if is_inside_tree():
-		spot = NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, spot)
-	return spot
+	if not is_inside_tree():
+		return center + Vector3(2.3, 0.0, 0.0)
+	var world_3d: World3D = get_world_3d()
+	var map: RID = world_3d.navigation_map
+	var base_slot: int = entity_id % 8
+	for i: int in 8:
+		var ang: float = float((base_slot + i) % 8) * TAU / 8.0 + 0.4
+		var spot: Vector3 = center + Vector3(cos(ang) * 2.3, 0.0, sin(ang) * 2.3)
+		if GameState.terrain != null:
+			spot.y = GameState.terrain.get_height(spot.x, spot.z)
+		var snapped_spot: Vector3 = NavigationServer3D.map_get_closest_point(map, spot)
+		if NavUtil.is_reachable(world_3d, global_position, snapped_spot, 1.5):
+			return snapped_spot
+	return global_position
 
 
 func _physics_process(_delta: float) -> void:
