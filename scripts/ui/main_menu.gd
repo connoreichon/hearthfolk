@@ -93,7 +93,7 @@ func _build_ui() -> void:
 	_add_button(_root_box, "Salir", func() -> void: get_tree().quit())
 
 	_new_box = _menu_box(layer)
-	_new_box.visible = false
+	_panel_of(_new_box).visible = false
 	var slot_label: Label = Label.new()
 	slot_label.text = "Elige hueco de guardado:"
 	slot_label.add_theme_color_override(&"font_color", _palette.ui_text)
@@ -124,7 +124,7 @@ func _build_ui() -> void:
 	_add_button(_new_box, "Volver", _show_root)
 
 	_load_box = _menu_box(layer)
-	_load_box.visible = false
+	_panel_of(_load_box).visible = false
 	for slot: int in range(1, SaveManager.SLOTS + 1):
 		var summary: String = SaveManager.slot_summary(slot)
 		var button: Button = _add_button(_load_box, summary, _load_slot.bind(slot))
@@ -204,7 +204,7 @@ func _pick_slot(slot: int) -> void:
 		_slot_buttons[i].set_pressed_no_signal(i + 1 == slot)
 
 
-func _start_new_game() -> void:
+func _prepare_new_game_state() -> void:
 	var seed_value: int = (
 		int(_seed_edit.text) if _seed_edit.text.is_valid_int() else hash(_seed_edit.text)
 	)
@@ -212,6 +212,10 @@ func _start_new_game() -> void:
 		seed_value = 1
 	SaveManager.active_slot = _slot_pick
 	GameState.pending_new_seed = seed_value
+
+
+func _start_new_game() -> void:
+	_prepare_new_game_state()
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 
