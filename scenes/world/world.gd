@@ -174,6 +174,11 @@ func _spawn_saved_entity(kind: String, d: Dictionary) -> void:
 			EntityRegistry.register_with_id(zone, &"zone", entity_id)
 			nav_region.add_child(zone)
 			zone.load_data(d)
+		"farm":
+			var r: Array = d.get("rect", [0.0, 0.0, 4.0, 4.0])
+			var farm_rect: Rect2 = Rect2(float(r[0]), float(r[1]), float(r[2]), float(r[3]))
+			var farm: FarmField = FarmField.place(nav_region, farm_rect, entity_id)
+			farm.load_data(d)
 		"construction_site":
 			var pos: Array = d.get("pos", [0.0, 0.0, 0.0])
 			var site: ConstructionSite = ConstructionSite.place(

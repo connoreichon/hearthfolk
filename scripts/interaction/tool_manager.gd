@@ -59,7 +59,9 @@ func set_tool(tool: StringName) -> void:
 		Input.set_custom_mouse_cursor(_axe_cursor, Input.CURSOR_ARROW, Vector2(4.0, 4.0))
 	else:
 		Input.set_custom_mouse_cursor(null)
-	Input.set_default_cursor_shape(Input.CURSOR_CROSS if tool == &"zone" else Input.CURSOR_ARROW)
+	Input.set_default_cursor_shape(
+		Input.CURSOR_CROSS if tool == &"zone" or tool == &"farm" else Input.CURSOR_ARROW
+	)
 	EventBus.tool_changed.emit(current_tool)
 
 
@@ -69,6 +71,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"tool_zone"):
 		set_tool(&"zone")
+		return
+	if event.is_action_pressed(&"tool_farm"):
+		set_tool(&"farm")
 		return
 	if event.is_action_pressed(&"tool_demolish"):
 		set_tool(&"demolish")
@@ -80,7 +85,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		set_tool(&"none")
 		get_viewport().set_input_as_handled()
 		return
-	if current_tool == &"zone":
+	if current_tool == &"zone" or current_tool == &"farm":
 		_zone_input(event)
 	elif current_tool == &"chop":
 		_chop_input(event)
@@ -303,14 +308,15 @@ func _terrain_point(screen_pos: Vector2) -> Vector3:
 
 
 func _update_zone_rect(current: Vector3) -> void:
+	var max_side: float = 8.0 if current_tool == &"farm" else 14.0
 	var min_x: float = snappedf(minf(_zone_start.x, current.x), 0.5)
 	var min_z: float = snappedf(minf(_zone_start.z, current.z), 0.5)
 	var max_x: float = snappedf(maxf(_zone_start.x, current.x), 0.5)
 	var max_z: float = snappedf(maxf(_zone_start.z, current.z), 0.5)
-	var size_x: float = minf(max_x - min_x, 14.0)
-	var size_z: float = minf(max_z - min_z, 14.0)
+	var size_x: float = minf(max_x - min_x, max_side)
+	var size_z: float = minf(max_z - min_z, max_side)
 	_zone_rect = Rect2(min_x, min_z, size_x, size_z)
-	var verdict: Dictionary = validate_zone(_zone_rect, camera.get_world_3d())
+	var verdict: Dictionary = validate_zone(_zone_rect, camera.get_world_3d(), current_tool)
 	_zone_valid = verdict["valid"]
 	_zone_reason = verdict["reason"]
 	_refresh_ghost()
@@ -344,8 +350,8 @@ func _refresh_ghost() -> void:
 
 
 ## Validación §9. Siempre explica POR QUÉ no es válida.
-func validate_zone(rect: Rect2, world: World3D) -> Dictionary:
-	var reason: String = _zone_geometry_error(rect)
+func validate_zone(rect: Rect2, world: World3D, kind: StringName = &"zone") -> Dictionary:
+	var reason: String = _zone_geometry_error(rect, kind)
 	if reason.is_empty():
 		reason = _zone_overlap_error(rect)
 	if reason.is_empty():
@@ -353,9 +359,10 @@ func validate_zone(rect: Rect2, world: World3D) -> Dictionary:
 	return {"valid": reason.is_empty(), "reason": reason}
 
 
-func _zone_geometry_error(rect: Rect2) -> String:
-	if rect.size.x < 6.0 or rect.size.y < 6.0:
-		return "Demasiado pequeña (mínimo 6×6 m)"
+func _zone_geometry_error(rect: Rect2, kind: StringName = &"zone") -> String:
+	var min_side: float = 3.0 if kind == &"farm" else 6.0
+	if rect.size.x < min_side or rect.size.y < min_side:
+		return "Demasiado pequeña (mínimo %d×%d m)" % [int(min_side), int(min_side)]
 	var terrain: TerrainData = GameState.terrain
 	if terrain == null:
 		return "Sin terreno"
@@ -396,6 +403,10 @@ func _zone_overlap_error(rect: Rect2) -> String:
 		var zone: ZoneEntity = node as ZoneEntity
 		if zone != null and grown.intersects(zone.rect):
 			return "Solapa otra zona"
+	for node: Node in get_tree().get_nodes_in_group(&"farms"):
+		var farm: FarmField = node as FarmField
+		if farm != null and grown.intersects(farm.rect):
+			return "Solapa un huerto"
 	return ""
 
 
@@ -417,6 +428,11 @@ func _confirm_zone() -> void:
 	if worlds.is_empty():
 		return
 	var world_root: Node3D = (worlds[0] as Node).get_node("NavigationRegion3D") as Node3D
+	if current_tool == &"farm":
+		var field: FarmField = FarmField.place(world_root, _zone_rect)
+		EventBus.toast.emit("Huerto marcado: %d parcelas por plantar" % field.plot_count(), &"info")
+		set_tool(&"none")
+		return
 	var zone: ZoneEntity = ZoneEntity.create(_zone_rect)
 	world_root.add_child(zone)
 	EventBus.zone_confirmed.emit(zone.entity_id, _zone_rect, &"residential")

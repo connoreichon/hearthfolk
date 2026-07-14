@@ -53,6 +53,9 @@ func _destination() -> Node3D:
 	var task: TaskBoard.Task = citizen.current_task()
 	if task != null and task.payload.has("site_id"):
 		return EntityRegistry.get_node_by_id(int(task.payload["site_id"])) as Node3D
+	# Solo la madera interesa a las obras; la comida va siempre al carro
+	if citizen.carrying_type != &"wood":
+		return citizen.find_storage()
 	var best_site: ConstructionSite = null
 	var best_d: float = INF
 	for node: Node in citizen.get_tree().get_nodes_in_group(&"construction_sites"):

@@ -18,6 +18,7 @@ static func setup() -> void:
 	_add_key(&"tool_cancel", KEY_ESCAPE)
 	_add_key(&"tool_chop", KEY_T)
 	_add_key(&"tool_zone", KEY_R)
+	_add_key(&"tool_farm", KEY_H)
 	_add_key(&"tool_demolish", KEY_C)
 	_add_key(&"tool_info", KEY_I)
 	_add_key(&"save_game", KEY_F5)

@@ -78,6 +78,7 @@ func _ready() -> void:
 	state_machine.add(StateDeliverResource.new())
 	state_machine.add(StateSupply.new())
 	state_machine.add(StateBuild.new())
+	state_machine.add(StateFarm.new())
 	state_machine.add(StateRecoverFromStuck.new())
 	state_machine.change(&"Idle")
 

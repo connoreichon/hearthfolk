@@ -47,6 +47,22 @@ func _build_visual() -> Node3D:
 	var palette: PaletteData = PaletteData.get_default()
 	var root: Node3D = Node3D.new()
 	root.name = "Visual"
+	if resource_type == &"food":
+		# Cesta de cosecha: saco redondo + fruto encima
+		var sack: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.low_sphere(0.26, 5, 8, 0.72), palette.cart_cloth, "Sack"
+		)
+		sack.position = Vector3(0.0, 0.16, 0.0)
+		root.add_child(sack)
+		for fruit_i: int in amount:
+			var fruit: MeshInstance3D = MeshLib.mesh_instance(
+				MeshLib.low_sphere(0.09, 4, 7, 1.0),
+				palette.accent.lerp(palette.roof, rng.randf() * 0.4),
+				"Fruit%d" % fruit_i
+			)
+			fruit.position = Vector3(rng.randf_range(-0.1, 0.1), 0.32, rng.randf_range(-0.1, 0.1))
+			root.add_child(fruit)
+		return root
 	for log_i: int in amount:
 		var wood_log: MeshInstance3D = MeshLib.mesh_instance(
 			MeshLib.log_cylinder(0.09, 0.72, 7),

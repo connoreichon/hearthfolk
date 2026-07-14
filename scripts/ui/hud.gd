@@ -13,6 +13,7 @@ const STATE_TEXT: Dictionary = {
 	&"DeliverResource": "Transportando madera",
 	&"Supply": "Acarreando material a la obra",
 	&"Build": "Construyendo",
+	&"Farm": "Trabajando el huerto",
 	&"Eat": "Comiendo",
 	&"Rest": "Descansando",
 	&"ReturnToSettlement": "Volviendo al asentamiento",
@@ -112,6 +113,7 @@ func _build_bottom_bar() -> void:
 		[&"none", "Selección", "Clic: seleccionar (Esc)"],
 		[&"chop", "Marcar tala", "Marca árboles para talar (T)"],
 		[&"zone", "Zona residencial", "Dibuja una zona para una cabaña (R)"],
+		[&"farm", "Huerto", "Dibuja un huerto para cultivar comida (H)"],
 		[&"demolish", "Demoler", "Cancela obras y zonas (C)"],
 		[&"info", "Información", "Clic: inspeccionar (I)"],
 	]
@@ -239,6 +241,27 @@ func _update_side_panel() -> void:
 		_show_citizen(node as Citizen)
 	elif node is ConstructionSite:
 		_show_site(node as ConstructionSite)
+	elif node is FarmField:
+		var farm: FarmField = node as FarmField
+		_panel_title.text = "Huerto"
+		_panel_body.text = (
+			"Maduras: %d   Creciendo: %d\nPor plantar: %d%s"
+			% [
+				farm.count_by_state(FarmField.Plot.MATURE),
+				(
+					farm.count_by_state(FarmField.Plot.PLANTED)
+					+ farm.count_by_state(FarmField.Plot.SPROUT)
+				),
+				farm.count_by_state(FarmField.Plot.BARREN),
+				(
+					"\nEl huerto duerme en invierno"
+					if SimClock.get_season() == SimClock.Season.WINTER
+					else ""
+				),
+			]
+		)
+		_panel_progress.visible = false
+		_hide_dest_line()
 	elif node is TreeEntity:
 		var tree: TreeEntity = node as TreeEntity
 		_panel_title.text = "Árbol joven" if tree.young else "Árbol"

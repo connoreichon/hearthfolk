@@ -9,7 +9,10 @@ static var _instance: SimConfig
 @export var day_fraction: float = 0.500
 @export var dusk_fraction: float = 0.125
 @export var night_fraction: float = 0.250
-@export var hunger_per_sim_minute: float = 1.4
+## Build 002: 16/min sim ≈ 2 comidas/día — la comida pasa a ser economía real
+@export var hunger_per_sim_minute: float = 16.0
+@export var crop_stage_seconds: float = 60.0
+@export var crop_yield: int = 2
 @export var energy_per_sim_minute_working: float = 1.8
 @export var energy_per_sim_minute_idle: float = 0.6
 @export var energy_recovered_per_sim_minute_resting: float = 8.0

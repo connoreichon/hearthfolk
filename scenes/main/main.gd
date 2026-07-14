@@ -46,10 +46,19 @@ func _ready() -> void:
 			_debug_mark_nearest_tree.call_deferred()
 		elif args[i] == "--build-house":
 			_debug_place_house.call_deferred()
+		elif args[i] == "--farm-demo":
+			_debug_place_farm.call_deferred()
 		elif args[i] == "--hungry":
 			_debug_make_hungry.call_deferred()
 		elif args[i] == "--speed" and i + 1 < args.size():
 			SimClock.set_speed(int(args[i + 1]))
+
+
+## Solo para smoke tests automatizados: huerto con cultivo acelerado.
+func _debug_place_farm() -> void:
+	SimConfig.get_default().crop_stage_seconds = 8.0
+	var world_root: Node3D = get_node("World/NavigationRegion3D") as Node3D
+	FarmField.place(world_root, Rect2(5.0, 4.0, 6.0, 5.0))
 
 
 ## Solo para smoke tests automatizados: hambre baja para verlos comer.
