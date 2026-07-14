@@ -6,9 +6,15 @@ signal sim_tick(delta: float)
 signal speed_changed(speed: int)
 signal day_changed(day: int)
 signal phase_changed(phase: int)
+signal season_changed(season: int)
 
 enum Speed { PAUSED = 0, NORMAL = 1, FAST = 2, ULTRA = 4 }
 enum Phase { DAWN = 0, DAY = 1, DUSK = 2, NIGHT = 3 }
+enum Season { SPRING = 0, SUMMER = 1, AUTUMN = 2, WINTER = 3 }
+
+const DAYS_PER_SEASON: int = 2
+const SEASONS_PER_YEAR: int = 4
+const SEASON_NAMES: Array[String] = ["Primavera", "Verano", "Otoño", "Invierno"]
 
 const TICK_HZ: float = 20.0
 const TICK_DT: float = 1.0 / TICK_HZ
@@ -61,6 +67,20 @@ func is_night() -> bool:
 	return get_phase() == Phase.NIGHT
 
 
+func get_season() -> int:
+	@warning_ignore("integer_division")
+	return ((day - 1) / DAYS_PER_SEASON) % SEASONS_PER_YEAR
+
+
+func get_year() -> int:
+	@warning_ignore("integer_division")
+	return (day - 1) / (DAYS_PER_SEASON * SEASONS_PER_YEAR) + 1
+
+
+func season_name() -> String:
+	return SEASON_NAMES[get_season()]
+
+
 func get_clock_text() -> String:
 	var total_minutes: int = int(time_of_day * 24.0 * 60.0)
 	@warning_ignore("integer_division")
@@ -72,11 +92,14 @@ func get_clock_text() -> String:
 ## Cheat de depuración: saltar horas del reloj del juego.
 func advance_hours(hours: float) -> void:
 	var prev_phase: int = get_phase()
+	var prev_season: int = get_season()
 	time_of_day += hours / 24.0
 	while time_of_day >= 1.0:
 		time_of_day -= 1.0
 		day += 1
 		day_changed.emit(day)
+	if get_season() != prev_season:
+		season_changed.emit(get_season())
 	if get_phase() != prev_phase:
 		phase_changed.emit(get_phase())
 
@@ -91,11 +114,14 @@ func reset(new_day: int = 1, new_time_of_day: float = 0.25) -> void:
 func _advance_tick() -> void:
 	elapsed_sim_seconds += TICK_DT
 	var prev_phase: int = get_phase()
+	var prev_season: int = get_season()
 	time_of_day += TICK_DT / DAY_LENGTH_SECONDS
 	if time_of_day >= 1.0:
 		time_of_day -= 1.0
 		day += 1
 		day_changed.emit(day)
+		if get_season() != prev_season:
+			season_changed.emit(get_season())
 	if get_phase() != prev_phase:
 		phase_changed.emit(get_phase())
 	sim_tick.emit(TICK_DT)

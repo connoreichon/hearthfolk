@@ -39,6 +39,9 @@ func _ready() -> void:
 	var dispatcher: HaulDispatcher = HaulDispatcher.new()
 	dispatcher.name = "HaulDispatcher"
 	add_child(dispatcher)
+	var seasons: SeasonController = SeasonController.new()
+	seasons.name = "SeasonController"
+	add_child(seasons)
 	# Las obras alteran la navegación: rehornear al empezar y al terminar
 	EventBus.construction_started.connect(_on_construction_changed)
 	EventBus.construction_completed.connect(_on_construction_changed)
@@ -94,6 +97,7 @@ func rebuild_from_save(data: Dictionary) -> void:
 			others.append(entry)
 
 	# Árboles: mismo orden de creación → mismos IDs; el que falta fue talado
+	var matched: Dictionary = {}
 	var regenerated: Array[Node] = get_tree().get_nodes_in_group(&"trees")
 	for node: Node in regenerated:
 		var tree: TreeEntity = node as TreeEntity
@@ -101,8 +105,19 @@ func rebuild_from_save(data: Dictionary) -> void:
 			continue
 		if saved_trees.has(tree.entity_id):
 			tree.load_data(saved_trees[tree.entity_id])
+			matched[tree.entity_id] = true
 		else:
 			tree.free()
+	# Brotes sembrados después de la generación del mapa (otoños pasados)
+	for tree_id: int in saved_trees:
+		if matched.has(tree_id):
+			continue
+		var d: Dictionary = saved_trees[tree_id]
+		var extra: TreeEntity = TreeEntity.create(int(d.get("seed", 0)), bool(d.get("young", true)))
+		extra.entity_id = tree_id
+		EntityRegistry.register_with_id(extra, &"tree", tree_id)
+		nav_region.add_child(extra)
+		extra.load_data(d)
 
 	for entry: Dictionary in others:
 		_spawn_saved_entity(String(entry.get("kind", "")), entry.get("data", {}))

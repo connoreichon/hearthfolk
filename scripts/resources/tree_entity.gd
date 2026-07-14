@@ -60,6 +60,32 @@ func choppable() -> bool:
 	return not young and not felled
 
 
+## Un joven se hace adulto (primavera). Reconstruye visual y colisión.
+func grow_up() -> void:
+	if not young or felled:
+		return
+	young = false
+	_rebuild_visual()
+	var pop: Tween = create_tween()
+	_visual.scale = Vector3.ONE * 0.55
+	pop.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	pop.tween_property(_visual, "scale", Vector3.ONE, 0.6)
+
+
+func _rebuild_visual() -> void:
+	if _visual != null and is_instance_valid(_visual):
+		_visual.queue_free()
+	_visual = TreeGen.build_visual(visual_seed, young)
+	add_child(_visual)
+	for child: Node in get_children():
+		if child is CollisionShape3D:
+			child.queue_free()
+	add_child(TreeGen.trunk_collision_shape(young))
+	var obstacle: NavigationObstacle3D = get_node_or_null("NavObstacle")
+	if obstacle != null:
+		obstacle.radius = 0.5 if not young else 0.28
+
+
 func set_marked(value: bool) -> void:
 	if felled or young or marked == value:
 		return
@@ -344,6 +370,7 @@ func save_data() -> Dictionary:
 
 func load_data(d: Dictionary) -> void:
 	visual_seed = int(d.get("seed", 0))
+	var was_young: bool = young
 	young = bool(d.get("young", false))
 	hp = int(d.get("hp", MAX_HP))
 	marked = false
@@ -351,5 +378,8 @@ func load_data(d: Dictionary) -> void:
 	global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 	rotation.y = float(d.get("rot_y", 0.0))
 	scale = Vector3.ONE * float(d.get("scale", 1.0))
+	if was_young != young:
+		# Creció (o se guardó como brote) desde la generación del mapa
+		_rebuild_visual()
 	if bool(d.get("marked", false)):
 		set_marked(true)

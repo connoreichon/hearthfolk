@@ -39,6 +39,9 @@ func _ready() -> void:
 				rig.set_zoom(float(args[i + 1]))
 		elif args[i] == "--time" and i + 1 < args.size():
 			SimClock.time_of_day = clampf(float(args[i + 1]), 0.0, 0.999)
+		elif args[i] == "--day" and i + 1 < args.size():
+			SimClock.day = maxi(1, int(args[i + 1]))
+			SimClock.season_changed.emit(SimClock.get_season())
 		elif args[i] == "--mark-tree":
 			_debug_mark_nearest_tree.call_deferred()
 		elif args[i] == "--build-house":

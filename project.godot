@@ -55,6 +55,21 @@ window/stretch/aspect="expand"
 
 3d/run_on_separate_thread=false
 
+[shader_globals]
+
+season_leaf_tint={
+"type": "color",
+"value": Color(1, 1, 1, 0)
+}
+season_grass_tint={
+"type": "color",
+"value": Color(1, 1, 1, 0)
+}
+snow_amount={
+"type": "float",
+"value": 0.0
+}
+
 [rendering]
 
 renderer/rendering_method="forward_plus"

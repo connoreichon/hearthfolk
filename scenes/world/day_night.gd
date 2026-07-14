@@ -32,8 +32,13 @@ func _process(delta: float) -> void:
 	var t: float = SimClock.time_of_day
 	# Sol: horizonte en t≈0.05, cénit en t≈0.375, se pone en t≈0.70
 	sun.rotation_degrees.x = -((t - 0.05) / 0.65) * 180.0
-	sun.light_color = _color_gradient.sample(t)
-	sun.light_energy = _energy_curve.sample_baked(t)
+	var season_energy: Array[float] = [1.0, 1.06, 0.92, 0.8]
+	var season: int = SimClock.get_season()
+	var color: Color = _color_gradient.sample(t)
+	if season == SimClock.Season.WINTER:
+		color = color.lerp(Color("#AFC4D8"), 0.3)
+	sun.light_color = color
+	sun.light_energy = _energy_curve.sample_baked(t) * season_energy[season]
 
 	var night_f: float = 1.0 - clampf(inverse_lerp(0.14, 0.9, sun.light_energy), 0.0, 1.0)
 	if sky_material != null:
