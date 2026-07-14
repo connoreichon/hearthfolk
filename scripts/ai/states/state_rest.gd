@@ -6,6 +6,7 @@ extends CitizenState
 var _sleeping: bool = false
 var _cottage: ConstructionSite
 var _spot: Vector3 = Vector3.ZERO
+var _approach: float = 0.0
 
 
 func state_name() -> StringName:
@@ -14,6 +15,7 @@ func state_name() -> StringName:
 
 func enter() -> void:
 	_sleeping = false
+	_approach = 0.0
 	_cottage = _claim_cottage()
 	citizen.visual.mode = &"walk"
 	if _cottage != null:
@@ -25,8 +27,11 @@ func enter() -> void:
 
 func tick(dt: float) -> void:
 	if not _sleeping:
+		_approach += dt
 		var close: bool = citizen.global_position.distance_to(_spot) < 1.3
-		if not citizen.nav_finished() and not close:
+		# Isla residual: si el hueco resulta inalcanzable, dormir donde está
+		var unreachable: bool = _approach > 2.0 and not citizen.nav_agent.is_target_reachable()
+		if not citizen.nav_finished() and not close and not unreachable:
 			return
 		citizen.stop_moving()
 		_sleeping = true

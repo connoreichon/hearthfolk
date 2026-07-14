@@ -271,7 +271,9 @@ static func _place_campfire(
 	body.add_child(PropGen.campfire(rng.randi()))
 	var shape: CollisionShape3D = CollisionShape3D.new()
 	var cylinder: CylinderShape3D = CylinderShape3D.new()
-	cylinder.radius = 0.85
+	# 1.35 ≈ agujero del navmesh − radio del agente: elimina la franja
+	# pisable-pero-sin-navmesh donde el RVO empujaba a los habitantes
+	cylinder.radius = 1.35
 	cylinder.height = 0.8
 	shape.shape = cylinder
 	shape.position = Vector3(0.0, 0.4, 0.0)
@@ -297,7 +299,8 @@ static func _place_cart(props: Node3D, rng: RandomNumberGenerator, terrain: Terr
 	body.add_child(PropGen.cart(rng.randi()))
 	var shape: CollisionShape3D = CollisionShape3D.new()
 	var box: BoxShape3D = BoxShape3D.new()
-	box.size = Vector3(2.4, 1.4, 1.5)
+	# Crecido hasta casar con el agujero del navmesh (mismo motivo que la fogata)
+	box.size = Vector3(3.2, 1.4, 2.3)
 	shape.shape = box
 	shape.position = Vector3(0.0, 0.7, 0.0)
 	body.add_child(shape)

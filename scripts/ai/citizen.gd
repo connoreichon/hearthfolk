@@ -421,19 +421,23 @@ func is_moving() -> bool:
 	return _moving
 
 
-## Detección de bloqueo (§7.4): sin avanzar 0.05 m durante stuck_seconds.
+## Detección de bloqueo (§7.4) con ANCLA de radio 0.35 m: el micro-temblor
+## del RVO (>5 cm por tick) engañaba al detector original y la escalera de
+## recuperación nunca se disparaba (cazado en el soak 002: habitantes
+## vibrando eternamente junto a la fogata sin "estar quietos").
 func _check_stuck(dt: float) -> void:
 	if not _moving:
 		_stuck_timer = 0.0
 		_last_pos = global_position
 		return
-	if global_position.distance_to(_last_pos) > 0.05:
+	if global_position.distance_to(_last_pos) > 0.35:
 		_last_pos = global_position
 		_stuck_timer = 0.0
 		return
 	_stuck_timer += dt
 	if _stuck_timer >= _cfg.stuck_seconds:
 		_stuck_timer = 0.0
+		_last_pos = global_position
 		EventBus.citizen_stuck.emit(entity_id, global_position)
 		state_machine.on_stuck()
 
