@@ -383,6 +383,13 @@ func save_data() -> Dictionary:
 		"bond": bond,
 		"carry_type": String(carrying_type),
 		"carry_amount": carrying_amount,
+		"shirt": data.shirt_color.to_html(false),
+		"pants": data.pants_color.to_html(false),
+		"hair": data.hair_color.to_html(false),
+		"skin": data.skin_color.to_html(false),
+		"height": data.height_scale,
+		"move_speed": data.move_speed,
+		"work_speed": data.work_speed,
 	}
 
 

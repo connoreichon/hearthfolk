@@ -42,6 +42,9 @@ func _ready() -> void:
 	var seasons: SeasonController = SeasonController.new()
 	seasons.name = "SeasonController"
 	add_child(seasons)
+	var arrivals: SettlerArrivals = SettlerArrivals.new()
+	arrivals.name = "SettlerArrivals"
+	add_child(arrivals)
 	# Las obras alteran la navegación: rehornear al empezar y al terminar
 	EventBus.construction_started.connect(_on_construction_changed)
 	EventBus.construction_completed.connect(_on_construction_changed)
@@ -138,8 +141,7 @@ func _spawn_saved_entity(kind: String, d: Dictionary) -> void:
 	match kind:
 		"citizen":
 			var citizen: Citizen = CITIZEN_SCENE.instantiate()
-			var citizen_name: String = String(d.get("name", "Elian")).to_lower()
-			citizen.data = load("res://data/citizens/%s.tres" % citizen_name)
+			citizen.data = SettlerGen.data_from_save(d)
 			citizen.entity_id = entity_id
 			EntityRegistry.register_with_id(citizen, &"citizen", entity_id)
 			add_child(citizen)
@@ -186,7 +188,8 @@ func _spawn_saved_entity(kind: String, d: Dictionary) -> void:
 				Vector3(float(pos[0]), float(pos[1]), float(pos[2])),
 				float(d.get("rot_y", 0.0)),
 				int(d.get("seed", 0)),
-				entity_id
+				entity_id,
+				String(d.get("recipe", "res://data/buildings/cottage_a.tres"))
 			)
 			site.load_data(d)
 		_:

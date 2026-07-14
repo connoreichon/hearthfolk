@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="BuildingRecipe" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://data/buildings/building_recipe.gd" id="1_rec"]
+[ext_resource type="Script" path="res://data/buildings/building_phase.gd" id="2_ph"]
+
+[sub_resource type="Resource" id="phase_1"]
+script = ExtResource("2_ph")
+display_name = "Cimientos"
+wood_cost = 4
+work_units = 22.0
+mesh_group = &"foundation"
+
+[sub_resource type="Resource" id="phase_2"]
+script = ExtResource("2_ph")
+display_name = "Estructura"
+wood_cost = 4
+work_units = 28.0
+mesh_group = &"frame"
+
+[sub_resource type="Resource" id="phase_3"]
+script = ExtResource("2_ph")
+display_name = "Paredes"
+wood_cost = 4
+work_units = 24.0
+mesh_group = &"walls"
+
+[sub_resource type="Resource" id="phase_4"]
+script = ExtResource("2_ph")
+display_name = "Tejado y acabado"
+wood_cost = 2
+work_units = 18.0
+mesh_group = &"roof"
+
+[resource]
+script = ExtResource("1_rec")
+id = &"cottage_b"
+display_name = "Casa larga"
+footprint = Vector2(6, 3.6)
+wall_height = 2.6
+total_height = 4.0
+sleep_slots = 3
+phases = [SubResource("phase_1"), SubResource("phase_2"), SubResource("phase_3"), SubResource("phase_4")]

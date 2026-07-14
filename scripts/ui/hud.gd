@@ -216,13 +216,14 @@ func _refresh_speed_buttons() -> void:
 func _process(_delta: float) -> void:
 	var population: int = get_tree().get_nodes_in_group(&"citizens").size()
 	_top_label.text = (
-		"Año %d · %s · Día %d   %s   Población %d   Madera %d   Comida %d"
+		"Año %d · %s · Día %d   %s   Población %d/%d   Madera %d   Comida %d"
 		% [
 			SimClock.get_year(),
 			SimClock.season_name(),
 			SimClock.day,
 			SimClock.get_clock_text(),
 			population,
+			SettlerArrivals.total_beds(get_tree()),
 			GameState.get_resource(&"wood"),
 			GameState.get_resource(&"food"),
 		]

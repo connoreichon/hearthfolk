@@ -6,7 +6,6 @@ extends StaticBody3D
 
 const BUILD_RATE: float = 1.6
 const MAX_BUILDERS: int = 2
-const SLEEP_SLOTS: int = 2
 
 var entity_id: int = 0
 var building_seed: int = 0
@@ -27,12 +26,17 @@ var _sleepers: Array[int] = []
 
 
 static func place(
-	parent: Node3D, at: Vector3, yaw: float, seed_value: int, preset_id: int = 0
+	parent: Node3D,
+	at: Vector3,
+	yaw: float,
+	seed_value: int,
+	preset_id: int = 0,
+	recipe_path: String = "res://data/buildings/cottage_a.tres"
 ) -> ConstructionSite:
 	var site: ConstructionSite = ConstructionSite.new()
 	site.name = "ConstructionSite"
 	site.building_seed = seed_value
-	site.recipe = load("res://data/buildings/cottage_a.tres")
+	site.recipe = load(recipe_path)
 	site.collision_layer = (1 << 4) | (1 << 7)
 	site.collision_mask = 0
 	if preset_id != 0:
@@ -56,7 +60,9 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position = Vector3(0.0, 1.3, 0.0)
 	add_child(shape)
-	var gen: Dictionary = CottageGen.build(building_seed)
+	var gen: Dictionary = CottageGen.build(
+		building_seed, recipe.footprint.x * 0.5, recipe.footprint.y * 0.5, recipe.id
+	)
 	add_child(gen["root"])
 	_pieces = {1: gen["foundation"], 2: gen["frame"], 3: gen["walls"], 4: gen["roof"]}
 	_shown = {1: 0, 2: 0, 3: 0, 4: 0}
@@ -142,7 +148,7 @@ func progress_fraction() -> float:
 
 
 func claim_sleep_slot(citizen_id: int) -> bool:
-	if not completed or _sleepers.size() >= SLEEP_SLOTS:
+	if not completed or _sleepers.size() >= recipe.sleep_slots:
 		return false
 	if citizen_id in _sleepers:
 		return true
@@ -370,6 +376,7 @@ func save_data() -> Dictionary:
 		"completed": completed,
 		"pos": [global_position.x, global_position.y, global_position.z],
 		"rot_y": rotation.y,
+		"recipe": recipe.resource_path,
 	}
 
 

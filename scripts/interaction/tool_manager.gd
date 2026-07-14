@@ -446,7 +446,19 @@ func _confirm_zone() -> void:
 	var to_fire: Vector3 = fire_pos - at
 	var yaw: float = snappedf(atan2(to_fire.x, to_fire.z) - PI * 0.5, PI * 0.5)
 	var site_seed: int = GameState.derive_seed(["cottage", zone.entity_id])
-	var site: ConstructionSite = ConstructionSite.place(world_root, at, yaw, site_seed)
+	# Variedad: alternar cabaña clásica y casa larga
+	var houses: int = (
+		get_tree().get_nodes_in_group(&"construction_sites").size()
+		+ get_tree().get_nodes_in_group(&"buildings").size()
+	)
+	var recipe_path: String = (
+		"res://data/buildings/cottage_b.tres"
+		if houses % 2 == 1
+		else "res://data/buildings/cottage_a.tres"
+	)
+	var site: ConstructionSite = ConstructionSite.place(
+		world_root, at, yaw, site_seed, 0, recipe_path
+	)
 	EventBus.toast.emit(
 		"Zona residencial confirmada: la cabaña pide %d de madera" % site.recipe.total_wood_cost(),
 		&"info"

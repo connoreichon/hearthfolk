@@ -7,6 +7,7 @@ extends Resource
 @export var footprint: Vector2 = Vector2(5.0, 4.0)
 @export var wall_height: float = 2.6
 @export var total_height: float = 4.2
+@export var sleep_slots: int = 2
 @export var phases: Array[BuildingPhase] = []
 
 
