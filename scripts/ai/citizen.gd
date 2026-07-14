@@ -30,6 +30,8 @@ var _carry_visual: Node3D
 var _moving: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
 var _stuck_timer: float = 0.0
+var _coarse_anchor: Vector3 = Vector3.ZERO
+var _coarse_timer: float = 0.0
 var _cfg: SimConfig
 var _critical_sent: bool = false
 var _step_distance: float = 0.0
@@ -428,18 +430,48 @@ func is_moving() -> bool:
 func _check_stuck(dt: float) -> void:
 	if not _moving:
 		_stuck_timer = 0.0
+		_coarse_timer = 0.0
 		_last_pos = global_position
+		_coarse_anchor = global_position
 		return
 	if global_position.distance_to(_last_pos) > 0.35:
 		_last_pos = global_position
 		_stuck_timer = 0.0
+	else:
+		_stuck_timer += dt
+		if _stuck_timer >= _cfg.stuck_seconds:
+			_stuck_timer = 0.0
+			_last_pos = global_position
+			EventBus.citizen_stuck.emit(entity_id, global_position)
+			state_machine.on_stuck()
+	# Detector GRUESO (soak 002): órbitas del RVO que saltan >0.35 m pero no
+	# progresan. Sin progreso real en 10 s de sim → teleport suave al camino
+	# (escalera §7.4 paso c, aplicada sin piedad: nada se atasca >15 s).
+	if global_position.distance_to(_coarse_anchor) > 1.2:
+		_coarse_anchor = global_position
+		_coarse_timer = 0.0
+	else:
+		_coarse_timer += dt
+		if _coarse_timer >= 10.0:
+			_coarse_timer = 0.0
+			_coarse_anchor = global_position
+			_force_unstick()
+
+
+## Desatasco garantizado: al siguiente waypoint del camino; si no hay
+## camino, hacia el objetivo pegado al navmesh; si no, se suelta la tarea.
+func _force_unstick() -> void:
+	EventBus.citizen_stuck.emit(entity_id, global_position)
+	var map: RID = get_world_3d().navigation_map
+	var next: Vector3 = nav_agent.get_next_path_position()
+	if next.distance_to(global_position) < 0.4:
+		var toward: Vector3 = global_position.lerp(nav_agent.target_position, 0.35)
+		next = NavigationServer3D.map_get_closest_point(map, toward)
+	if next.distance_to(global_position) < 0.4:
+		abandon_task(&"stuck")
+		state_machine.change(&"Idle")
 		return
-	_stuck_timer += dt
-	if _stuck_timer >= _cfg.stuck_seconds:
-		_stuck_timer = 0.0
-		_last_pos = global_position
-		EventBus.citizen_stuck.emit(entity_id, global_position)
-		state_machine.on_stuck()
+	fade_teleport(NavigationServer3D.map_get_closest_point(map, next))
 
 
 func entity_kind() -> StringName:
