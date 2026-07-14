@@ -55,6 +55,16 @@ func _ready() -> void:
 			_debug_make_hungry.call_deferred()
 		elif args[i] == "--speed" and i + 1 < args.size():
 			SimClock.set_speed(int(args[i + 1]))
+		elif args[i] == "--drive" and i + 1 < args.size():
+			_debug_drive(float(args[i + 1]))
+
+
+## Solo para repros automatizadas: mantener W pulsada unos segundos.
+func _debug_drive(seconds: float) -> void:
+	await get_tree().create_timer(1.5).timeout
+	Input.action_press(&"camera_forward")
+	await get_tree().create_timer(seconds).timeout
+	Input.action_release(&"camera_forward")
 
 
 ## Solo para smoke tests automatizados: huerto con cultivo acelerado.
@@ -168,8 +178,18 @@ func _toggle_pause_options() -> void:
 	_pause_options.visible = not _pause_options.visible
 
 
+## Mismo desmontaje determinista que el menú usa al entrar en partida:
+## nunca liberar un mundo simulado dentro de change_scene (release crash).
 func _exit_to_menu() -> void:
 	SaveManager.save_game()
+	SimClock.set_speed(SimClock.Speed.PAUSED)
+	var world: Node = get_node_or_null("World")
+	if world != null:
+		world.queue_free()
+	TaskBoard.clear()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	EntityRegistry.clear()
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 

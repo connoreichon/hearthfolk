@@ -8,6 +8,7 @@ const GAME_SCENE: String = "res://scenes/main/main.tscn"
 var _palette: PaletteData
 var _camera: Camera3D
 var _orbit_angle: float = 0.6
+var _bg_world: Node
 var _root_box: VBoxContainer
 var _new_box: VBoxContainer
 var _load_box: VBoxContainer
@@ -26,8 +27,8 @@ func _ready() -> void:
 	EntityRegistry.clear()
 	GameState.setup_new_game(MENU_SEED)
 	GameState.add_resource(&"food", 12)
-	var world: Node = (load("res://scenes/world/world.tscn") as PackedScene).instantiate()
-	add_child(world)
+	_bg_world = (load("res://scenes/world/world.tscn") as PackedScene).instantiate()
+	add_child(_bg_world)
 	SimClock.reset(1, 0.60)
 	SimClock.set_speed(1)
 	_camera = Camera3D.new()
@@ -38,10 +39,21 @@ func _ready() -> void:
 	for i: int in args.size():
 		if args[i] == "--screenshot" and i + 1 < args.size():
 			_capture(args[i + 1])
+		elif args[i] == "--newgame":
+			# Repro automatizada del clic real del jugador: slot + Empezar.
+			_seed_edit.text = "1234"
+			_show_new_game()
+			_start_new_game.call_deferred()
 
 
 func _capture(path: String) -> void:
-	await get_tree().create_timer(3.0).timeout
+	# Conexión de señal en vez de await: si el menú se libera antes de los
+	# 3 s (p. ej. --newgame), la conexión muere con el nodo sin reanudar
+	# una corrutina sobre un objeto liberado.
+	get_tree().create_timer(3.0).timeout.connect(_do_capture.bind(path))
+
+
+func _do_capture(path: String) -> void:
 	var image: Image = get_viewport().get_texture().get_image()
 	print("screenshot %s -> %s" % [path, error_string(image.save_png(path))])
 	get_tree().quit()
@@ -216,9 +228,27 @@ func _prepare_new_game_state() -> void:
 
 func _start_new_game() -> void:
 	_prepare_new_game_state()
-	get_tree().change_scene_to_file(GAME_SCENE)
+	_change_to_game()
 
 
 func _load_slot(slot: int) -> void:
 	GameState.pending_load_slot = slot
+	_change_to_game()
+
+
+## Liberar un mundo simulado vivo en mitad de change_scene corrompe el heap
+## con el template release (0xc0000005 en ntdll; en debug la validación de
+## instancias lo enmascara como errores benignos). Orden seguro: parar los
+## ticks, liberar el mundo de fondo, esperar dos frames a que muera del
+## todo y solo entonces cambiar de escena.
+func _change_to_game() -> void:
+	SimClock.set_speed(SimClock.Speed.PAUSED)
+	set_process(false)
+	if _bg_world != null:
+		_bg_world.queue_free()
+		_bg_world = null
+	TaskBoard.clear()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	EntityRegistry.clear()
 	get_tree().change_scene_to_file(GAME_SCENE)

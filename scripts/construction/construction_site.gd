@@ -179,6 +179,9 @@ func _process(_delta: float) -> void:
 
 
 func _on_sim_tick(_dt: float) -> void:
+	# Fuera del árbol (cambio de escena) no se toca nada: release crash.
+	if not is_inside_tree():
+		return
 	if completed:
 		return
 	_manage_supply_tasks()

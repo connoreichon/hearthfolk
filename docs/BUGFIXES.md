@@ -46,3 +46,22 @@
 
 - **Síntoma**: errores al parentar partículas/ghost/línea de destino y al buscar World/CameraRig en el runner de tests (`current_scene` no existe en modo `-s`).
 - **Arreglo**: parenting local (`get_parent()`) y lookups por los grupos `world` / `camera_rig`.
+
+## Hotfix 002.1 — Crash 0xc0000005 al pulsar «Empezar» (solo template release)
+
+- **Síntoma**: el exe release se cerraba en seco al iniciar/cargar partida desde el menú (2 crashes del probador + repro determinista; visor de eventos: `0xc0000005` en ntdll). En editor, headless y debug funcionaba perfecto.
+- **Causa**: la transición `change_scene_to_file` liberaba el mundo de fondo del menú (4 habitantes + RVO + navmesh vivos) en mitad del cambio mientras `SimClock` seguía emitiendo `sim_tick`. Los citizens fuera del árbol ejecutaban `get_tree().get_nodes_in_group(...)` sobre null: el check de instancia nula de GDScript está compilado **solo en debug** (`gdscript_vm.cpp`), en release es deref de puntero nulo → violación de acceso. El camino jamás se había recorrido: el bug del panel invisible impedía llegar y los tests headless simulaban la transición sin `change_scene` real.
+- **Arreglo** (cinturón y tirantes):
+  - Guarda `is_inside_tree()` al inicio de `_on_sim_tick` en `citizen.gd`, `construction_site.gd` y `farm_field.gd`.
+  - Desmontaje determinista en ambas transiciones (`main_menu._change_to_game`, `main._exit_to_menu`): pausar SimClock → liberar el mundo → esperar 2 frames → limpiar TaskBoard/EntityRegistry → `change_scene_to_file`.
+  - Lambdas conectadas a señales de autoloads convertidas a métodos con nombre (`hud.gd`, `season_controller.gd`): las lambdas no se desconectan al morir el nodo.
+  - `main_menu._capture` por conexión de señal en vez de `await` (no reanudar corrutinas sobre objetos liberados).
+- **Verificación**: 4/4 corridas release del flujo real vivas + 2/2 con captura limpia. Nuevo `tools/release_smoke.ps1` en el ritual: ninguna build sale sin ejecutar el flujo real contra el template release.
+- **Bonus**: la partida nueva ya no hereda el reloj del menú (empezaba al atardecer); ahora `SimClock.reset(1, 0.25)` + velocidad normal.
+
+## Hotfix 002.1 — Pantalla entera marrón al avanzar con W
+
+- **Síntoma**: manteniendo W unos segundos, la pantalla se ponía marrón por completo y no se veía nada.
+- **Causa**: con zoom por defecto la cámara cuelga ~26 m por detrás del pivot; el clamp de límites (`map_half_size - map_margin`) solo acota el pivot, así que en ~3 s de W llegabas al borde y te quedabas mirando el **vacío de detrás del mapa**, que el cielo procedural pinta de marrón tierra de suelo a cénit. Los soaks nunca mueven la cámara y las capturas eran del spawn: nadie lo había mirado.
+- **Arreglo**: (1) clamp consciente del zoom (`- arm.spring_length * 0.35`); (2) falda de horizonte (disco de pradera r=600 bajo el borde) para que el más allá sea campo lejano; (3) hemisferio inferior del cielo verde oliva apagado en vez de barro; (4) el SpringArm ya no colisiona con el terreno (encogía el brazo tras una colina) — la altura la garantiza `CAMERA_CLEARANCE` sobre el terreno bajo la cámara.
+- **Verificación**: autopiloto nuevo `--drive N` (mantiene W N segundos) + captura; antes/después en `docs/screenshots/repro_camera_brown.png` y `camera_fix_v2.png`.

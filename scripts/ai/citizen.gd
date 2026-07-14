@@ -104,6 +104,11 @@ func _on_state_changed(changed_id: int, state: StringName) -> void:
 
 
 func _on_sim_tick(dt: float) -> void:
+	# Durante un cambio de escena el nodo puede recibir ticks ya fuera del
+	# árbol (sim_tick viene de un autoload): tocar navegación o grupos ahí
+	# es use-after-free en release.
+	if not is_inside_tree():
+		return
 	_decay_needs(dt)
 	_check_interrupts()
 	state_machine.tick(dt)

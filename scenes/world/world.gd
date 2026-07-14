@@ -24,6 +24,10 @@ func _ready() -> void:
 		GameState.pending_new_seed = 0
 		GameState.add_resource(&"food", 12)
 		GameState.add_resource(&"tools", 4)
+		# El menú deja su propio reloj (atardecer, pausado tras la
+		# transición): la partida nueva empieza de mañana y en marcha.
+		SimClock.reset(1, 0.25)
+		SimClock.set_speed(SimClock.Speed.NORMAL)
 	elif GameState.world_seed == 0:
 		GameState.setup_new_game(DEFAULT_SEED)
 		GameState.add_resource(&"food", 12)
@@ -215,6 +219,22 @@ func _setup_light_and_environment() -> void:
 	sun.directional_shadow_max_distance = 130.0
 	add_child(sun)
 
+	# Falda de horizonte: pradera lejana bajo el borde del mapa, para que
+	# mirar más allá del límite no enseñe el vacío marrón del cielo.
+	var skirt: MeshInstance3D = MeshInstance3D.new()
+	skirt.name = "HorizonSkirt"
+	var disc: CylinderMesh = CylinderMesh.new()
+	disc.top_radius = 600.0
+	disc.bottom_radius = 600.0
+	disc.height = 0.1
+	disc.radial_segments = 32
+	var skirt_mat: StandardMaterial3D = StandardMaterial3D.new()
+	skirt_mat.albedo_color = palette.grass.darkened(0.22)
+	disc.material = skirt_mat
+	skirt.mesh = disc
+	skirt.position = Vector3(0.0, -1.2, 0.0)
+	add_child(skirt)
+
 	var world_env: WorldEnvironment = WorldEnvironment.new()
 	world_env.name = "Env"
 	var env: Environment = Environment.new()
@@ -222,7 +242,9 @@ func _setup_light_and_environment() -> void:
 	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color("#6E9BC4")
 	sky_mat.sky_horizon_color = Color("#C9D6C2")
-	sky_mat.ground_bottom_color = palette.dirt
+	# Verde oliva apagado, no tierra: si algún ángulo enseña el hemisferio
+	# inferior del cielo, que parezca pradera en la niebla y no barro.
+	sky_mat.ground_bottom_color = palette.dirt.lerp(palette.grass, 0.55)
 	sky_mat.ground_horizon_color = Color("#C9D6C2")
 	var sky: Sky = Sky.new()
 	sky.sky_material = sky_mat

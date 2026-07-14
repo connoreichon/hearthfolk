@@ -131,6 +131,9 @@ func apply_harvest(index: int) -> void:
 
 
 func _on_sim_tick(dt: float) -> void:
+	# Fuera del árbol (cambio de escena) no se toca nada: release crash.
+	if not is_inside_tree():
+		return
 	var winter: bool = SimClock.get_season() == SimClock.Season.WINTER
 	var growth: float = dt
 	if SimClock.get_season() == SimClock.Season.AUTUMN:

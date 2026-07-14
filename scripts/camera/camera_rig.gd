@@ -3,6 +3,9 @@ extends Node3D
 ## Cámara de maqueta (§6): pivot → SpringArm3D → Camera3D.
 ## Usa delta real (sigue viva en pausa). Zoom exponencial 12–80 m.
 
+## Altura mínima de la cámara sobre el terreno que tenga debajo.
+const CAMERA_CLEARANCE: float = 3.0
+
 var _cfg: CameraConfig
 var _target_zoom: float = 40.0
 var _panning: bool = false
@@ -16,7 +19,10 @@ func _ready() -> void:
 	add_to_group(&"camera_rig")
 	_cfg = CameraConfig.get_default()
 	arm.spring_length = _target_zoom
-	arm.collision_mask = 1
+	# Sin colisión: si una colina se cruza entre pivot y cámara, el brazo se
+	# encogía y estampaba la cámara contra la ladera (pantalla marrón). La
+	# altura segura la garantiza CAMERA_CLEARANCE en _process.
+	arm.collision_mask = 0
 	arm.margin = 0.5
 	arm.rotation_degrees.x = -_cfg.tilt_near_deg
 	camera.current = true
@@ -38,13 +44,23 @@ func _process(delta: float) -> void:
 	# Rotación Q/E
 	var rot_dir: float = Input.get_axis(&"camera_rotate_left", &"camera_rotate_right")
 	rotation.y -= deg_to_rad(_cfg.rotate_speed_deg) * rot_dir * delta
-	# Límites del mapa
-	var limit: float = _cfg.map_half_size - _cfg.map_margin
+	# Límites del mapa, más estrictos cuanto más lejos está la cámara: con
+	# zoom alto la cámara cuelga decenas de metros por detrás del pivot y
+	# sin este término acababas mirando el vacío de detrás del borde.
+	var limit: float = maxf(12.0, _cfg.map_half_size - _cfg.map_margin - arm.spring_length * 0.35)
 	position.x = clampf(position.x, -limit, limit)
 	position.z = clampf(position.z, -limit, limit)
-	# Altura del pivot pegada al terreno
+	# Altura del pivot pegada al terreno — pero si el suelo bajo la CÁMARA
+	# queda a menos de CAMERA_CLEARANCE, el pivot sube lo que falte (nunca
+	# meter la cámara dentro de una colina).
 	if GameState.terrain != null:
-		position.y = lerpf(position.y, GameState.terrain.get_height(position.x, position.z), k)
+		var target_y: float = GameState.terrain.get_height(position.x, position.z)
+		var cam_pos: Vector3 = camera.global_position
+		var cam_ground: float = GameState.terrain.get_height(cam_pos.x, cam_pos.z)
+		var deficit: float = cam_ground + CAMERA_CLEARANCE - cam_pos.y
+		if deficit > 0.0:
+			target_y = maxf(target_y, position.y + deficit)
+		position.y = lerpf(position.y, target_y, k)
 	# Zoom exponencial suavizado + inclinación 48°→55°
 	arm.spring_length = lerpf(arm.spring_length, _target_zoom, k)
 	var zoom_f: float = clampf(

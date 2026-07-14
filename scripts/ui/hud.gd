@@ -47,7 +47,9 @@ func _ready() -> void:
 	EventBus.toast.connect(_on_toast)
 	EventBus.selection_changed.connect(_on_selection_changed)
 	EventBus.tool_changed.connect(_on_tool_changed)
-	SimClock.speed_changed.connect(func(_s: int) -> void: _refresh_speed_buttons())
+	# Método con nombre, no lambda: las lambdas conectadas a señales de un
+	# autoload NO se desconectan al morir el nodo (use-after-free en release).
+	SimClock.speed_changed.connect(_on_speed_changed_signal)
 	_refresh_speed_buttons()
 	_dest_line = MeshInstance3D.new()
 	_dest_line.name = "DestLine"
@@ -238,6 +240,10 @@ func _on_selection_changed(entity_id: int) -> void:
 func _on_tool_changed(tool: StringName) -> void:
 	for key: StringName in _tool_buttons:
 		(_tool_buttons[key] as Button).set_pressed_no_signal(key == tool)
+
+
+func _on_speed_changed_signal(_speed: int) -> void:
+	_refresh_speed_buttons()
 
 
 func _refresh_speed_buttons() -> void:

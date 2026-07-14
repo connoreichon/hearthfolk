@@ -30,7 +30,13 @@ var _snow_current: float = 0.0
 
 func _ready() -> void:
 	SimClock.season_changed.connect(_on_season_changed)
-	EventBus.game_loaded.connect(func(_slot: int) -> void: _apply_instant(SimClock.get_season()))
+	# Método con nombre, no lambda: las lambdas conectadas a señales de un
+	# autoload NO se desconectan al morir el nodo (use-after-free en release).
+	EventBus.game_loaded.connect(_on_game_loaded)
+	_apply_instant(SimClock.get_season())
+
+
+func _on_game_loaded(_slot: int) -> void:
 	_apply_instant(SimClock.get_season())
 
 
