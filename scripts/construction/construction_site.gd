@@ -60,8 +60,9 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position = Vector3(0.0, 1.3, 0.0)
 	add_child(shape)
+	# Disco RVO dentro del agujero del navmesh (lado corto del footprint)
 	var obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
-	obstacle.radius = maxf(recipe.footprint.x, recipe.footprint.y) * 0.5 + 0.7
+	obstacle.radius = minf(recipe.footprint.x, recipe.footprint.y) * 0.5 + 0.2
 	obstacle.avoidance_enabled = true
 	add_child(obstacle)
 	var gen: Dictionary = CottageGen.build(

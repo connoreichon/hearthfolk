@@ -276,10 +276,11 @@ static func _place_campfire(
 	shape.shape = cylinder
 	shape.position = Vector3(0.0, 0.4, 0.0)
 	body.add_child(shape)
-	# RVO: sin esto los habitantes se empujan unos a otros contra la fogata
-	# en las horas punta (visto en el soak 002)
+	# RVO: sin esto los habitantes se empujan unos a otros contra la fogata.
+	# CLAVE: disco RVO + radio del agente (0.35) DEBE caber dentro del
+	# agujero del navmesh (~1.45), o veta los caminos que lo bordean.
 	var fire_obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
-	fire_obstacle.radius = 1.25
+	fire_obstacle.radius = 1.0
 	fire_obstacle.avoidance_enabled = true
 	body.add_child(fire_obstacle)
 	body.position = Vector3(0.0, terrain.get_height(0.0, 0.0), 0.0)
@@ -300,8 +301,9 @@ static func _place_cart(props: Node3D, rng: RandomNumberGenerator, terrain: Terr
 	shape.shape = box
 	shape.position = Vector3(0.0, 0.7, 0.0)
 	body.add_child(shape)
+	# Mismo criterio que la fogata: dentro del agujero (lado corto ~1.35)
 	var cart_obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
-	cart_obstacle.radius = 1.7
+	cart_obstacle.radius = 1.0
 	cart_obstacle.avoidance_enabled = true
 	body.add_child(cart_obstacle)
 	var angle: float = rng.randf() * TAU
