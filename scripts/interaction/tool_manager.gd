@@ -78,6 +78,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"tool_cancel") and current_tool != &"none":
 		set_tool(&"none")
+		get_viewport().set_input_as_handled()
 		return
 	if current_tool == &"zone":
 		_zone_input(event)

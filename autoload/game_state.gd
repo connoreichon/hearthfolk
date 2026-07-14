@@ -6,6 +6,10 @@ var world_seed: int = 0
 var inventory: Dictionary = {&"wood": 0, &"food": 0, &"tools": 0}
 var terrain: TerrainData
 
+# Flujo menú → partida: el menú deja aquí la intención y main/world la consume
+var pending_new_seed: int = 0
+var pending_load_slot: int = 0
+
 
 func setup_new_game(seed_value: int) -> void:
 	world_seed = seed_value

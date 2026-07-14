@@ -16,7 +16,15 @@ var _sky_mat: ProceduralSkyMaterial
 
 func _ready() -> void:
 	add_to_group(&"world")
-	if GameState.world_seed == 0:
+	if GameState.pending_new_seed != 0:
+		# Partida nueva pedida desde el menú
+		TaskBoard.clear()
+		EntityRegistry.clear()
+		GameState.setup_new_game(GameState.pending_new_seed)
+		GameState.pending_new_seed = 0
+		GameState.add_resource(&"food", 12)
+		GameState.add_resource(&"tools", 4)
+	elif GameState.world_seed == 0:
 		GameState.setup_new_game(DEFAULT_SEED)
 		GameState.add_resource(&"food", 12)
 		GameState.add_resource(&"tools", 4)

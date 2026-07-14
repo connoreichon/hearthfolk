@@ -3,11 +3,17 @@ extends Node
 ## se regeneran desde la realidad del mundo al cargar. Autosave cada 60 s
 ## reales (no corre en pausa).
 
-const SAVE_PATH: String = "user://save_001.json"
 const FORMAT_VERSION: int = 1
 const AUTOSAVE_SECONDS: float = 60.0
+const SLOTS: int = 3
+
+var active_slot: int = 1
 
 var _autosave_timer: float = 0.0
+
+
+func slot_path(slot: int) -> String:
+	return "user://save_%03d.json" % slot
 
 
 func _process(delta: float) -> void:
@@ -50,13 +56,17 @@ func capture() -> Dictionary:
 	}
 
 
-func save_game() -> void:
+func save_game(slot: int = -1) -> void:
+	if slot > 0:
+		active_slot = slot
 	if write_save(capture()):
-		EventBus.game_saved.emit(1)
-		EventBus.toast.emit("Partida guardada", &"success")
+		EventBus.game_saved.emit(active_slot)
+		EventBus.toast.emit("Partida guardada (slot %d)" % active_slot, &"success")
 
 
-func load_game() -> bool:
+func load_game(slot: int = -1) -> bool:
+	if slot > 0:
+		active_slot = slot
 	var data: Dictionary = read_save()
 	if data.is_empty():
 		EventBus.toast.emit("No hay partida guardada", &"warn")
@@ -73,35 +83,45 @@ func load_game() -> bool:
 	return true
 
 
-func write_save(data: Dictionary) -> bool:
+func write_save(data: Dictionary, slot: int = -1) -> bool:
+	var path: String = slot_path(active_slot if slot <= 0 else slot)
 	data["format_version"] = FORMAT_VERSION
-	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		push_error("SaveManager: no se pudo abrir %s para escribir" % SAVE_PATH)
+		push_error("SaveManager: no se pudo abrir %s para escribir" % path)
 		return false
 	file.store_string(JSON.stringify(data, "  "))
 	file.close()
 	return true
 
 
-func read_save() -> Dictionary:
-	if not FileAccess.file_exists(SAVE_PATH):
+func read_save(slot: int = -1) -> Dictionary:
+	var path: String = slot_path(active_slot if slot <= 0 else slot)
+	if not FileAccess.file_exists(path):
 		return {}
-	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		push_error("SaveManager: no se pudo abrir %s para leer" % SAVE_PATH)
+		push_error("SaveManager: no se pudo abrir %s para leer" % path)
 		return {}
 	var text: String = file.get_as_text()
 	file.close()
 	var parsed: Variant = JSON.parse_string(text)
 	if parsed == null or not parsed is Dictionary:
-		push_error("SaveManager: JSON inválido en %s" % SAVE_PATH)
+		push_error("SaveManager: JSON inválido en %s" % path)
 		return {}
 	return migrate(parsed as Dictionary)
 
 
-func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+func has_save(slot: int = -1) -> bool:
+	return FileAccess.file_exists(slot_path(active_slot if slot <= 0 else slot))
+
+
+## Resumen para el menú: día y estación del guardado, o vacío.
+func slot_summary(slot: int) -> String:
+	if not has_save(slot):
+		return "Slot %d — vacío" % slot
+	var data: Dictionary = read_save(slot)
+	return "Slot %d — Día %d" % [slot, int(data.get("day", 1))]
 
 
 ## Migraciones incrementales. Un campo que falte se rellena con su valor
