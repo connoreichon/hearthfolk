@@ -23,14 +23,14 @@ func enter() -> void:
 	citizen.visual.mode = &"walk"
 	# move_to_near pega el destino al navmesh: el carro talla un agujero
 	# y un punto a 1.5 m del centro puede caer dentro (bug del soak 002)
-	citizen.move_to_near(storage.global_position, 2.0)
+	citizen.move_to_near(storage.global_position, 2.4)
 
 
 func tick(dt: float) -> void:
 	if not _eating:
 		var storage: Node3D = citizen.find_storage()
 		var close: bool = (
-			storage != null and citizen.global_position.distance_to(storage.global_position) < 3.0
+			storage != null and citizen.global_position.distance_to(storage.global_position) < 3.4
 		)
 		if not citizen.nav_finished() and not close:
 			return

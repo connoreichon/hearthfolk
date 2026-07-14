@@ -5,6 +5,7 @@ extends CitizenState
 
 var _sleeping: bool = false
 var _cottage: ConstructionSite
+var _spot: Vector3 = Vector3.ZERO
 
 
 func state_name() -> StringName:
@@ -16,14 +17,16 @@ func enter() -> void:
 	_cottage = _claim_cottage()
 	citizen.visual.mode = &"walk"
 	if _cottage != null:
-		citizen.move_to(_cottage.door_position())
+		_spot = _cottage.door_position()
 	else:
-		citizen.move_to(citizen.rest_spot())
+		_spot = citizen.rest_spot()
+	citizen.move_to(_spot)
 
 
 func tick(dt: float) -> void:
 	if not _sleeping:
-		if not citizen.nav_finished():
+		var close: bool = citizen.global_position.distance_to(_spot) < 1.3
+		if not citizen.nav_finished() and not close:
 			return
 		citizen.stop_moving()
 		_sleeping = true

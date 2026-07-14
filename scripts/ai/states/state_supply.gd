@@ -22,7 +22,7 @@ func enter() -> void:
 		citizen.state_machine.change(&"FindTask")
 		return
 	citizen.visual.mode = &"walk"
-	citizen.move_to_near(storage.global_position, 1.6)
+	citizen.move_to_near(storage.global_position, 2.4)
 
 
 func tick(dt: float) -> void:
@@ -40,7 +40,11 @@ func tick(dt: float) -> void:
 		citizen.state_machine.change(&"FindTask")
 		return
 	if not _fetched:
-		if not citizen.nav_finished():
+		var storage: Node3D = citizen.find_storage()
+		var near_storage: bool = (
+			storage != null and citizen.global_position.distance_to(storage.global_position) < 3.4
+		)
+		if not citizen.nav_finished() and not near_storage:
 			return
 		citizen.stop_moving()
 		var amount: int = int(task.payload.get("amount", 2))

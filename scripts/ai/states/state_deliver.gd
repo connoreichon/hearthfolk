@@ -20,7 +20,7 @@ func enter() -> void:
 		citizen.state_machine.change(&"FindTask")
 		return
 	citizen.visual.mode = &"carry"
-	citizen.move_to_near(dest.global_position, 4.0 if dest is ConstructionSite else 1.6)
+	citizen.move_to_near(dest.global_position, 4.0 if dest is ConstructionSite else 2.4)
 
 
 func tick(dt: float) -> void:
@@ -31,7 +31,7 @@ func tick(dt: float) -> void:
 		citizen.abandon_task(&"unreachable")
 		citizen.state_machine.change(&"FindTask")
 		return
-	var arrive_dist: float = 4.8 if dest is ConstructionSite else 2.4
+	var arrive_dist: float = 4.8 if dest is ConstructionSite else 3.4
 	var close: bool = citizen.global_position.distance_to(dest.global_position) < arrive_dist
 	if citizen.nav_finished() or close:
 		citizen.stop_moving()

@@ -276,6 +276,12 @@ static func _place_campfire(
 	shape.shape = cylinder
 	shape.position = Vector3(0.0, 0.4, 0.0)
 	body.add_child(shape)
+	# RVO: sin esto los habitantes se empujan unos a otros contra la fogata
+	# en las horas punta (visto en el soak 002)
+	var fire_obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
+	fire_obstacle.radius = 1.25
+	fire_obstacle.avoidance_enabled = true
+	body.add_child(fire_obstacle)
 	body.position = Vector3(0.0, terrain.get_height(0.0, 0.0), 0.0)
 	body.add_to_group(&"campfire")
 	body.add_to_group(&"selectable")
@@ -294,6 +300,10 @@ static func _place_cart(props: Node3D, rng: RandomNumberGenerator, terrain: Terr
 	shape.shape = box
 	shape.position = Vector3(0.0, 0.7, 0.0)
 	body.add_child(shape)
+	var cart_obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
+	cart_obstacle.radius = 1.7
+	cart_obstacle.avoidance_enabled = true
+	body.add_child(cart_obstacle)
 	var angle: float = rng.randf() * TAU
 	var x: float = cos(angle) * 4.0
 	var z: float = sin(angle) * 4.0
