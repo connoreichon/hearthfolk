@@ -284,9 +284,11 @@ func _show_citizen(citizen: Citizen) -> void:
 		task_text = "%s #%d" % [String(task.kind), task.id]
 	var state: StringName = citizen.state_machine.current_name()
 	_panel_body.text = (
-		"%s\nHambre: %d   Energía: %d\nTarea: %s"
+		"%s\nÁnimo: %s (%d %%)\nHambre: %d   Energía: %d\nTarea: %s"
 		% [
 			String(STATE_TEXT.get(state, String(state))),
+			citizen.mood_text(),
+			int(citizen.morale() * 100.0),
 			int(citizen.hunger),
 			int(citizen.energy),
 			task_text,

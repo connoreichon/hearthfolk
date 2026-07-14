@@ -30,6 +30,7 @@ func tick(dt: float) -> void:
 		if _cottage != null and is_instance_valid(_cottage):
 			# Duerme dentro: se oculta y la ventana se enciende de noche
 			citizen.visible = false
+			citizen.sleeping_indoors = true
 		else:
 			citizen.visual.mode = &"rest"
 		return
@@ -46,6 +47,7 @@ func tick(dt: float) -> void:
 
 func exit() -> void:
 	citizen.visible = true
+	citizen.sleeping_indoors = false
 	citizen.visual.mode = &"idle"
 	if _cottage != null and is_instance_valid(_cottage):
 		_cottage.release_sleep_slot(citizen.entity_id)

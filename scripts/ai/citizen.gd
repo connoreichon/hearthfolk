@@ -23,6 +23,7 @@ var current_task_id: int = -1
 var status_icon: StatusIcon
 var carrying_type: StringName = &""
 var carrying_amount: int = 0
+var sleeping_indoors: bool = false
 
 var _carry_visual: Node3D
 
@@ -116,6 +117,7 @@ func _decay_needs(dt: float) -> void:
 			_cfg.energy_per_sim_minute_working if working else _cfg.energy_per_sim_minute_idle
 		)
 		energy = maxf(0.0, energy - rate * dt / 60.0)
+	_update_morale_needs(dt)
 	# Sin comida y famélico: trabaja un 35 % más lento (§7.5). No hay muerte.
 	speed_modifier = 0.65 if hunger < 10.0 else 1.0
 	if hunger < 5.0 and not _critical_sent:
@@ -123,6 +125,63 @@ func _decay_needs(dt: float) -> void:
 		EventBus.citizen_need_critical.emit(entity_id, &"hunger")
 	elif hunger > 30.0:
 		_critical_sent = false
+
+
+## Q4 — Moral: vínculo (compañía) y seguridad (fuego, techo, invierno).
+func _update_morale_needs(dt: float) -> void:
+	var per_min: float = dt / 60.0
+	# Vínculo: compañía a menos de 6 m lo sube; la soledad lo baja despacio
+	var company: bool = false
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		if node == self:
+			continue
+		if (node as Node3D).global_position.distance_to(global_position) < 6.0:
+			company = true
+			break
+	bond = clampf(bond + (2.5 if company else -1.6) * per_min, 0.0, 100.0)
+	# Seguridad: de día sube; de noche depende de fuego/techo; invierno pica
+	var delta_safety: float = 3.0
+	if SimClock.is_night():
+		if sleeping_indoors:
+			delta_safety = 8.0
+		else:
+			var fire_dist: float = INF
+			var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
+			if not fires.is_empty():
+				fire_dist = (fires[0] as Node3D).global_position.distance_to(global_position)
+			if fire_dist > 8.0:
+				delta_safety = -4.0
+				if SimClock.get_season() == SimClock.Season.WINTER:
+					delta_safety = -8.0
+	elif SimClock.get_season() == SimClock.Season.WINTER and not sleeping_indoors:
+		delta_safety = 1.0
+	safety = clampf(safety + delta_safety * per_min, 0.0, 100.0)
+
+
+## Moral 0..1 a partir de seguridad, vínculo y necesidades críticas.
+func morale() -> float:
+	var base: float = (safety * 0.5 + bond * 0.5) / 100.0
+	if hunger < 25.0:
+		base -= 0.15
+	if energy < 20.0:
+		base -= 0.15
+	return clampf(base, 0.0, 1.0)
+
+
+## La moral escala el trabajo entre 0.6 y 1.15 (Q4).
+func effective_work_speed() -> float:
+	return data.work_speed * lerpf(0.6, 1.15, morale())
+
+
+func mood_text() -> String:
+	var value: float = morale()
+	if value > 0.75:
+		return "Contento"
+	if value > 0.45:
+		return "Tranquilo"
+	if value > 0.25:
+		return "Inquieto"
+	return "Desanimado"
 
 
 ## Prioridades (§7.3): comer y descansar interrumpen el trabajo; de noche

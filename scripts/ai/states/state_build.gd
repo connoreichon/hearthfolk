@@ -34,7 +34,7 @@ func tick(dt: float) -> void:
 		citizen.abandon_task(&"yield")
 		citizen.state_machine.change(&"FindTask")
 		return
-	site.apply_work(dt * citizen.data.work_speed * ConstructionSite.BUILD_RATE)
+	site.apply_work(dt * citizen.effective_work_speed() * ConstructionSite.BUILD_RATE)
 
 
 func exit() -> void:

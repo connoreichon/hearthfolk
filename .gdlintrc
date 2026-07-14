@@ -1,0 +1,4 @@
+# Configuración de gdlint del proyecto.
+# Citizen es la fachada de la entidad principal (contrato IPersistent +
+# API de IA + moral): supera los 20 métodos públicos por diseño.
+max-public-methods: 32
