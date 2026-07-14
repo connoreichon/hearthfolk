@@ -124,21 +124,44 @@ func _demolish_input(event: InputEvent) -> void:
 		_unmark(collider as TreeEntity)
 		return
 	var site: ConstructionSite = collider as ConstructionSite
-	if site == null:
+	if site != null:
+		demolish_site(site)
 		return
+	var farm: FarmField = collider as FarmField
+	if farm != null:
+		demolish_farm(farm)
+
+
+## Núcleo de demolición (también lo usan los tests): cancela la obra o
+## derriba la cabaña terminada (50 % de la madera de vuelta), retira TODAS
+## sus tareas del tablón, libera la zona de debajo y rehornea el navmesh.
+func demolish_site(site: ConstructionSite) -> void:
 	if site.completed:
-		EventBus.toast.emit("La cabaña terminada no se puede demoler en esta build", &"warn")
-		return
-	GameState.add_resource(&"wood", site.delivered_total)
-	EventBus.toast.emit(
-		"Obra cancelada: %d de madera devuelta al carro" % site.delivered_total, &"info"
-	)
+		var refund: int = int(floor(site.recipe.total_wood_cost() * 0.5))
+		GameState.add_resource(&"wood", refund)
+		EventBus.toast.emit("Cabaña demolida: %d de madera recuperada" % refund, &"info")
+	else:
+		GameState.add_resource(&"wood", site.delivered_total)
+		EventBus.toast.emit(
+			"Obra cancelada: %d de madera devuelta al carro" % site.delivered_total, &"info"
+		)
+	site.cancel_all_tasks()
 	var site_pos: Vector2 = Vector2(site.global_position.x, site.global_position.z)
 	for node: Node in get_tree().get_nodes_in_group(&"zones"):
 		var zone: ZoneEntity = node as ZoneEntity
 		if zone != null and zone.rect.grow(1.0).has_point(site_pos):
 			zone.queue_free()
+	var site_id: int = site.entity_id
 	site.queue_free()
+	EventBus.construction_cancelled.emit(site_id)
+
+
+## Demolición de huerto: lo sembrado se pierde, el hueco queda libre.
+func demolish_farm(farm: FarmField) -> void:
+	farm.demolished = true
+	TaskBoard.cancel_for_target(farm.entity_id, &"demolished")
+	EventBus.toast.emit("Huerto retirado", &"info")
+	farm.queue_free()
 
 
 func _selectable_at(screen_pos: Vector2) -> Node:

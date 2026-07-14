@@ -15,6 +15,7 @@ var work_progress: float = 0.0
 var delivered_total: int = 0
 var completed: bool = false
 var stalled: bool = false
+var demolished: bool = false
 
 var _pieces: Dictionary = {}
 var _shown: Dictionary = {}
@@ -80,6 +81,14 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	EntityRegistry.unregister(entity_id)
+
+
+## Demolición: retira sus tareas del tablón y deja de publicar nuevas.
+func cancel_all_tasks() -> void:
+	demolished = true
+	TaskBoard.cancel_for_target(entity_id, &"demolished")
+	_supply_tasks.clear()
+	_build_tasks.clear()
 
 
 func missing_material() -> int:
@@ -182,7 +191,7 @@ func _on_sim_tick(_dt: float) -> void:
 	# Fuera del árbol (cambio de escena) no se toca nada: release crash.
 	if not is_inside_tree():
 		return
-	if completed:
+	if completed or demolished:
 		return
 	_manage_supply_tasks()
 	_manage_build_tasks()

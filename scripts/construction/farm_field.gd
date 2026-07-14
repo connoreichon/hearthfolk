@@ -13,6 +13,7 @@ var entity_id: int = 0
 var rect: Rect2 = Rect2()
 var plots: Array[int] = []
 var timers: Array[float] = []
+var demolished: bool = false
 
 var _cols: int = 0
 var _rows: int = 0
@@ -132,7 +133,7 @@ func apply_harvest(index: int) -> void:
 
 func _on_sim_tick(dt: float) -> void:
 	# Fuera del árbol (cambio de escena) no se toca nada: release crash.
-	if not is_inside_tree():
+	if not is_inside_tree() or demolished:
 		return
 	var winter: bool = SimClock.get_season() == SimClock.Season.WINTER
 	var growth: float = dt

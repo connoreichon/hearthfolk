@@ -92,6 +92,13 @@ func cancel(task_id: int, reason: StringName = &"cancelled") -> void:
 	EventBus.task_released.emit(task_id, reason)
 
 
+## Cancela de golpe todas las tareas de un objetivo (demolición).
+func cancel_for_target(target_id: int, reason: StringName = &"cancelled") -> void:
+	for task_id: int in _tasks.keys():
+		if (_tasks[task_id] as Task).target_id == target_id:
+			cancel(task_id, reason)
+
+
 func get_task(task_id: int) -> Task:
 	return _tasks.get(task_id)
 

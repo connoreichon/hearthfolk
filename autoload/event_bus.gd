@@ -26,6 +26,7 @@ signal construction_started(building_id: int)
 signal construction_phase_advanced(building_id: int, phase: int)
 signal construction_completed(building_id: int)
 signal construction_stalled(building_id: int, missing: Dictionary)
+signal construction_cancelled(building_id: int)
 
 # --- UI / feedback ---
 signal tool_changed(tool: StringName)

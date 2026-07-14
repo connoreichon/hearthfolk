@@ -60,8 +60,10 @@ func _run_script(path: String) -> void:
 			continue
 		_total_methods += 1
 		test.current = "%s::%s" % [path.get_file(), method_name]
-		test.before_each()
+		# await también en before/after: si el setup es asíncrono (espera
+		# frames), sin await el método del test arrancaría a medio montar.
+		await test.before_each()
 		await test.call(method_name)
-		test.after_each()
+		await test.after_each()
 	_total_checks += test.checks
 	_all_failures.append_array(test.failures)

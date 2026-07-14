@@ -58,6 +58,7 @@ func _ready() -> void:
 	# Las obras alteran la navegación: rehornear al empezar y al terminar
 	EventBus.construction_started.connect(_on_construction_changed)
 	EventBus.construction_completed.connect(_on_construction_changed)
+	EventBus.construction_cancelled.connect(_on_construction_changed)
 
 
 func _on_construction_changed(_building_id: int) -> void:
