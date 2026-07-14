@@ -21,6 +21,9 @@ func _ready() -> void:
 	hud.name = "Hud"
 	hud.tool_manager = tool_manager
 	add_child(hud)
+	var tutorial: TutorialGuide = TutorialGuide.new()
+	tutorial.name = "TutorialGuide"
+	add_child(tutorial)
 	_build_pause_menu()
 	if GameState.pending_load_slot > 0:
 		var slot: int = GameState.pending_load_slot

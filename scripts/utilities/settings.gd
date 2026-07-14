@@ -47,6 +47,16 @@ static func set_vsync(enabled: bool, persist: bool = true) -> void:
 		_store("display", "vsync", enabled)
 
 
+static func is_tutorial_done() -> bool:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(PATH)
+	return bool(cfg.get_value("tutorial", "done", false))
+
+
+static func set_tutorial_done() -> void:
+	_store("tutorial", "done", true)
+
+
 static func apply_window_icon() -> void:
 	var texture: Texture2D = load("res://assets/ui/icons/hearthfolk.png")
 	if texture == null:
