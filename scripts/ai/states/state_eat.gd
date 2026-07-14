@@ -21,13 +21,18 @@ func enter() -> void:
 		citizen.state_machine.change(&"Idle")
 		return
 	citizen.visual.mode = &"walk"
-	var dir: Vector3 = (citizen.global_position - storage.global_position).normalized()
-	citizen.move_to(storage.global_position + dir * 1.5)
+	# move_to_near pega el destino al navmesh: el carro talla un agujero
+	# y un punto a 1.5 m del centro puede caer dentro (bug del soak 002)
+	citizen.move_to_near(storage.global_position, 2.0)
 
 
 func tick(dt: float) -> void:
 	if not _eating:
-		if not citizen.nav_finished():
+		var storage: Node3D = citizen.find_storage()
+		var close: bool = (
+			storage != null and citizen.global_position.distance_to(storage.global_position) < 3.0
+		)
+		if not citizen.nav_finished() and not close:
 			return
 		citizen.stop_moving()
 		if GameState.take_resource(&"food", 1):

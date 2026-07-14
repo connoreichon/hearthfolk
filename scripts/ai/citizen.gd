@@ -327,7 +327,8 @@ func find_storage() -> Node3D:
 	return nodes[0] as Node3D
 
 
-## Punto de descanso repartido en círculo alrededor de la fogata.
+## Punto de descanso repartido en círculo alrededor de la fogata,
+## pegado al navmesh (el carro talla un agujero que puede comerse un hueco).
 func rest_spot() -> Vector3:
 	var center: Vector3 = Vector3.ZERO
 	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
@@ -337,6 +338,8 @@ func rest_spot() -> Vector3:
 	var spot: Vector3 = center + Vector3(cos(ang) * 2.3, 0.0, sin(ang) * 2.3)
 	if GameState.terrain != null:
 		spot.y = GameState.terrain.get_height(spot.x, spot.z)
+	if is_inside_tree():
+		spot = NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, spot)
 	return spot
 
 
