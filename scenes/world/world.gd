@@ -45,6 +45,12 @@ func _ready() -> void:
 	var arrivals: SettlerArrivals = SettlerArrivals.new()
 	arrivals.name = "SettlerArrivals"
 	add_child(arrivals)
+	var milestones: Milestones = Milestones.new()
+	milestones.name = "Milestones"
+	add_child(milestones)
+	var events: WorldEvents = WorldEvents.new()
+	events.name = "WorldEvents"
+	add_child(events)
 	# Las obras alteran la navegación: rehornear al empezar y al terminar
 	EventBus.construction_started.connect(_on_construction_changed)
 	EventBus.construction_completed.connect(_on_construction_changed)

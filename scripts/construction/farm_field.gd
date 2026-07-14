@@ -93,6 +93,18 @@ func count_by_state(state: int) -> int:
 	return total
 
 
+## Helada (evento Q5): los brotes vuelven a recién plantados. Devuelve cuántos.
+func regress_sprouts() -> int:
+	var regressed: int = 0
+	for i: int in plots.size():
+		if plots[i] == Plot.SPROUT:
+			plots[i] = Plot.PLANTED
+			timers[i] = 0.0
+			_refresh_plot_visual(i)
+			regressed += 1
+	return regressed
+
+
 ## El habitante planta la parcela (tarea farm_plant completada).
 func apply_plant(index: int) -> void:
 	if index < 0 or index >= plots.size() or plots[index] != Plot.BARREN:

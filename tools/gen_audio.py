@@ -208,9 +208,58 @@ def ui_error() -> np.ndarray:
     return np.concatenate([a, b])
 
 
+# --- Música generativa por estación (Build 002, Q5) -------------------------
+
+PENTA = [1.0, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2.0]
+PENTA_MINOR = [1.0, 6 / 5, 4 / 3, 3 / 2, 9 / 5, 2.0]
+
+
+def soft_note(freq: float, dur: float, amp: float = 1.0) -> np.ndarray:
+    tt = t(dur)
+    n = len(tt)
+    attack = int(n * 0.2)
+    env = np.ones(n)
+    env[:attack] = np.linspace(0.0, 1.0, attack)
+    env[attack:] = np.exp(-np.arange(n - attack) / (SR * dur * 0.4))
+    tone = (
+        np.sin(2 * np.pi * freq * tt)
+        + 0.35 * np.sin(2 * np.pi * freq * 2 * tt)
+        + 0.12 * np.sin(2 * np.pi * freq * 3 * tt)
+    )
+    return tone * env * amp
+
+
+def drone(freq: float, dur: float, amp: float = 1.0) -> np.ndarray:
+    tt = t(dur)
+    slow = 0.85 + 0.15 * np.sin(2 * np.pi * 0.07 * tt)
+    tone = np.sin(2 * np.pi * freq * tt) + 0.5 * np.sin(2 * np.pi * freq * 1.5 * tt)
+    return tone * slow * amp
+
+
+def season_music(name: str, root: float, scale: list, steps: int, dur: float, seed: int) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    total = np.zeros(int(SR * dur))
+    total += drone(root / 2.0, dur, 0.22)
+    step_len = dur / steps
+    for i in range(steps):
+        if rng.random() < 0.25:
+            continue  # silencios respirables
+        ratio = scale[rng.integers(0, len(scale))]
+        octave = 2.0 if rng.random() < 0.3 else 1.0
+        start = int(i * step_len * SR)
+        note = soft_note(root * ratio * octave, step_len * rng.uniform(1.2, 2.2), 0.5)
+        end = min(len(total), start + len(note))
+        total[start:end] += note[: end - start]
+    return lowpass(total, 2600.0)
+
+
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
     print("Generando audio en", os.path.abspath(OUT))
+    write_wav("music_spring", season_music("spring", 220.0, PENTA, 24, 24.0, 11), 0.5)
+    write_wav("music_summer", season_music("summer", 246.9, PENTA, 28, 24.0, 22), 0.5)
+    write_wav("music_autumn", season_music("autumn", 196.0, PENTA_MINOR, 18, 26.0, 33), 0.5)
+    write_wav("music_winter", season_music("winter", 174.6, PENTA_MINOR, 10, 28.0, 44), 0.45)
     write_wav("ambience_forest", ambience_forest(), 0.5)
     write_wav("wind_soft", wind_soft(), 0.35)
     for i in range(4):

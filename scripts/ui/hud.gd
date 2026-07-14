@@ -33,6 +33,8 @@ var _panel_progress: ProgressBar
 var _toast_box: VBoxContainer
 var _selected_id: int = -1
 var _dest_line: MeshInstance3D
+var _milestones_panel: PanelContainer
+var _milestones_label: Label
 
 
 func _ready() -> void:
@@ -91,6 +93,11 @@ func _build_top_bar() -> void:
 		button.pressed.connect(SimClock.set_speed.bind(int(entry[1])))
 		row.add_child(button)
 		_speed_buttons[int(entry[1])] = button
+	var milestones_button: Button = Button.new()
+	milestones_button.text = "Hitos"
+	milestones_button.focus_mode = Control.FOCUS_NONE
+	milestones_button.pressed.connect(_toggle_milestones)
+	row.add_child(milestones_button)
 
 
 func _build_bottom_bar() -> void:
@@ -172,6 +179,31 @@ func _build_toast_box() -> void:
 	_toast_box.alignment = BoxContainer.ALIGNMENT_END
 	_toast_box.add_theme_constant_override(&"separation", 6)
 	add_child(_toast_box)
+
+
+## Panel de hitos (Q5): lista con casillas, se refresca al abrir.
+func _toggle_milestones() -> void:
+	if _milestones_panel == null:
+		_milestones_panel = PanelContainer.new()
+		_milestones_panel.add_theme_stylebox_override(&"panel", _panel_style())
+		_milestones_panel.position = Vector2(10.0, 60.0)
+		add_child(_milestones_panel)
+		var box: VBoxContainer = VBoxContainer.new()
+		_milestones_panel.add_child(box)
+		var title: Label = Label.new()
+		title.text = "Hitos del asentamiento"
+		title.add_theme_color_override(&"font_color", _palette.accent)
+		title.add_theme_font_size_override(&"font_size", 18)
+		box.add_child(title)
+		_milestones_label = Label.new()
+		_milestones_label.add_theme_color_override(&"font_color", _palette.ui_text)
+		box.add_child(_milestones_label)
+	else:
+		_milestones_panel.visible = not _milestones_panel.visible
+	if _milestones_panel.visible:
+		var nodes: Array[Node] = get_tree().get_nodes_in_group(&"milestones")
+		if not nodes.is_empty():
+			_milestones_label.text = String(nodes[0].call(&"summary"))
 
 
 func _on_toast(message: String, kind: StringName) -> void:

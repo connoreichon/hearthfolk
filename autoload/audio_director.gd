@@ -11,6 +11,8 @@ var _voices: Dictionary = {}
 var _ambience_day: AudioStreamPlayer
 var _ambience_night: AudioStreamPlayer
 var _fire_player: AudioStreamPlayer3D
+var _music_player: AudioStreamPlayer
+var _music_season: int = -1
 var _bird_timer: float = 6.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -111,6 +113,41 @@ func _setup_ambience() -> void:
 	if _ambience_night != null:
 		_ambience_night.play()
 	SimClock.phase_changed.connect(_on_phase_changed)
+	SimClock.season_changed.connect(_on_music_season)
+	_on_music_season.call_deferred(SimClock.get_season())
+
+
+## Música generativa por estación con fundido cruzado (Q5).
+func _on_music_season(season: int) -> void:
+	if season == _music_season:
+		return
+	_music_season = season
+	var names: Array[StringName] = [
+		&"music_spring", &"music_summer", &"music_autumn", &"music_winter"
+	]
+	var sound: StringName = names[season]
+	if not _streams.has(sound):
+		return
+	if _music_player == null:
+		_music_player = _make_loop_player(sound, -60.0)
+		if _music_player == null:
+			return
+		_music_player.bus = "Music"
+		_music_player.play()
+		var fade_in: Tween = create_tween()
+		fade_in.tween_property(_music_player, "volume_db", -13.0, 3.0)
+		return
+	var stream: AudioStreamWAV = (_streams[sound] as AudioStreamWAV).duplicate()
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = stream.data.size() / 2
+	var fade: Tween = create_tween()
+	fade.tween_property(_music_player, "volume_db", -50.0, 2.0)
+	fade.tween_callback(
+		func() -> void:
+			_music_player.stream = stream
+			_music_player.play()
+	)
+	fade.tween_property(_music_player, "volume_db", -13.0, 3.0)
 
 
 func _make_loop_player(sound: StringName, volume_db: float) -> AudioStreamPlayer:

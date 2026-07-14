@@ -39,8 +39,13 @@ func capture() -> Dictionary:
 	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
 	if not rigs.is_empty():
 		camera_state = rigs[0].call(&"get_state")
+	var milestone_state: Array = []
+	var milestone_nodes: Array[Node] = get_tree().get_nodes_in_group(&"milestones")
+	if not milestone_nodes.is_empty():
+		milestone_state = milestone_nodes[0].call(&"save_state")
 	return {
 		"format_version": FORMAT_VERSION,
+		"milestones": milestone_state,
 		"seed": GameState.world_seed,
 		"day": SimClock.day,
 		"time_of_day": SimClock.time_of_day,
@@ -75,6 +80,9 @@ func load_game(slot: int = -1) -> bool:
 	if worlds.is_empty():
 		return false
 	worlds[0].call(&"rebuild_from_save", data)
+	var milestone_nodes: Array[Node] = get_tree().get_nodes_in_group(&"milestones")
+	if not milestone_nodes.is_empty():
+		milestone_nodes[0].call(&"load_state", data.get("milestones", []))
 	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
 	if not rigs.is_empty() and data.has("camera"):
 		rigs[0].call(&"set_state", data["camera"])
