@@ -41,13 +41,30 @@ func _spawn_settler() -> void:
 	var citizen: Citizen = CITIZEN_SCENE.instantiate()
 	citizen.data = data
 	(worlds[0] as Node3D).add_child(citizen)
-	# Entra por el camino del sur
-	var x: float = sin(56.0 * 0.045) * 3.0
-	var pos: Vector3 = Vector3(x, 0.0, 56.0)
-	pos.y = GameState.terrain.get_height(pos.x, pos.z) + 0.05
-	citizen.global_position = pos
+	citizen.global_position = _safe_spawn_point(worlds[0] as Node3D)
 	citizen.state_machine.change(&"ReturnToSettlement")
 	EventBus.toast.emit(
 		"¡%s ha llegado al asentamiento buscando un hogar!" % data.display_name, &"success"
 	)
 	AudioDirector.play_ui(&"ui_confirm")
+
+
+## Punto de entrada por el camino del sur, garantizando que hay ruta hasta
+## la fogata (el borde del navmesh puede formar islas sueltas — visto en el
+## soak 002: colono atascado >15 s al aparecer).
+func _safe_spawn_point(world: Node3D) -> Vector3:
+	var fire_pos: Vector3 = Vector3.ZERO
+	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
+	if not fires.is_empty():
+		fire_pos = (fires[0] as Node3D).global_position
+	var world_3d: World3D = world.get_world_3d()
+	var map: RID = world_3d.navigation_map
+	for z: float in [56.0, 50.0, 44.0, 36.0, 26.0]:
+		var x: float = sin(z * 0.045) * 3.0
+		var candidate: Vector3 = Vector3(x, GameState.terrain.get_height(x, z), z)
+		var snapped_point: Vector3 = NavigationServer3D.map_get_closest_point(map, candidate)
+		if NavUtil.is_reachable(world_3d, fire_pos, snapped_point, 2.0):
+			snapped_point.y += 0.05
+			return snapped_point
+	# Último recurso: junto a la fogata (nunca aislado)
+	return fire_pos + Vector3(2.0, 0.1, 2.0)

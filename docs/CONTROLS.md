@@ -12,9 +12,11 @@
 | `1` / `2` / `3` | Velocidad ×1 / ×2 / ×4 |
 | `T` | Herramienta: marcar tala |
 | `R` | Herramienta: zona residencial |
+| `H` | Herramienta: huerto |
 | `C` | Herramienta: demoler / cancelar |
 | `I` | Herramienta: información |
-| `Esc` | Cancelar herramienta activa |
+| `Esc` | Cancelar herramienta activa / menú de pausa |
+| Botón «Hitos» | Panel de hitos del asentamiento |
 | Clic izquierdo | Usar herramienta / seleccionar |
 | Arrastrar (con herramienta) | Caja de selección / dibujar zona |
 | Clic derecho | Cancelar herramienta |

@@ -1,5 +1,28 @@
 # CHANGELOG — Hearthfolk
 
+# BUILD 002 — «Un año en la colina» (2026-07-14)
+
+## Q0 — Cara de juego
+- Menú principal con el asentamiento vivo de fondo (cámara orbital), nueva partida con 3 slots + semilla, cargar con resumen por slot, opciones persistentes (volúmenes por bus, pantalla completa, vsync), menú de pausa (Esc), autosave por slot, icono procedural (ventana + .ico).
+
+## Q1 — Estaciones
+- Año de 8 días (2 por estación) con señal `season_changed`; tintes globales de shader para hojas/hierba con transición suave, nieve en invierno, luz solar estacional; brotes que crecen en primavera y siembra natural en otoño (tope 70 árboles) — el bosque se repuebla.
+
+## Q2 — Huerto
+- `FarmField` con parcelas de 1.25 m (tierra→plantada→brote→madura), herramienta Huerto (H), tareas de plantar/cosechar (cosecha prioritaria), la cosecha es un item físico que viaja al carro; hambre ×11 (2 comidas/día): la comida es economía de verdad; el huerto duerme en invierno.
+
+## Q3 — El pueblo crece
+- Colonos procedurales (nombre/colores/altura por semilla, guardado autosuficiente) que llegan por el camino del sur en primavera/verano si hay cama y excedente; camas = 4 base + literas por casa; receta Casa larga (cottage_b: 6×3.6, 3 camas, chimenea) alternada con la clásica.
+
+## Q4 — Moral
+- Seguridad y vínculo activos: compañía, fuego, techo e invierno mueven el ánimo; la moral (0–1) escala el trabajo entre 0.6 y 1.15 y se lee en el panel ("Contento/Tranquilo/Inquieto/Desanimado").
+
+## Q5 — Metas, eventos y música
+- 9 hitos con recompensa de vínculo y panel propio; eventos al amanecer (helada que encoge brotes, viajero con comida, bandada); música generativa pentatónica por estación (numpy) con fundido cruzado.
+
+## Q6 — Entrega
+- Soak de 40 min ×4 (~2.5 años) con el bucle completo; export y zip para itch.io. (Resultados en BUILD_002_REPORT.md.)
+
 ## P8 — Soak, export y entrega (2026-07-13)
 
 - Soak test §17.3 (`tests/soak/soak_20min.gd`): 20 minutos reales a ×4 con el bucle completo (10 árboles + obra) → **OK**: día 11, entidades 51→51, 1 casa, memoria 58.3→58.2 MB, 0 atascos >15 s, contabilidad de madera exacta (60 = 12 casa + 48 carro).

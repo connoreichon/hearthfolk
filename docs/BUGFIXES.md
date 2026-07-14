@@ -36,6 +36,12 @@
 - **Causa**: `filter(func(p: Node) ...)` no puede convertir un objeto ya liberado al tipo `Node`.
 - **Arreglo**: parámetro `Variant` + `is_instance_valid`.
 
+## Q6 — Colono atascado al aparecer (isla de navmesh en el borde sur)
+
+- **Síntoma**: el primer soak de la Build 002 falló con «habitante 146 atascado >15 s (min 3.8)»: el primer colono en llegar se quedaba clavado nada más aparecer; el resto de los 40 minutos, limpio.
+- **Causa**: el punto de aparición fijo en el borde sur (z=56) puede caer en una isla del navmesh desconectada del pueblo (el rasterizado del borde del mapa genera parches sueltos según la semilla); el escalón (c) de la recuperación teletransporta «al punto navegable más cercano»… que es la misma isla.
+- **Arreglo**: `SettlerArrivals._safe_spawn_point()` — prueba z=56/50/44/36/26 sobre el camino, pega el candidato al navmesh y **verifica con `NavUtil.is_reachable` que hay ruta hasta la fogata** antes de usarlo; último recurso: junto a la fogata. Test de regresión que valida la conectividad del spawn.
+
 ## P7 — current_scene nulo en headless
 
 - **Síntoma**: errores al parentar partículas/ghost/línea de destino y al buscar World/CameraRig en el runner de tests (`current_scene` no existe en modo `-s`).
