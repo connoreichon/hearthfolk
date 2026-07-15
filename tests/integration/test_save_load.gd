@@ -112,12 +112,18 @@ func test_save_load_save_round_trip() -> void:
 				if json_a[c] != json_b[c]:
 					diff_at = c
 					break
+			var id_a: int = int((ents_a[i]["data"] as Dictionary).get("id", -1))
+			var id_b: int = int((ents_b[i]["data"] as Dictionary).get("id", -1))
 			assert_true(
 				false,
 				(
-					"entidad %d difiere en el carácter %d: «%s» vs «%s»"
+					"entidad %d (%s#%d vs %s#%d) difiere en el carácter %d: «%s» vs «%s»"
 					% [
 						i,
+						String(ents_a[i]["kind"]),
+						id_a,
+						String(ents_b[i]["kind"]),
+						id_b,
 						diff_at,
 						json_a.substr(maxi(0, diff_at - 30), 60),
 						json_b.substr(maxi(0, diff_at - 30), 60)

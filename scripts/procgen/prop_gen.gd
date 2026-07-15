@@ -115,6 +115,42 @@ static func cart(seed_value: int) -> Node3D:
 	return root
 
 
+## Montón de suministros de campamento: leños apilados + fardo con lona.
+## Sustituto primitivo del carro como &"storage" de cada banda (Build 003).
+static func supply_pile(seed_value: int) -> Node3D:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var palette: PaletteData = PaletteData.get_default()
+	var root: Node3D = Node3D.new()
+	root.name = "SupplyPile"
+	for row: int in 3:
+		var per_row: int = 3 - row
+		for log_i: int in per_row:
+			var log_mesh: MeshInstance3D = MeshLib.mesh_instance(
+				MeshLib.log_cylinder(0.11, rng.randf_range(0.9, 1.1), 7),
+				palette.wood,
+				"Log%d_%d" % [row, log_i]
+			)
+			log_mesh.rotation_degrees = Vector3(0.0, rng.randf_range(-6.0, 6.0), 90.0)
+			log_mesh.position = Vector3(
+				-0.35, 0.11 + float(row) * 0.19, (float(log_i) - float(per_row - 1) * 0.5) * 0.24
+			)
+			root.add_child(log_mesh)
+	var bundle: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.7, 0.5, 0.8), 0.1), palette.cart_cloth, "Bundle"
+	)
+	bundle.position = Vector3(0.45, 0.25, 0.0)
+	bundle.rotation.y = rng.randf_range(-0.3, 0.3)
+	root.add_child(bundle)
+	var rope: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.74, 0.06, 0.84), 0.02), palette.wood_light, "Rope"
+	)
+	rope.position = Vector3(0.45, 0.3, 0.0)
+	rope.rotation.y = bundle.rotation.y
+	root.add_child(rope)
+	return root
+
+
 ## Fogata: anillo de piedras + leños cruzados + luz (apagada de día).
 static func campfire(seed_value: int) -> Node3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()

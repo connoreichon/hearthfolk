@@ -40,8 +40,10 @@ func test_prop_counts_and_determinism() -> void:
 	assert_eq(int(counts["rocks_small"]), 14)
 	assert_eq(int(counts["flowers"]), 6)
 	assert_eq(int(counts["bushes"]), 8)
-	assert_eq(int(counts["campfire"]), 1)
-	assert_eq(int(counts["cart"]), 1)
+	# Build 003: el mapa base ya no trae fogata ni carro (los funda cada
+	# banda vía CampEntity), así que no hay conteos que comprobar aquí.
+	assert_false(counts.has("campfire"), "el mapa base no coloca fogata")
+	assert_false(counts.has("cart"), "el mapa base no coloca carro")
 	var trees1: Array[Vector3] = _tree_positions(parent1)
 	parent1.free()
 	EntityRegistry.clear()

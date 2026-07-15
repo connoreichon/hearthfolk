@@ -3,14 +3,17 @@ extends Node
 ## Q3: si hay cama libre y excedente de comida, en primavera/verano llega
 ## un caminante por el camino del sur al amanecer.
 
-const BASE_BEDS: int = 4
+## Petates junto a la hoguera de cada campamento fundado (4 = el clásico
+## de la 002 con un solo campamento; se rebalanceará en S9).
+const BEDS_PER_CAMP: int = 4
 const MAX_POPULATION: int = 12
 const FOOD_PER_CAPITA: int = 4
 const CITIZEN_SCENE: PackedScene = preload("res://scenes/citizens/citizen.tscn")
 
 
 static func total_beds(tree: SceneTree) -> int:
-	var beds: int = BASE_BEDS
+	# Base por campamento fundado (petates junto a la hoguera), no fija.
+	var beds: int = BEDS_PER_CAMP * tree.get_nodes_in_group(&"camps").size()
 	for node: Node in tree.get_nodes_in_group(&"buildings"):
 		var building: ConstructionSite = node as ConstructionSite
 		if building != null and building.completed:
@@ -42,6 +45,10 @@ func _spawn_settler() -> void:
 	citizen.data = data
 	(worlds[0] as Node3D).add_child(citizen)
 	citizen.global_position = _safe_spawn_point(worlds[0] as Node3D)
+	# El recién llegado se une a la banda del campamento más cercano.
+	var home: CampEntity = CampEntity.nearest_camp(get_tree(), citizen.global_position)
+	if home != null:
+		citizen.band_id = home.band_id
 	citizen.state_machine.change(&"ReturnToSettlement")
 	EventBus.toast.emit(
 		"¡%s ha llegado al asentamiento buscando un hogar!" % data.display_name, &"success"
@@ -53,10 +60,8 @@ func _spawn_settler() -> void:
 ## la fogata (el borde del navmesh puede formar islas sueltas — visto en el
 ## soak 002: colono atascado >15 s al aparecer).
 func _safe_spawn_point(world: Node3D) -> Vector3:
-	var fire_pos: Vector3 = Vector3.ZERO
-	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-	if not fires.is_empty():
-		fire_pos = (fires[0] as Node3D).global_position
+	# Ruta garantizada hasta la hoguera más cercana al borde sur.
+	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), Vector3(0.0, 0.0, 56.0))
 	var world_3d: World3D = world.get_world_3d()
 	var map: RID = world_3d.navigation_map
 	for z: float in [56.0, 50.0, 44.0, 36.0, 26.0]:

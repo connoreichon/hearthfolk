@@ -67,3 +67,13 @@ func _run_script(path: String) -> void:
 		await test.after_each()
 	_total_checks += test.checks
 	_all_failures.append_array(test.failures)
+	# Guardia anti-fuga: un mundo vivo entre ficheros de test contamina a
+	# todos los siguientes (visto en Build 003: un assert que abortaba
+	# saltándose el free() coló 46 árboles fantasma en el round-trip).
+	var residue: int = get_nodes_in_group(&"trees").size()
+	if residue > 0:
+		_all_failures.append(
+			"%s: FUGA — %d árboles vivos tras terminar el fichero" % [path.get_file(), residue]
+		)
+		for node: Node in get_nodes_in_group(&"trees"):
+			node.free()

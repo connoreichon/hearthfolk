@@ -244,10 +244,7 @@ func _toggle_mark(tree: TreeEntity) -> void:
 func _mark(tree: TreeEntity) -> void:
 	if tree.marked or not tree.choppable():
 		return
-	var fire_pos: Vector3 = Vector3.ZERO
-	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-	if not fires.is_empty():
-		fire_pos = (fires[0] as Node3D).global_position
+	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), tree.global_position)
 	if not NavUtil.is_reachable(camera.get_world_3d(), fire_pos, tree.global_position, 2.5):
 		EventBus.toast.emit("Sin acceso: no hay camino hasta ese árbol", &"warn")
 		return
@@ -436,11 +433,8 @@ func _zone_overlap_error(rect: Rect2) -> String:
 func _zone_access_error(rect: Rect2, world: World3D) -> String:
 	var terrain: TerrainData = GameState.terrain
 	var center: Vector2 = rect.get_center()
-	var fire_pos: Vector3 = Vector3.ZERO
-	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-	if not fires.is_empty():
-		fire_pos = (fires[0] as Node3D).global_position
 	var center_3d: Vector3 = Vector3(center.x, terrain.get_height(center.x, center.y), center.y)
+	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), center_3d)
 	if not NavUtil.is_reachable(world, fire_pos, center_3d, 3.5):
 		return "Sin acceso desde el asentamiento"
 	return ""
@@ -461,11 +455,8 @@ func _confirm_zone() -> void:
 	EventBus.zone_confirmed.emit(zone.entity_id, _zone_rect, &"residential")
 	var center: Vector2 = _zone_rect.get_center()
 	var at: Vector3 = Vector3(center.x, GameState.terrain.get_height(center.x, center.y), center.y)
-	# Orientación: la puerta (+X local) hacia la fogata, en pasos de 90°
-	var fire_pos: Vector3 = Vector3.ZERO
-	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-	if not fires.is_empty():
-		fire_pos = (fires[0] as Node3D).global_position
+	# Orientación: la puerta (+X local) hacia la hoguera más cercana, 90°
+	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), at)
 	var to_fire: Vector3 = fire_pos - at
 	var yaw: float = snappedf(atan2(to_fire.x, to_fire.z) - PI * 0.5, PI * 0.5)
 	var site_seed: int = GameState.derive_seed(["cottage", zone.entity_id])

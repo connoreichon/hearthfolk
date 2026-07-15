@@ -37,8 +37,16 @@ func _ready() -> void:
 	map_counts = result["counts"]
 	GameState.terrain = terrain_data
 	_setup_light_and_environment()
-	_bake_navmesh()
-	_spawn_citizens()
+	if GameState.placement_pending:
+		# Siembra de bandas: el BandPlacer fundará campamentos y colonos;
+		# el navmesh se hornea UNA vez al terminar la colocación.
+		pass
+	else:
+		# Modo automático (tests, soaks, guardados viejos): un campamento
+		# central de la banda 0 — el comportamiento clásico, vía CampEntity.
+		found_camp(Vector3.ZERO, 0)
+		_bake_navmesh()
+		_spawn_citizens()
 	_setup_day_night()
 	var dispatcher: HaulDispatcher = HaulDispatcher.new()
 	dispatcher.name = "HaulDispatcher"
@@ -63,6 +71,18 @@ func _ready() -> void:
 
 func _on_construction_changed(_building_id: int) -> void:
 	_bake_navmesh()
+
+
+## Funda el campamento de una banda: hoguera + almacén, pegados al terreno.
+## Lo usan el arranque automático, el BandPlacer y la carga de partidas.
+func found_camp(center: Vector3, band: int) -> CampEntity:
+	var camp: CampEntity = CampEntity.create(band, GameState.derive_seed(["camp", band]))
+	camp.position = Vector3(center.x, terrain_data.get_height(center.x, center.z) - 0.02, center.z)
+	nav_region.add_child(camp)
+	var pile: StaticBody3D = camp.storage_body()
+	var pile_global: Vector3 = pile.global_position
+	pile.global_position.y = terrain_data.get_height(pile_global.x, pile_global.z)
+	return camp
 
 
 ## Reconstrucción completa desde un guardado (§14): purga, regeneración
@@ -135,6 +155,9 @@ func rebuild_from_save(data: Dictionary) -> void:
 
 	for entry: Dictionary in others:
 		_spawn_saved_entity(String(entry.get("kind", "")), entry.get("data", {}))
+	# Guardados de la Build 002 (sin campamentos): fundar el central clásico.
+	if get_tree().get_nodes_in_group(&"camps").is_empty():
+		found_camp(Vector3.ZERO, 0)
 
 	# Regenerar tareas desde la realidad del mundo (nunca se persisten)
 	for node: Node in get_tree().get_nodes_in_group(&"trees"):
@@ -150,6 +173,12 @@ func rebuild_from_save(data: Dictionary) -> void:
 func _spawn_saved_entity(kind: String, d: Dictionary) -> void:
 	var entity_id: int = int(d.get("id", 0))
 	match kind:
+		"camp":
+			var camp: CampEntity = CampEntity.create(int(d.get("band", 0)), int(d.get("seed", 0)))
+			camp.entity_id = entity_id
+			EntityRegistry.register_with_id(camp, &"camp", entity_id)
+			nav_region.add_child(camp)
+			camp.load_data(d)
 		"citizen":
 			var citizen: Citizen = CITIZEN_SCENE.instantiate()
 			citizen.data = SettlerGen.data_from_save(d)
@@ -288,6 +317,7 @@ func _spawn_citizens() -> void:
 	for i: int in names.size():
 		var citizen: Citizen = CITIZEN_SCENE.instantiate()
 		citizen.data = load("res://data/citizens/%s.tres" % names[i])
+		citizen.band_id = 0
 		add_child(citizen)
 		var ang: float = TAU * float(i) / float(names.size()) + 0.7
 		var pos: Vector3 = Vector3(cos(ang) * 3.0, 0.0, sin(ang) * 3.0)
@@ -302,10 +332,6 @@ func _setup_day_night() -> void:
 	day_night.sun = _sun
 	day_night.environment = _env
 	day_night.sky_material = _sky_mat
-	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-	if not fires.is_empty():
-		var fire: Node = fires[0]
-		day_night.fire_light = fire.get_node_or_null("Campfire/FireLight") as OmniLight3D
-		day_night.flame = fire.get_node_or_null("Campfire/Flame") as Node3D
-		day_night.sparks = fire.get_node_or_null("Campfire/Sparks") as GPUParticles3D
+	# Las hogueras las descubre DayNight por grupo cada frame: los
+	# campamentos pueden nacer después de este _ready (siembra de bandas).
 	add_child(day_night)

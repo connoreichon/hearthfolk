@@ -6,9 +6,6 @@ extends Node
 var sun: DirectionalLight3D
 var environment: Environment
 var sky_material: ProceduralSkyMaterial
-var fire_light: OmniLight3D
-var flame: Node3D
-var sparks: GPUParticles3D
 
 var _color_gradient: Gradient = load("res://data/config/daylight_gradient.tres")
 var _energy_curve: Curve = load("res://data/config/daylight_energy.tres")
@@ -51,20 +48,25 @@ func _process(delta: float) -> void:
 	_update_fire(delta)
 
 
+## Todas las hogueras del grupo &"campfire" (multi-campamento, Build 003):
+## se consultan cada frame porque los campamentos nacen DESPUÉS del _ready
+## (siembra de bandas) y el grupo es diminuto (2-5 miembros).
 func _update_fire(delta: float) -> void:
-	if fire_light == null:
-		return
 	var lit: bool = SimClock.get_phase() >= SimClock.Phase.DUSK
 	var target: float = 2.4 if lit else 0.0
-	if sparks != null and sparks.emitting != lit:
-		sparks.emitting = lit
-	# Parpadeo con ruido (delta real: cosmético)
 	_flicker_t += delta
 	var flicker: float = 1.0 + _flicker_noise.get_noise_1d(_flicker_t * 60.0) * 0.25
-	fire_light.light_energy = lerpf(
-		fire_light.light_energy, target * flicker, 1.0 - exp(-4.0 * delta)
-	)
-	if flame != null:
-		flame.visible = fire_light.light_energy > 0.15
-		var pulse: float = 1.0 + _flicker_noise.get_noise_1d(_flicker_t * 45.0 + 500.0) * 0.12
-		flame.scale = Vector3.ONE * pulse
+	var k: float = 1.0 - exp(-4.0 * delta)
+	var pulse: float = 1.0 + _flicker_noise.get_noise_1d(_flicker_t * 45.0 + 500.0) * 0.12
+	for node: Node in get_tree().get_nodes_in_group(&"campfire"):
+		var fire_light: OmniLight3D = node.get_node_or_null("Campfire/FireLight") as OmniLight3D
+		if fire_light == null:
+			continue
+		var sparks: GPUParticles3D = node.get_node_or_null("Campfire/Sparks") as GPUParticles3D
+		if sparks != null and sparks.emitting != lit:
+			sparks.emitting = lit
+		fire_light.light_energy = lerpf(fire_light.light_energy, target * flicker, k)
+		var flame: Node3D = node.get_node_or_null("Campfire/Flame") as Node3D
+		if flame != null:
+			flame.visible = fire_light.light_energy > 0.15
+			flame.scale = Vector3.ONE * pulse

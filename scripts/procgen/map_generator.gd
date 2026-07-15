@@ -47,7 +47,9 @@ static func build_terrain_data(seed_value: int) -> TerrainData:
 			var channel_center: float = -54.0 + sin(z * 0.05) * 2.5
 			var dx: float = x - channel_center
 			h -= 1.3 * exp(-dx * dx / 8.0) * f_west
-			# Camino de tierra: sur (z=60) hasta el centro
+			# Vaguada suave sur→centro (relieve, ya sin camino pintado): la
+			# máscara de sendas queda a 0 — desde la Build 003 los caminos
+			# EMERGEN del tráfico (TrafficGrid, S3) sobre este mismo canal.
 			var path_x: float = sin(z * 0.045) * 3.0
 			var d_path: float = absf(x - path_x)
 			var path_w: float = exp(-d_path * d_path / (2.0 * 1.5 * 1.5))
@@ -56,7 +58,7 @@ static func build_terrain_data(seed_value: int) -> TerrainData:
 			h = clampf(h, -1.6, 4.0)
 			var idx: int = terrain.index_of(ix, iz)
 			terrain.heights[idx] = h
-			terrain.path_mask[idx] = clampf(path_w * 1.35, 0.0, 1.0)
+			terrain.path_mask[idx] = 0.0
 	return terrain
 
 
@@ -212,10 +214,8 @@ static func _spawn_props(
 	if counts["trees_adult"] < TREES_ADULT or counts["flowers"] < FLOWER_PATCHES:
 		push_error("MapGenerator: distribución incompleta: %s" % str(counts))
 
-	_place_campfire(props, rng, terrain)
-	_place_cart(props, rng, terrain)
-	counts["campfire"] = 1
-	counts["cart"] = 1
+	# Build 003: el mapa base es 100 % naturaleza — la fogata y el almacén
+	# los funda cada banda al asentarse (CampEntity, vía World.found_camp).
 	return counts
 
 
@@ -260,60 +260,6 @@ static func _place_visual(
 	node.scale = Vector3.ONE * rng.randf_range(0.88, 1.12)
 	props.add_child(node)
 
-
-static func _place_campfire(
-	props: Node3D, rng: RandomNumberGenerator, terrain: TerrainData
-) -> void:
-	var body: StaticBody3D = StaticBody3D.new()
-	body.name = "CampfireBody"
-	body.collision_layer = (1 << 5) | (1 << 7)
-	body.collision_mask = 0
-	body.add_child(PropGen.campfire(rng.randi()))
-	var shape: CollisionShape3D = CollisionShape3D.new()
-	var cylinder: CylinderShape3D = CylinderShape3D.new()
-	# 1.35 ≈ agujero del navmesh − radio del agente: elimina la franja
-	# pisable-pero-sin-navmesh donde el RVO empujaba a los habitantes
-	cylinder.radius = 1.35
-	cylinder.height = 0.8
-	shape.shape = cylinder
-	shape.position = Vector3(0.0, 0.4, 0.0)
-	body.add_child(shape)
-	# RVO: sin esto los habitantes se empujan unos a otros contra la fogata.
-	# CLAVE: disco RVO + radio del agente (0.35) DEBE caber dentro del
-	# agujero del navmesh (~1.45), o veta los caminos que lo bordean.
-	var fire_obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
-	fire_obstacle.radius = 1.0
-	fire_obstacle.avoidance_enabled = true
-	body.add_child(fire_obstacle)
-	body.position = Vector3(0.0, terrain.get_height(0.0, 0.0), 0.0)
-	body.add_to_group(&"campfire")
-	body.add_to_group(&"selectable")
-	props.add_child(body)
-
-
-static func _place_cart(props: Node3D, rng: RandomNumberGenerator, terrain: TerrainData) -> void:
-	var body: StaticBody3D = StaticBody3D.new()
-	body.name = "CartBody"
-	body.collision_layer = (1 << 5) | (1 << 7)
-	body.collision_mask = 0
-	body.add_child(PropGen.cart(rng.randi()))
-	var shape: CollisionShape3D = CollisionShape3D.new()
-	var box: BoxShape3D = BoxShape3D.new()
-	# Crecido hasta casar con el agujero del navmesh (mismo motivo que la fogata)
-	box.size = Vector3(3.2, 1.4, 2.3)
-	shape.shape = box
-	shape.position = Vector3(0.0, 0.7, 0.0)
-	body.add_child(shape)
-	# Mismo criterio que la fogata: dentro del agujero (lado corto ~1.35)
-	var cart_obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
-	cart_obstacle.radius = 1.0
-	cart_obstacle.avoidance_enabled = true
-	body.add_child(cart_obstacle)
-	var angle: float = rng.randf() * TAU
-	var x: float = cos(angle) * 4.0
-	var z: float = sin(angle) * 4.0
-	body.position = Vector3(x, terrain.get_height(x, z), z)
-	body.rotation.y = PI - angle
-	body.add_to_group(&"storage")
-	body.add_to_group(&"selectable")
-	props.add_child(body)
+# La fogata y el carro centrales vivían aquí hasta la Build 002: ahora cada
+# banda funda su CampEntity (scripts/camp/camp_entity.gd) con los mismos
+# números de colisión/RVO conquistados en los soaks.

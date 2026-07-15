@@ -8,6 +8,11 @@ var terrain: TerrainData
 
 # Flujo menú → partida: el menú deja aquí la intención y main/world la consume
 var pending_new_seed: int = 0
+## Siembra de bandas (Build 003): colonos a repartir y si el BandPlacer
+## debe tomar el control al entrar en partida (solo lo activa el menú;
+## tests, soaks y guardados viejos usan el campamento central automático).
+var pending_settlers: int = 10
+var placement_pending: bool = false
 var pending_load_slot: int = 0
 
 

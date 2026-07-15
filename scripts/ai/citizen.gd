@@ -5,6 +5,7 @@ extends CharacterBody3D
 ## (nunca Engine.time_scale). RVO activo contra otros habitantes.
 
 var entity_id: int = 0
+var band_id: int = 0
 var data: CitizenData
 var visual: CitizenVisual
 var state_machine: StateMachine
@@ -152,10 +153,8 @@ func _update_morale_needs(dt: float) -> void:
 		if sleeping_indoors:
 			delta_safety = 8.0
 		else:
-			var fire_dist: float = INF
-			var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-			if not fires.is_empty():
-				fire_dist = (fires[0] as Node3D).global_position.distance_to(global_position)
+			var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), global_position)
+			var fire_dist: float = fire_pos.distance_to(global_position)
 			if fire_dist > 8.0:
 				delta_safety = -4.0
 				if SimClock.get_season() == SimClock.Season.WINTER:
@@ -328,10 +327,7 @@ func _build_carry_visual(amount: int) -> Node3D:
 
 
 func find_storage() -> Node3D:
-	var nodes: Array[Node] = get_tree().get_nodes_in_group(&"storage")
-	if nodes.is_empty():
-		return null
-	return nodes[0] as Node3D
+	return CampEntity.nearest_storage_node(get_tree(), global_position)
 
 
 ## Punto de descanso repartido en círculo alrededor de la fogata.
@@ -340,10 +336,7 @@ func find_storage() -> Node3D:
 ## agente congelado): se valida con ruta real y se rota de hueco si el
 ## propio está aislado. Último recurso: descansar donde se está.
 func rest_spot() -> Vector3:
-	var center: Vector3 = Vector3.ZERO
-	var fires: Array[Node] = get_tree().get_nodes_in_group(&"campfire")
-	if not fires.is_empty():
-		center = (fires[0] as Node3D).global_position
+	var center: Vector3 = CampEntity.nearest_fire_position(get_tree(), global_position)
 	if not is_inside_tree():
 		return center + Vector3(2.3, 0.0, 0.0)
 	var world_3d: World3D = get_world_3d()
@@ -486,6 +479,7 @@ func entity_kind() -> StringName:
 func save_data() -> Dictionary:
 	return {
 		"id": entity_id,
+		"band": band_id,
 		"name": data.display_name,
 		"pos": [global_position.x, global_position.y, global_position.z],
 		"state": String(state_machine.current_name()),
@@ -507,6 +501,7 @@ func save_data() -> Dictionary:
 
 
 func load_data(d: Dictionary) -> void:
+	band_id = int(d.get("band", 0))
 	var pos: Array = d.get("pos", [0.0, 0.0, 0.0])
 	global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 	hunger = float(d.get("hunger", 100.0))

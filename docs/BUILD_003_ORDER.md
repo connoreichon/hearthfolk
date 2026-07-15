@@ -55,7 +55,8 @@ implementación aprendidas por los críticos, vigentes en TODA la build:
 - Puerta: captura por bioma × estación, 60 fps en desktop, suite + smoke.
 
 ### S2 — Rasgos y oficios (con auto-tala: el pilar que faltaba)
-- 5 atributos (fuerza, destreza, percepción, mano verde, diligencia) + 5-6 rasgos con efecto visible (glotón, frugal, cazador nato, recolector, solitario/gregario). Panel de info los muestra. Save: clave `traits`.
+- 5 atributos (fuerza, destreza, percepción, mano verde, diligencia) + rasgos con efecto visible, INCLUYENDO DEFECTOS de nacimiento (orden del dueño): cada colono nace con al menos una virtud y probablemente un defecto (p. ej. manos de madera → carpintero nato pero torpe con el arma). Panel de info los muestra con lenguaje evocador, no números pelados. Save: clave `traits`.
+- El catálogo de habilidades es EXTENSIBLE por diseño: los oficios futuros (marinero de la Build 004, con «buena mano al timón») se enchufan añadiendo aptitudes al catálogo sin tocar la IA de utilidad.
 - Autoselección de oficio: IA de utilidad (necesidad de aldea × aptitud × preferencia) como pesos retrocompatibles sobre `best_task_for`; reevaluación estacional; leñador/constructor/agricultor/recolector-base.
 - **Auto-tala**: los leñadores marcan árboles solos según el stock de madera objetivo; la T del jugador pasa a sugerencia (prioridad más débil = número mayor). Sin esto no hay madera autónoma y S6 sería letra muerta.
 - Puerta: soak 1 año con reparto de oficios estable (flapping ≤1 cambio/colono/estación) y madera fluyendo sin tocar T.
