@@ -29,6 +29,13 @@ func get_node_by_id(entity_id: int) -> Node:
 	return node
 
 
+## Reserva el espacio bajo `floor_id` para IDs deterministas (árboles por
+## chunk): los IDs dinámicos (colonos, obras…) nacerán siempre por encima.
+func reserve_below(floor_id: int) -> void:
+	if _next_id < floor_id:
+		_next_id = floor_id
+
+
 func unregister(entity_id: int) -> void:
 	_by_id.erase(entity_id)
 	_kind_by_id.erase(entity_id)

@@ -34,6 +34,7 @@ func ensure_active_around(point: Vector3, radius: float = 96.0) -> int:
 			var chunk: TerrainChunk = TerrainChunk.create(world_gen, coord)
 			_chunks[coord] = chunk
 			nav_parent.add_child(chunk)
+			chunk.populate(world_gen)
 			created += 1
 	return created
 

@@ -9,7 +9,6 @@ extends Node
 const CITIZEN_SCENE: PackedScene = preload("res://scenes/citizens/citizen.tscn")
 const MIN_CAMP_DISTANCE: float = 12.0
 const MAX_SLOPE_DEG: float = 22.0
-const WATER_EDGE_X: float = -44.0
 
 var remaining: int = 10
 var group_size: int = 4
@@ -132,7 +131,7 @@ func _is_valid(point: Vector3) -> bool:
 	var terrain: TerrainData = GameState.terrain
 	if terrain == null or not terrain.is_inside(point.x, point.z, 3.0):
 		return false
-	if point.x < WATER_EDGE_X:
+	if GameState.world_gen.river_mask(point.x, point.z) > 0.2:
 		return false
 	if terrain.get_slope_deg(point.x, point.z) > MAX_SLOPE_DEG:
 		return false
@@ -187,10 +186,10 @@ func drop_band(point: Vector3, count: int) -> void:
 
 
 ## Reparto automático 4+4+2 para tests y repros (--autoplace / --newgame):
-## puntos preferidos con búsqueda en espiral si alguno no es válido.
+## tres rincones separados del mapa gigante, con búsqueda en espiral.
 func autoplace_default() -> void:
 	var anchors: Array[Vector3] = [
-		Vector3(0.0, 0.0, 6.0), Vector3(-22.0, 0.0, -16.0), Vector3(20.0, 0.0, 18.0)
+		Vector3(0.0, 0.0, 6.0), Vector3(-230.0, 0.0, -170.0), Vector3(210.0, 0.0, 190.0)
 	]
 	var splits: Array[int] = [4, 4, 2]
 	for i: int in anchors.size():

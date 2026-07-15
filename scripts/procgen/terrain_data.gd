@@ -1,48 +1,22 @@
 class_name TerrainData
 extends RefCounted
-## Heightfield del mapa: consultas de altura, normal y pendiente.
-## Mundo centrado en (0,0,0), 120×120 m, resolución 1 m.
+## Fachada de consulta del terreno (S1): delega en WorldGen (funciones
+## puras a cualquier escala). La malla y la colisión viven en los chunks;
+## la máscara de sendas es dispersa (celda de 1 m) y la escribirá el
+## tráfico de la S3. API estable para todos los consumidores históricos.
 
-const SIZE: float = 120.0
-const RESOLUTION: int = 120
+var world_gen: WorldGen
 
-var heights: PackedFloat32Array = PackedFloat32Array()
-var path_mask: PackedFloat32Array = PackedFloat32Array()
-
-
-func _init() -> void:
-	var count: int = (RESOLUTION + 1) * (RESOLUTION + 1)
-	heights.resize(count)
-	path_mask.resize(count)
+## Sendas emergentes: celda Vector2i(1 m) → intensidad 0..1 (disperso).
+var _path_cells: Dictionary = {}
 
 
-func vertex_side() -> int:
-	return RESOLUTION + 1
+func _init(gen: WorldGen = null) -> void:
+	world_gen = gen
 
 
-func index_of(ix: int, iz: int) -> int:
-	return iz * (RESOLUTION + 1) + ix
-
-
-func height_at(ix: int, iz: int) -> float:
-	ix = clampi(ix, 0, RESOLUTION)
-	iz = clampi(iz, 0, RESOLUTION)
-	return heights[index_of(ix, iz)]
-
-
-## Altura bilineal en coordenadas de mundo.
 func get_height(x: float, z: float) -> float:
-	var fx: float = clampf(x + SIZE * 0.5, 0.0, SIZE - 0.001)
-	var fz: float = clampf(z + SIZE * 0.5, 0.0, SIZE - 0.001)
-	var ix: int = int(fx)
-	var iz: int = int(fz)
-	var tx: float = fx - float(ix)
-	var tz: float = fz - float(iz)
-	var h00: float = height_at(ix, iz)
-	var h10: float = height_at(ix + 1, iz)
-	var h01: float = height_at(ix, iz + 1)
-	var h11: float = height_at(ix + 1, iz + 1)
-	return lerpf(lerpf(h00, h10, tx), lerpf(h01, h11, tx), tz)
+	return world_gen.height(x, z)
 
 
 func get_normal(x: float, z: float) -> Vector3:
@@ -57,11 +31,16 @@ func get_slope_deg(x: float, z: float) -> float:
 
 
 func get_path_mask(x: float, z: float) -> float:
-	var fx: float = clampf(x + SIZE * 0.5, 0.0, SIZE - 0.001)
-	var fz: float = clampf(z + SIZE * 0.5, 0.0, SIZE - 0.001)
-	return path_mask[index_of(int(fx), int(fz))]
+	return float(_path_cells.get(Vector2i(int(floor(x)), int(floor(z))), 0.0))
+
+
+func set_path_mask(x: float, z: float, value: float) -> void:
+	var cell: Vector2i = Vector2i(int(floor(x)), int(floor(z)))
+	if value <= 0.0:
+		_path_cells.erase(cell)
+	else:
+		_path_cells[cell] = clampf(value, 0.0, 1.0)
 
 
 func is_inside(x: float, z: float, margin: float = 0.0) -> bool:
-	var half: float = SIZE * 0.5 - margin
-	return absf(x) <= half and absf(z) <= half
+	return world_gen.is_inside(x, z, margin)

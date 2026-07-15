@@ -47,7 +47,10 @@ func _process(delta: float) -> void:
 	# Límites del mapa, más estrictos cuanto más lejos está la cámara: con
 	# zoom alto la cámara cuelga decenas de metros por detrás del pivot y
 	# sin este término acababas mirando el vacío de detrás del borde.
-	var limit: float = maxf(12.0, _cfg.map_half_size - _cfg.map_margin - arm.spring_length * 0.35)
+	var map_half: float = (
+		GameState.world_gen.map_half if GameState.world_gen != null else _cfg.map_half_size
+	)
+	var limit: float = maxf(12.0, map_half - _cfg.map_margin - arm.spring_length * 0.35)
 	position.x = clampf(position.x, -limit, limit)
 	position.z = clampf(position.z, -limit, limit)
 	# Altura del pivot pegada al terreno — pero si el suelo bajo la CÁMARA

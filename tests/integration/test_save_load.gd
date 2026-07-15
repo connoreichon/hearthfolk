@@ -133,8 +133,8 @@ func test_save_load_save_round_trip() -> void:
 
 
 func test_migration_fills_missing_fields() -> void:
-	var sparse: Dictionary = {"format_version": 1, "seed": 42}
+	var sparse: Dictionary = {"format_version": 2, "seed": 42}
 	var migrated: Dictionary = SaveManager.migrate(sparse)
 	assert_true(migrated.has("entities"), "entities por defecto")
 	assert_true(migrated.has("inventory"), "inventory por defecto")
-	assert_eq(int(migrated["format_version"]), 1)
+	assert_eq(int(migrated["format_version"]), SaveManager.FORMAT_VERSION)

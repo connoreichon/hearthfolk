@@ -8,6 +8,7 @@ const CITIZEN_SCENE: PackedScene = preload("res://scenes/citizens/citizen.tscn")
 var terrain_data: TerrainData
 var map_counts: Dictionary = {}
 
+var _chunks: ChunkManager
 var _sun: DirectionalLight3D
 var _env: Environment
 var _sky_mat: ProceduralSkyMaterial
@@ -37,10 +38,7 @@ func _ready() -> void:
 		GameState.setup_new_game(DEFAULT_SEED)
 		GameState.add_resource(&"food", 12)
 		GameState.add_resource(&"tools", 4)
-	var result: Dictionary = MapGenerator.generate(nav_region, GameState.derive_seed(["map"]))
-	terrain_data = result["terrain"]
-	map_counts = result["counts"]
-	GameState.terrain = terrain_data
+	_setup_world_gen()
 	_setup_light_and_environment()
 	if GameState.placement_pending:
 		# Siembra de bandas: el BandPlacer fundará campamentos y colonos;
@@ -48,10 +46,11 @@ func _ready() -> void:
 		pass
 	else:
 		# Modo automático (tests, soaks, guardados viejos): un campamento
-		# central de la banda 0 — el comportamiento clásico, vía CampEntity.
-		found_camp(Vector3.ZERO, 0)
+		# central de la banda 0, esquivando ríos y cuestas del mundo gigante.
+		var home: Vector3 = _auto_camp_spot()
+		found_camp(home, 0)
 		_bake_navmesh()
-		_spawn_citizens()
+		_spawn_citizens(home)
 	_setup_day_night()
 	var dispatcher: HaulDispatcher = HaulDispatcher.new()
 	dispatcher.name = "HaulDispatcher"
@@ -78,9 +77,50 @@ func _on_construction_changed(_building_id: int) -> void:
 	_bake_navmesh()
 
 
-## Funda el campamento de una banda: hoguera + almacén, pegados al terreno.
-## Lo usan el arranque automático, el BandPlacer y la carga de partidas.
+## Primer sitio de campamento razonable cerca del centro: dentro del mapa,
+## seco y llano (el (0,0) a pelo puede caer en un río del mundo gigante).
+func _auto_camp_spot() -> Vector3:
+	var world_gen: WorldGen = GameState.world_gen
+	for ring: int in 9:
+		for step: int in 8:
+			var ang: float = TAU * float(step) / 8.0 + float(ring) * 0.4
+			var x: float = cos(ang) * float(ring) * 6.0
+			var z: float = sin(ang) * float(ring) * 6.0
+			if not world_gen.is_inside(x, z, 3.0):
+				continue
+			if world_gen.river_mask(x, z) > 0.18:
+				continue
+			if terrain_data.get_slope_deg(x, z) > 18.0:
+				continue
+			return Vector3(x, 0.0, z)
+	return Vector3.ZERO
+
+
+## Mundo gigante (S1): WorldGen como fuente de verdad, fachada TerrainData,
+## gestor de chunks y el plano de agua. Los chunks nacen con los campamentos.
+func _setup_world_gen() -> void:
+	var world_gen: WorldGen = WorldGen.new(GameState.derive_seed(["map"]))
+	GameState.world_gen = world_gen
+	terrain_data = TerrainData.new(world_gen)
+	GameState.terrain = terrain_data
+	map_counts = {}
+	_chunks = ChunkManager.new()
+	_chunks.name = "ChunkManager"
+	_chunks.world_gen = world_gen
+	_chunks.nav_parent = nav_region
+	add_child(_chunks)
+	MapGenerator.spawn_water(self, world_gen)
+
+
+## Funda el campamento de una banda: activa el suelo bajo sus pies
+## (chunks), DESPEJA EL CLARO (la banda tala su campamento al asentarse)
+## y planta hoguera + almacén pegados al terreno.
 func found_camp(center: Vector3, band: int) -> CampEntity:
+	_chunks.ensure_active_around(center)
+	for node: Node in get_tree().get_nodes_in_group(&"trees"):
+		var tree: Node3D = node as Node3D
+		if tree != null and tree.global_position.distance_to(center) < 7.0:
+			tree.free()
 	var camp: CampEntity = CampEntity.create(band, GameState.derive_seed(["camp", band]))
 	camp.position = Vector3(center.x, terrain_data.get_height(center.x, center.z) - 0.02, center.z)
 	nav_region.add_child(camp)
@@ -102,6 +142,9 @@ func rebuild_from_save(data: Dictionary) -> void:
 	var old_day_night: Node = get_node_or_null("DayNight")
 	if old_day_night != null:
 		old_day_night.free()
+	if _chunks != null:
+		_chunks.free()
+		_chunks = null
 	EntityRegistry.clear()
 
 	GameState.setup_new_game(int(data.get("seed", DEFAULT_SEED)))
@@ -119,23 +162,30 @@ func rebuild_from_save(data: Dictionary) -> void:
 	)
 	SimClock.set_speed(int(data.get("speed", 1)))
 
-	var result: Dictionary = MapGenerator.generate(nav_region, GameState.derive_seed(["map"]))
-	terrain_data = result["terrain"]
-	map_counts = result["counts"]
-	GameState.terrain = terrain_data
+	_setup_world_gen()
 	_setup_day_night()
 
 	var saved_trees: Dictionary = {}
+	var camps_data: Array = []
 	var others: Array = []
 	for entry: Dictionary in data.get("entities", []):
 		var kind: String = entry.get("kind", "")
 		var entity_data: Dictionary = entry.get("data", {})
 		if kind == "tree":
 			saved_trees[int(entity_data.get("id", 0))] = entity_data
+		elif kind == "camp":
+			camps_data.append(entity_data)
 		else:
 			others.append(entry)
 
-	# Árboles: mismo orden de creación → mismos IDs; el que falta fue talado
+	# Los campamentos van PRIMERO: activan sus chunks, y con ellos nacen
+	# los árboles deterministas que el matching de abajo necesita.
+	for camp_entry: Dictionary in camps_data:
+		_spawn_saved_entity("camp", camp_entry)
+	if camps_data.is_empty():
+		found_camp(Vector3.ZERO, 0)
+
+	# Árboles: ID determinista por chunk → mismos IDs; el que falta fue talado
 	var matched: Dictionary = {}
 	var regenerated: Array[Node] = get_tree().get_nodes_in_group(&"trees")
 	for node: Node in regenerated:
@@ -160,9 +210,6 @@ func rebuild_from_save(data: Dictionary) -> void:
 
 	for entry: Dictionary in others:
 		_spawn_saved_entity(String(entry.get("kind", "")), entry.get("data", {}))
-	# Guardados de la Build 002 (sin campamentos): fundar el central clásico.
-	if get_tree().get_nodes_in_group(&"camps").is_empty():
-		found_camp(Vector3.ZERO, 0)
 
 	# Regenerar tareas desde la realidad del mundo (nunca se persisten)
 	for node: Node in get_tree().get_nodes_in_group(&"trees"):
@@ -179,6 +226,8 @@ func _spawn_saved_entity(kind: String, d: Dictionary) -> void:
 	var entity_id: int = int(d.get("id", 0))
 	match kind:
 		"camp":
+			var pos: Array = d.get("pos", [0.0, 0.0, 0.0])
+			_chunks.ensure_active_around(Vector3(float(pos[0]), 0.0, float(pos[2])))
 			var camp: CampEntity = CampEntity.create(int(d.get("band", 0)), int(d.get("seed", 0)))
 			camp.entity_id = entity_id
 			EntityRegistry.register_with_id(camp, &"camp", entity_id)
@@ -317,7 +366,7 @@ func _bake_navmesh() -> void:
 
 
 ## Cuatro habitantes en anillo de 3 m alrededor de la fogata (§4).
-func _spawn_citizens() -> void:
+func _spawn_citizens(center: Vector3 = Vector3.ZERO) -> void:
 	var names: Array[String] = ["elian", "mara", "tobin", "nessa"]
 	for i: int in names.size():
 		var citizen: Citizen = CITIZEN_SCENE.instantiate()
@@ -325,7 +374,7 @@ func _spawn_citizens() -> void:
 		citizen.band_id = 0
 		add_child(citizen)
 		var ang: float = TAU * float(i) / float(names.size()) + 0.7
-		var pos: Vector3 = Vector3(cos(ang) * 3.0, 0.0, sin(ang) * 3.0)
+		var pos: Vector3 = center + Vector3(cos(ang) * 3.0, 0.0, sin(ang) * 3.0)
 		pos.y = terrain_data.get_height(pos.x, pos.z) + 0.05
 		citizen.global_position = pos
 		citizen.visual.rotation.y = ang + PI * 0.5

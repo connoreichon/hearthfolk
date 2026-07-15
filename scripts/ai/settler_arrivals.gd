@@ -56,20 +56,25 @@ func _spawn_settler() -> void:
 	AudioDirector.play_ui(&"ui_confirm")
 
 
-## Punto de entrada por el camino del sur, garantizando que hay ruta hasta
-## la fogata (el borde del navmesh puede formar islas sueltas — visto en el
-## soak 002: colono atascado >15 s al aparecer).
+## Mapa gigante (S1): el recién llegado aparece «desde el horizonte» en un
+## anillo alrededor de un campamento, con ruta real validada hasta su
+## hoguera (el borde del navmesh puede formar islas — soak 002).
 func _safe_spawn_point(world: Node3D) -> Vector3:
-	# Ruta garantizada hasta la hoguera más cercana al borde sur.
-	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), Vector3(0.0, 0.0, 56.0))
+	var camp: CampEntity = CampEntity.nearest_camp(get_tree(), Vector3.ZERO)
+	if camp == null:
+		return Vector3.ZERO
+	var fire_pos: Vector3 = camp.global_position
 	var world_3d: World3D = world.get_world_3d()
 	var map: RID = world_3d.navigation_map
-	for z: float in [56.0, 50.0, 44.0, 36.0, 26.0]:
-		var x: float = sin(z * 0.045) * 3.0
-		var candidate: Vector3 = Vector3(x, GameState.terrain.get_height(x, z), z)
-		var snapped_point: Vector3 = NavigationServer3D.map_get_closest_point(map, candidate)
-		if NavUtil.is_reachable(world_3d, fire_pos, snapped_point, 2.0):
-			snapped_point.y += 0.05
-			return snapped_point
+	for radius: float in [26.0, 20.0, 14.0]:
+		for step: int in 8:
+			var ang: float = TAU * float(step) / 8.0 + radius
+			var x: float = fire_pos.x + cos(ang) * radius
+			var z: float = fire_pos.z + sin(ang) * radius
+			var candidate: Vector3 = Vector3(x, GameState.terrain.get_height(x, z), z)
+			var snapped_point: Vector3 = NavigationServer3D.map_get_closest_point(map, candidate)
+			if NavUtil.is_reachable(world_3d, fire_pos, snapped_point, 2.0):
+				snapped_point.y += 0.05
+				return snapped_point
 	# Último recurso: junto a la fogata (nunca aislado)
 	return fire_pos + Vector3(2.0, 0.1, 2.0)

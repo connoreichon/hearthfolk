@@ -9,91 +9,93 @@ extends RefCounted
 enum Biome { PRADERA, BOSQUE, RIBERA, COLINAS, CLARO }
 
 const WATER_LEVEL: float = -0.55
-const CENTER_FLAT_RADIUS: float = 25.0
-const HILL_CENTER: Vector2 = Vector2(38.0, -38.0)
+## Lado por defecto del mapa gigante: 1024 m (16×16 chunks de 64 m).
+const DEFAULT_HALF: float = 512.0
 
-## Mitad del lado del mapa en metros (S1-B lo subirá a 512 = mapa de 1 km).
-var map_half: float = 60.0
+## Mitad del lado del mapa en metros.
+var map_half: float = DEFAULT_HALF
 
 var _height_noise: FastNoiseLite
+var _hill_noise: FastNoiseLite
+var _river_noise: FastNoiseLite
 var _biome_noise: FastNoiseLite
 var _warp_noise: FastNoiseLite
 var _clearing_noise: FastNoiseLite
 
 
-func _init(seed_value: int, half: float = 60.0) -> void:
+func _init(seed_value: int, half: float = DEFAULT_HALF) -> void:
 	map_half = half
 	_height_noise = FastNoiseLite.new()
 	_height_noise.seed = seed_value
 	_height_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_height_noise.frequency = 0.02
-	_height_noise.fractal_octaves = 3
+	_height_noise.frequency = 0.008
+	_height_noise.fractal_octaves = 4
+	_hill_noise = FastNoiseLite.new()
+	_hill_noise.seed = seed_value + 77
+	_hill_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_hill_noise.frequency = 0.0022
+	_river_noise = FastNoiseLite.new()
+	_river_noise.seed = seed_value + 500
+	_river_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_river_noise.frequency = 0.0016
 	_biome_noise = FastNoiseLite.new()
 	_biome_noise.seed = seed_value + 101
 	_biome_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_biome_noise.frequency = 0.008
+	_biome_noise.frequency = 0.003
 	_warp_noise = FastNoiseLite.new()
 	_warp_noise.seed = seed_value + 202
 	_warp_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_warp_noise.frequency = 0.02
+	_warp_noise.frequency = 0.008
 	_clearing_noise = FastNoiseLite.new()
 	_clearing_noise.seed = seed_value + 303
 	_clearing_noise.noise_type = FastNoiseLite.TYPE_CELLULAR
-	_clearing_noise.frequency = 0.03
+	_clearing_noise.frequency = 0.012
 
 
-## Altura del terreno en un punto cualquiera del mundo.
-## (Réplica exacta de la fórmula de la Build 002 mientras el mapa siga en
-## 120 m; S1-B la generaliza a la escala gigante con red de ríos.)
+## Altura del terreno en cualquier punto del mundo gigante: lomas suaves
+## por ruido multi-octava, cerros donde late el ruido de colinas y la RED
+## DE RÍOS tallada encima. Pendientes pensadas para navmesh (<22° casi
+## en todas partes; los cerros y orillas son el relieve con carácter).
 func height(x: float, z: float) -> float:
-	var dist: float = Vector2(x, z).length()
-	var f_center: float = smoothstep(CENTER_FLAT_RADIUS, 45.0, dist)
-	var h: float = _height_noise.get_noise_2d(x, z) * 2.2 * f_center
-	var hill_d2: float = pow(x - HILL_CENTER.x, 2.0) + pow(z - HILL_CENTER.y, 2.0)
-	h += 3.4 * exp(-hill_d2 / (2.0 * 14.0 * 14.0))
-	var f_west: float = smoothstep(44.0, 52.0, -x)
-	h = lerpf(h, 0.15, f_west)
-	var channel_center: float = -54.0 + sin(z * 0.05) * 2.5
-	var dx: float = x - channel_center
-	h -= 1.3 * exp(-dx * dx / 8.0) * f_west
-	var vale: float = _south_vale(x, z)
-	h = lerpf(h, h * 0.35, vale)
-	return clampf(h, -1.6, 4.0)
+	var h: float = _height_noise.get_noise_2d(x, z) * 2.4
+	# Cerros: donde el ruido de colinas sube de umbral, el relieve se
+	# multiplica — cadenas suaves de lomas altas, no picos alpinos.
+	var hill: float = _hill_noise.get_noise_2d(x, z)
+	if hill > 0.15:
+		h += smoothstep(0.15, 0.75, hill) * 5.5
+	# Río: canal donde el ruido cruza cero. La tala manda sobre el relieve:
+	# en el corazón del cauce (mask ≥ 0.55) el lecho SIEMPRE se hunde bajo
+	# el agua, aunque cruce colinas — el río corta valles, no flota.
+	var carve: float = river_mask(x, z)
+	h = lerpf(h, WATER_LEVEL - 0.9, smoothstep(0.18, 0.55, carve))
+	return clampf(h, -1.8, 8.5)
 
 
-## Vaguada suave del sur al centro (relieve heredado de la 002).
-func _south_vale(x: float, z: float) -> float:
-	var path_x: float = sin(z * 0.045) * 3.0
-	var d: float = absf(x - path_x)
-	var w: float = exp(-d * d / (2.0 * 1.5 * 1.5))
-	return w * smoothstep(-4.0, 0.0, z)
-
-
-## Cercanía al agua 0..1 (1 = en el cauce). Base de la Ribera de Juncos.
+## Cercanía al agua 0..1 (1 = centro del cauce). El río es la banda donde
+## el ruido de ríos cruza el cero — serpentea solo, sin trazado a mano.
 func river_mask(x: float, z: float) -> float:
-	var f_west: float = smoothstep(40.0, 52.0, -x)
-	if f_west <= 0.0:
-		return 0.0
-	var channel_center: float = -54.0 + sin(z * 0.05) * 2.5
-	var dx: float = absf(x - channel_center)
-	return clampf(1.0 - dx / 14.0, 0.0, 1.0) * f_west
+	var wx: float = x + _warp_noise.get_noise_2d(x + 311.0, z) * 40.0
+	var wz: float = z + _warp_noise.get_noise_2d(x, z + 733.0) * 40.0
+	var n: float = absf(_river_noise.get_noise_2d(wx, wz))
+	# Banda del cauce ~0.035 de ruido ≈ 12-18 m de ancho con las orillas
+	return clampf(1.0 - n / 0.035, 0.0, 1.0)
 
 
 func is_water(x: float, z: float) -> bool:
-	return height(x, z) < WATER_LEVEL + 0.05 and river_mask(x, z) > 0.3
+	return river_mask(x, z) > 0.55
 
 
 ## Bioma del punto (fronteras suaves por ruido deformado; ART_DIRECTION_003).
 func biome(x: float, z: float) -> int:
-	if river_mask(x, z) > 0.35:
+	if river_mask(x, z) > 0.25:
 		return Biome.RIBERA
-	if height(x, z) > 2.2:
+	if _hill_noise.get_noise_2d(x, z) > 0.32:
 		return Biome.COLINAS
-	var wx: float = x + _warp_noise.get_noise_2d(x, z) * 18.0
-	var wz: float = z + _warp_noise.get_noise_2d(x + 977.0, z - 553.0) * 18.0
-	if _clearing_noise.get_noise_2d(wx, wz) > 0.82:
+	var wx: float = x + _warp_noise.get_noise_2d(x, z) * 45.0
+	var wz: float = z + _warp_noise.get_noise_2d(x + 977.0, z - 553.0) * 45.0
+	if _clearing_noise.get_noise_2d(wx, wz) > 0.86:
 		return Biome.CLARO
-	if _biome_noise.get_noise_2d(wx, wz) > 0.22:
+	if _biome_noise.get_noise_2d(wx, wz) > 0.2:
 		return Biome.BOSQUE
 	return Biome.PRADERA
 

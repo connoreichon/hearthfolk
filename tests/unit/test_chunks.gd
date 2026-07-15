@@ -60,7 +60,7 @@ func test_manager_activates_around_points() -> void:
 	manager.nav_parent = _root
 	_root.add_child(manager)
 	var created: int = manager.ensure_active_around(Vector3.ZERO, 64.0)
-	assert_eq(created, 4, "radio 64 en el origen: 2×2 chunks (mapa de 120)")
+	assert_eq(created, 9, "radio 64 en el origen del mapa gigante: 3×3 chunks")
 	assert_eq(manager.ensure_active_around(Vector3.ZERO, 64.0), 0, "idempotente")
 	assert_true(manager.chunk_at(Vector2i(-1, -1)) != null, "chunk NW vivo")
 	# Fuera del mapa jugable no se crean chunks

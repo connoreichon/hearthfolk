@@ -3,7 +3,9 @@ extends Node
 ## se regeneran desde la realidad del mundo al cargar. Autosave cada 60 s
 ## reales (no corre en pausa).
 
-const FORMAT_VERSION: int = 1
+## v2 = mundo gigante por chunks con IDs de árbol deterministas (S1).
+const FORMAT_VERSION: int = 2
+const MIN_SUPPORTED_VERSION: int = 2
 const AUTOSAVE_SECONDS: float = 60.0
 const SLOTS: int = 3
 
@@ -76,6 +78,11 @@ func load_game(slot: int = -1) -> bool:
 	if data.is_empty():
 		EventBus.toast.emit("No hay partida guardada", &"warn")
 		return false
+	if int(data.get("format_version", 1)) < MIN_SUPPORTED_VERSION:
+		EventBus.toast.emit(
+			"Guardado de una versión antigua del mundo: empieza una partida nueva", &"warn"
+		)
+		return false
 	var worlds: Array[Node] = get_tree().get_nodes_in_group(&"world")
 	if worlds.is_empty():
 		return false
@@ -137,7 +144,7 @@ func slot_summary(slot: int) -> String:
 func migrate(data: Dictionary) -> Dictionary:
 	var version: int = int(data.get("format_version", 1))
 	match version:
-		1:
+		1, 2:
 			pass
 		_:
 			push_warning("SaveManager: versión de guardado desconocida %d" % version)

@@ -395,8 +395,11 @@ func _zone_geometry_error(rect: Rect2, kind: StringName = &"zone") -> String:
 	for corner: Vector2 in corners:
 		if not terrain.is_inside(corner.x, corner.y, 2.0):
 			return "Fuera del mapa"
-	if rect.position.x < -44.0:
-		return "Sobre el agua"
+		if (
+			GameState.world_gen != null
+			and GameState.world_gen.river_mask(corner.x, corner.y) > 0.45
+		):
+			return "Sobre el agua"
 	var slope_total: float = 0.0
 	for ix: int in 5:
 		for iz: int in 5:

@@ -6,6 +6,12 @@ extends StaticBody3D
 
 const CHUNK_SIZE: float = 64.0
 const RESOLUTION: int = 64
+## Espacio de IDs deterministas por chunk: los árboles nacen con el mismo
+## ID exista el orden de activación que exista (clave del guardado).
+const TREE_ID_BASE: int = 10_000_000
+const TREE_ID_STRIDE: int = 2048
+## Los IDs dinámicos (colonos, obras, campamentos) viven por encima.
+const DYNAMIC_ID_FLOOR: int = 20_000_000
 
 var coord: Vector2i = Vector2i.ZERO
 var populated: bool = false
@@ -36,6 +42,7 @@ static func create(world_gen: WorldGen, chunk_coord: Vector2i) -> TerrainChunk:
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	mesh_instance.name = "Mesh"
 	mesh_instance.mesh = _build_mesh(heights, side, step)
+	mesh_instance.material_override = MapGenerator.terrain_material(PaletteData.get_default())
 	chunk.add_child(mesh_instance)
 
 	var collision: CollisionShape3D = CollisionShape3D.new()
@@ -49,6 +56,58 @@ static func create(world_gen: WorldGen, chunk_coord: Vector2i) -> TerrainChunk:
 	collision.scale = Vector3(step, 1.0, step)
 	chunk.add_child(collision)
 	return chunk
+
+
+## Puebla el chunk con la vida de su bioma (Poisson local determinista):
+## árboles con ID fijo por chunk, rocas, arbustos y flores.
+func populate(world_gen: WorldGen) -> void:
+	if populated:
+		return
+	populated = true
+	var linear: int = (coord.x + 128) * 256 + (coord.y + 128)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = GameState.derive_seed(["chunk", coord.x, coord.y])
+	var points: Array[Vector2] = Poisson.sample(Vector2(CHUNK_SIZE, CHUNK_SIZE), 4.4, rng)
+	var origin_x: float = float(coord.x) * CHUNK_SIZE
+	var origin_z: float = float(coord.y) * CHUNK_SIZE
+	var tree_index: int = 0
+	for point: Vector2 in points:
+		var x: float = origin_x + point.x
+		var z: float = origin_z + point.y
+		if not world_gen.is_inside(x, z, 2.0) or world_gen.is_water(x, z):
+			continue
+		var h: float = world_gen.height(x, z)
+		var slope_x: float = world_gen.height(x + 1.0, z) - h
+		var slope_z: float = world_gen.height(x, z + 1.0) - h
+		if slope_x * slope_x + slope_z * slope_z > 0.16:
+			continue
+		var which: int = world_gen.biome(x, z)
+		var roll: float = rng.randf()
+		var density: float = world_gen.tree_density(which)
+		if roll < 0.24 * density and tree_index < TREE_ID_STRIDE - 1:
+			var tree: TreeEntity = TreeEntity.create(rng.randi(), rng.randf() < 0.25)
+			tree.entity_id = TREE_ID_BASE + linear * TREE_ID_STRIDE + tree_index
+			tree_index += 1
+			EntityRegistry.register_with_id(tree, &"tree", tree.entity_id)
+			tree.position = Vector3(x - position.x, h - 0.03, z - position.z)
+			tree.rotation.y = rng.randf() * TAU
+			tree.scale = Vector3.ONE * rng.randf_range(0.88, 1.12)
+			add_child(tree)
+		elif roll < 0.27:
+			var rock: MeshInstance3D = PropGen.rock(rng.randi(), false)
+			_place_local(rock, x, h - 0.06, z, rng)
+		elif roll < 0.31 and which != WorldGen.Biome.COLINAS:
+			_place_local(PropGen.bush(rng.randi()), x, h, z, rng)
+		elif roll < 0.36 and (which == WorldGen.Biome.CLARO or which == WorldGen.Biome.PRADERA):
+			_place_local(PropGen.flower_patch(rng.randi()), x, h, z, rng)
+	EntityRegistry.reserve_below(DYNAMIC_ID_FLOOR)
+
+
+func _place_local(node: Node3D, x: float, h: float, z: float, rng: RandomNumberGenerator) -> void:
+	node.position = Vector3(x - position.x, h, z - position.z)
+	node.rotation.y = rng.randf() * TAU
+	node.scale = Vector3.ONE * rng.randf_range(0.88, 1.12)
+	add_child(node)
 
 
 static func _build_mesh(heights: PackedFloat32Array, side: int, step: float) -> ArrayMesh:

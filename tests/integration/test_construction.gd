@@ -46,7 +46,25 @@ func test_cottage_builds_through_all_phases() -> void:
 	for _f: int in 20:
 		await _tree_scene.process_frame
 	var world_root: Node3D = _main.get_node("World/NavigationRegion3D") as Node3D
-	var at: Vector3 = Vector3(9.0, GameState.terrain.get_height(9.0, 9.0), 9.0)
+	# La obra se planta en un hueco VÁLIDO cerca del campamento (el mundo
+	# gigante ya no gira alrededor del origen).
+	var tool_manager: ToolManager = _main.get_node("ToolManager") as ToolManager
+	var fire_pos: Vector3 = (
+		(_tree_scene.get_nodes_in_group(&"campfire")[0] as Node3D).global_position
+	)
+	var at: Vector3 = Vector3.INF
+	for gx: int in range(-20, 21, 4):
+		for gz: int in range(-20, 21, 4):
+			var rect: Rect2 = Rect2(
+				fire_pos.x + float(gx) - 4.0, fire_pos.z + float(gz) - 4.0, 8.0, 8.0
+			)
+			if bool(tool_manager.validate_zone(rect, (_main as Node3D).get_world_3d())["valid"]):
+				var center: Vector2 = rect.get_center()
+				at = Vector3(center.x, GameState.terrain.get_height(center.x, center.y), center.y)
+				break
+		if at != Vector3.INF:
+			break
+	assert_true(at != Vector3.INF, "hay hueco válido para la obra cerca del campamento")
 	var site: ConstructionSite = ConstructionSite.place(world_root, at, 0.0, 777)
 	assert_eq(site.recipe.total_wood_cost(), 12, "la cabaña cuesta 12 de madera")
 
@@ -112,15 +130,46 @@ func test_zone_validation_rules() -> void:
 	assert_false(too_small["valid"])
 	assert_true("pequeña" in String(too_small["reason"]))
 
-	var outside: Dictionary = tool_manager.validate_zone(Rect2(70.0, 70.0, 8.0, 8.0), world)
+	var outside: Dictionary = tool_manager.validate_zone(Rect2(600.0, 600.0, 8.0, 8.0), world)
 	assert_false(outside["valid"], "fuera del mapa inválida")
 
-	var on_water: Dictionary = tool_manager.validate_zone(Rect2(-56.0, -4.0, 8.0, 8.0), world)
-	assert_false(on_water["valid"], "sobre el agua inválida")
+	# Buscar un tramo de río real del mundo gigante para el caso «agua»
+	var river_spot: Vector2 = Vector2.INF
+	for gx: int in range(-256, 257, 16):
+		for gz: int in range(-256, 257, 16):
+			if GameState.world_gen.river_mask(float(gx), float(gz)) > 0.6:
+				river_spot = Vector2(float(gx), float(gz))
+				break
+		if river_spot != Vector2.INF:
+			break
+	if river_spot != Vector2.INF:
+		var on_water: Dictionary = tool_manager.validate_zone(
+			Rect2(river_spot.x - 4.0, river_spot.y - 4.0, 8.0, 8.0), world
+		)
+		assert_false(on_water["valid"], "sobre el río inválida")
 
-	var over_fire: Dictionary = tool_manager.validate_zone(Rect2(-4.0, -4.0, 8.0, 8.0), world)
+	var fire_pos: Vector3 = (
+		(_tree_scene.get_nodes_in_group(&"campfire")[0] as Node3D).global_position
+	)
+	var over_fire: Dictionary = tool_manager.validate_zone(
+		Rect2(fire_pos.x - 4.0, fire_pos.z - 4.0, 8.0, 8.0), world
+	)
 	assert_false(over_fire["valid"], "sobre la fogata inválida")
-	assert_true("obstáculos" in String(over_fire["reason"]))
+	assert_true(
+		"obstáculos" in String(over_fire["reason"]),
+		"la razón es el obstáculo (fue: %s)" % over_fire["reason"]
+	)
 
-	var good: Dictionary = tool_manager.validate_zone(Rect2(5.0, 5.0, 8.0, 8.0), world)
-	assert_true(good["valid"], "zona limpia válida (%s)" % good["reason"])
+	# Zona limpia: buscar un hueco real cerca del campamento (mapa gigante:
+	# la posición fija de antes puede caer en río o bosque según semilla)
+	var good_rect: Rect2 = Rect2()
+	for gx: int in range(-24, 25, 4):
+		for gz: int in range(-24, 25, 4):
+			var candidate: Rect2 = Rect2(float(gx), float(gz), 8.0, 8.0)
+			var verdict: Dictionary = tool_manager.validate_zone(candidate, world)
+			if bool(verdict["valid"]):
+				good_rect = candidate
+				break
+		if good_rect.size.x > 0.0:
+			break
+	assert_true(good_rect.size.x > 0.0, "existe una zona limpia válida cerca del campamento")
