@@ -14,6 +14,8 @@ var _new_box: VBoxContainer
 var _load_box: VBoxContainer
 var _options: OptionsPanel
 var _seed_edit: LineEdit
+var _settlers_slider: HSlider
+var _settlers_value: Label
 var _slot_pick: int = 1
 var _slot_buttons: Array[Button] = []
 
@@ -132,6 +134,26 @@ func _build_ui() -> void:
 	dice.text = "Azar"
 	dice.pressed.connect(func() -> void: _seed_edit.text = str(randi() % 100000))
 	seed_row.add_child(dice)
+	var settlers_row: HBoxContainer = HBoxContainer.new()
+	settlers_row.add_theme_constant_override(&"separation", 8)
+	_new_box.add_child(settlers_row)
+	var settlers_label: Label = Label.new()
+	settlers_label.text = "Colonos:"
+	settlers_label.add_theme_color_override(&"font_color", _palette.ui_text)
+	settlers_row.add_child(settlers_label)
+	_settlers_slider = HSlider.new()
+	_settlers_slider.min_value = 6
+	_settlers_slider.max_value = 16
+	_settlers_slider.step = 1
+	_settlers_slider.value = 10
+	_settlers_slider.custom_minimum_size = Vector2(150.0, 0.0)
+	_settlers_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_settlers_slider.value_changed.connect(_on_settlers_changed)
+	settlers_row.add_child(_settlers_slider)
+	_settlers_value = Label.new()
+	_settlers_value.text = "10"
+	_settlers_value.add_theme_color_override(&"font_color", _palette.accent)
+	settlers_row.add_child(_settlers_value)
 	_add_button(_new_box, "Empezar", _start_new_game)
 	_add_button(_new_box, "Volver", _show_root)
 
@@ -216,6 +238,10 @@ func _pick_slot(slot: int) -> void:
 		_slot_buttons[i].set_pressed_no_signal(i + 1 == slot)
 
 
+func _on_settlers_changed(value: float) -> void:
+	_settlers_value.text = str(int(value))
+
+
 func _prepare_new_game_state() -> void:
 	var seed_value: int = (
 		int(_seed_edit.text) if _seed_edit.text.is_valid_int() else hash(_seed_edit.text)
@@ -224,6 +250,8 @@ func _prepare_new_game_state() -> void:
 		seed_value = 1
 	SaveManager.active_slot = _slot_pick
 	GameState.pending_new_seed = seed_value
+	GameState.pending_settlers = int(_settlers_slider.value)
+	GameState.placement_pending = true
 
 
 func _start_new_game() -> void:

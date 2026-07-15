@@ -22,6 +22,8 @@ func after_each() -> void:
 	SimClock.reset()
 	GameState.world_seed = 0
 	GameState.pending_new_seed = 0
+	GameState.pending_settlers = 10
+	GameState.placement_pending = false
 	GameState.terrain = null
 	EntityRegistry.clear()
 	TaskBoard.clear()

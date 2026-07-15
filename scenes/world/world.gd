@@ -1,3 +1,4 @@
+class_name WorldRoot
 extends Node3D
 ## Monta el mundo: mapa procedural por semilla, luz, entorno y navmesh.
 
@@ -25,9 +26,13 @@ func _ready() -> void:
 		GameState.add_resource(&"food", 12)
 		GameState.add_resource(&"tools", 4)
 		# El menú deja su propio reloj (atardecer, pausado tras la
-		# transición): la partida nueva empieza de mañana y en marcha.
+		# transición): la partida nueva empieza de mañana. Si hay siembra
+		# de bandas pendiente, el tiempo espera a que el jugador reparta.
 		SimClock.reset(1, 0.25)
-		SimClock.set_speed(SimClock.Speed.NORMAL)
+		if GameState.placement_pending:
+			SimClock.set_speed(SimClock.Speed.PAUSED)
+		else:
+			SimClock.set_speed(SimClock.Speed.NORMAL)
 	elif GameState.world_seed == 0:
 		GameState.setup_new_game(DEFAULT_SEED)
 		GameState.add_resource(&"food", 12)

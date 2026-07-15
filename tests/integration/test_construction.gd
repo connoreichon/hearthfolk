@@ -50,10 +50,44 @@ func test_cottage_builds_through_all_phases() -> void:
 	var site: ConstructionSite = ConstructionSite.place(world_root, at, 0.0, 777)
 	assert_eq(site.recipe.total_wood_cost(), 12, "la cabaña cuesta 12 de madera")
 
-	for _f: int in 5200:
+	# Ventana con margen: el test más largo de la suite roza el límite bajo
+	# carga (mismo remedio que test_haul_flow); el DBG de abajo hace la
+	# autopsia si aun así se agota.
+	for _f: int in 7000:
 		await _tree_scene.process_frame
 		if _completed_id != -1:
 			break
+	if _completed_id == -1:
+		var states: Array[String] = []
+		for node: Node in _tree_scene.get_nodes_in_group(&"citizens"):
+			var c: Citizen = node as Citizen
+			(
+				states
+				. append(
+					(
+						"%s:%s@%.1f,%.1f"
+						% [
+							c.data.display_name,
+							c.state_machine.current_name(),
+							c.global_position.x,
+							c.global_position.z,
+						]
+					)
+				)
+			)
+		print(
+			(
+				"DBG-CONSTR fase=%d entregado=%d parada=%s tareas=%s madera=%d colonos=%s"
+				% [
+					site.phase_index,
+					site.delivered_total,
+					str(site.stalled),
+					str(TaskBoard.stats()),
+					GameState.get_resource(&"wood"),
+					" | ".join(states),
+				]
+			)
+		)
 	assert_eq(_completed_id, site.entity_id, "la cabaña se completa sola")
 	assert_true(site.completed)
 	for phase: int in [1, 2, 3, 4]:

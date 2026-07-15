@@ -25,6 +25,12 @@ func _ready() -> void:
 	tutorial.name = "TutorialGuide"
 	add_child(tutorial)
 	_build_pause_menu()
+	var placer: BandPlacer = null
+	if GameState.placement_pending:
+		placer = BandPlacer.new()
+		placer.name = "BandPlacer"
+		placer.setup(get_node("World") as WorldRoot, tool_manager, hud)
+		add_child(placer)
 	if GameState.pending_load_slot > 0:
 		var slot: int = GameState.pending_load_slot
 		GameState.pending_load_slot = 0
@@ -57,6 +63,9 @@ func _ready() -> void:
 			SimClock.set_speed(int(args[i + 1]))
 		elif args[i] == "--drive" and i + 1 < args.size():
 			_debug_drive(float(args[i + 1]))
+		elif (args[i] == "--autoplace" or args[i] == "--newgame") and placer != null:
+			# Repros automatizadas: reparto 4+4+2 sin intervención humana.
+			placer.autoplace_default.call_deferred()
 
 
 ## Solo para repros automatizadas: mantener W pulsada unos segundos.
