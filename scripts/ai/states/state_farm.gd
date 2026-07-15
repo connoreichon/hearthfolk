@@ -46,7 +46,7 @@ func tick(dt: float) -> void:
 		_arrived = true
 		_work_left = FarmField.WORK_SECONDS
 		return
-	_work_left -= dt * citizen.effective_work_speed()
+	_work_left -= dt * citizen.effective_work_speed(&"farm")
 	if _work_left > 0.0:
 		return
 	if task.kind == &"farm_plant":

@@ -22,7 +22,8 @@ func tick(_dt: float) -> void:
 		citizen.entity_id,
 		citizen.global_position,
 		[&"farm_harvest", &"haul", &"supply", &"chop", &"build", &"farm_plant"],
-		citizen.band_id
+		citizen.band_id,
+		Professions.favored_kinds(citizen.data.profession)
 	)
 	if task == null:
 		citizen.state_machine.change(&"Wander")

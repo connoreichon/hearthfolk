@@ -61,6 +61,9 @@ func _ready() -> void:
 	var arrivals: SettlerArrivals = SettlerArrivals.new()
 	arrivals.name = "SettlerArrivals"
 	add_child(arrivals)
+	var professions: ProfessionPlanner = ProfessionPlanner.new()
+	professions.name = "ProfessionPlanner"
+	add_child(professions)
 	var milestones: Milestones = Milestones.new()
 	milestones.name = "Milestones"
 	add_child(milestones)

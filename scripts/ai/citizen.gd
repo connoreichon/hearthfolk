@@ -27,6 +27,8 @@ var carrying_amount: int = 0
 var sleeping_indoors: bool = false
 
 var _carry_visual: Node3D
+## Multiplicador de marcha por rasgos (zancada larga / pies planos).
+var _walk_factor: float = 1.0
 
 var _moving: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
@@ -44,6 +46,7 @@ func _ready() -> void:
 	if entity_id == 0:
 		entity_id = EntityRegistry.register(self, &"citizen")
 	local_rng.seed = hash([GameState.world_seed, "citizen", data.display_name])
+	_roll_birth_traits()
 	collision_layer = (1 << 1) | (1 << 7)
 	collision_mask = 53
 	add_to_group(&"citizens")
@@ -174,9 +177,23 @@ func morale() -> float:
 	return clampf(base, 0.0, 1.0)
 
 
-## La moral escala el trabajo entre 0.6 y 1.15 (Q4).
-func effective_work_speed() -> float:
-	return data.work_speed * lerpf(0.6, 1.15, morale())
+## La moral escala el trabajo entre 0.6 y 1.15 (Q4); la familia de
+## trabajo aplica además la habilidad de S2 (atributos + rasgos).
+func effective_work_speed(family: StringName = &"") -> float:
+	return data.work_speed * lerpf(0.6, 1.15, morale()) * Professions.work_factor(data, family)
+
+
+## Tirada de nacimiento (S2): atributos y rasgos si aún no existen.
+## RNG propio (no local_rng: su corriente ya alimenta el look visual)
+## sembrado por mundo+nombre — mismo colono, mismos rasgos, siempre.
+func _roll_birth_traits() -> void:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = hash([GameState.world_seed, "traits", data.display_name])
+	if data.attrs.is_empty():
+		data.attrs = TraitCatalog.roll_attributes(rng)
+	if data.traits.is_empty():
+		data.traits = TraitCatalog.roll_traits(rng)
+	_walk_factor = Professions.work_factor(data, &"walk")
 
 
 func mood_text() -> String:
@@ -384,7 +401,9 @@ func _physics_process(_delta: float) -> void:
 	dir.y = 0.0
 	if dir.length_squared() < 0.0001:
 		return
-	var target_speed: float = data.move_speed * float(SimClock.speed) * speed_modifier
+	var target_speed: float = (
+		data.move_speed * float(SimClock.speed) * speed_modifier * _walk_factor
+	)
 	nav_agent.velocity = dir.normalized() * target_speed
 
 
@@ -524,7 +543,25 @@ func save_data() -> Dictionary:
 		"height": data.height_scale,
 		"move_speed": data.move_speed,
 		"work_speed": data.work_speed,
+		"attrs": _attrs_for_save(),
+		"traits": _traits_for_save(),
+		"profession": String(data.profession),
 	}
+
+
+## Claves String y orden fijo: el round-trip JSON debe ser idéntico (§14).
+func _attrs_for_save() -> Dictionary:
+	var out: Dictionary = {}
+	for key: StringName in TraitCatalog.ATTR_KEYS:
+		out[String(key)] = int(data.attrs.get(key, 6))
+	return out
+
+
+func _traits_for_save() -> Array:
+	var out: Array = []
+	for id: StringName in data.traits:
+		out.append(String(id))
+	return out
 
 
 func load_data(d: Dictionary) -> void:

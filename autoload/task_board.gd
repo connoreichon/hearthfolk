@@ -123,9 +123,15 @@ func first_task_for_target(target_id: int, kind: StringName = &"") -> Task:
 ## Mejor tarea libre para un habitante: filtra blacklist, cooldown y BANDA
 ## (las tareas etiquetadas con "band" son de esa aldea — nadie cruza medio
 ## mapa a trabajar para otros), ordena por prioridad (0 = máxima) y
-## después por distancia.
+## después por distancia. `favored` (S2): tipos del oficio del habitante —
+## restan 400 al score, así el oficio decide DENTRO de una prioridad
+## (bloques de 1000) y desempata sobre la distancia sin saltarse urgencias.
 func best_task_for(
-	citizen_id: int, from_position: Vector3, kinds: Array[StringName] = [], band: int = -1
+	citizen_id: int,
+	from_position: Vector3,
+	kinds: Array[StringName] = [],
+	band: int = -1,
+	favored: Array[StringName] = []
 ) -> Task:
 	var best: Task = null
 	var best_score: float = INF
@@ -145,6 +151,8 @@ func best_task_for(
 		if target is Node3D:
 			dist = from_position.distance_to((target as Node3D).global_position)
 		var score: float = float(task.priority) * 1000.0 + dist
+		if task.kind in favored:
+			score -= 400.0
 		if score < best_score:
 			best_score = score
 			best = task

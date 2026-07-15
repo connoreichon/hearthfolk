@@ -302,9 +302,12 @@ func _complete(announce: bool = true) -> void:
 		_stakes.queue_free()
 		_stakes = null
 	add_to_group(&"buildings")
+	# El cobertizo terminado ES un punto de almacenaje más de la aldea
+	if recipe.id == &"shed":
+		add_to_group(&"storage")
 	if announce:
 		EventBus.construction_completed.emit(entity_id)
-		EventBus.toast.emit("¡Cabaña terminada!", &"success")
+		EventBus.toast.emit("Obra terminada: %s" % recipe.display_name, &"success")
 
 
 func debug_complete() -> void:

@@ -10,3 +10,9 @@ extends Resource
 @export var height_scale: float = 1.0
 @export var move_speed: float = 2.6
 @export var work_speed: float = 1.0
+## S2 — rasgos de nacimiento y oficio. Vacíos = se tiran en Citizen._ready
+## (determinista por semilla de mundo + nombre); así los .tres artesanales
+## y los guardados antiguos ganan rasgos sin migración.
+@export var attrs: Dictionary = {}
+@export var traits: Array[StringName] = []
+@export var profession: StringName = &""

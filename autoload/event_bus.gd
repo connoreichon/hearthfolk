@@ -13,6 +13,7 @@ signal resource_delivered(type: StringName, amount: int, target_id: int)
 signal citizen_state_changed(citizen_id: int, state: StringName)
 signal citizen_stuck(citizen_id: int, position: Vector3)
 signal citizen_need_critical(citizen_id: int, need: StringName)
+signal profession_changed(citizen_id: int, profession: StringName)
 
 # --- Tareas ---
 signal task_published(task_id: int, kind: StringName)

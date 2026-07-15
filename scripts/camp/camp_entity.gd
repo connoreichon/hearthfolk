@@ -20,6 +20,9 @@ var settlement_name: String = ""
 var home_biome: int = WorldGen.Biome.PRADERA
 
 var _plan_timer: float = 0.0
+## Pasadas seguidas (1 cada 15 s de sim) con la despensa en crisis: el
+## huerto solo se rotura si el hambre SE SOSTIENE, no por un bajón puntual.
+var _hungry_checks: int = 0
 
 
 static func create(new_band_id: int, seed_value: int) -> CampEntity:
@@ -188,11 +191,14 @@ func _raise_boundary_stones() -> void:
 		add_child(ember)
 
 
-## Rango del asentamiento por casas terminadas en su territorio.
+## Rango del asentamiento por CASAS terminadas en su territorio (los
+## cobertizos y demás edificios sin camas no suben de rango).
 func rank_name() -> String:
 	var houses: int = 0
 	for node: Node in get_tree().get_nodes_in_group(&"buildings"):
-		var building: Node3D = node as Node3D
+		var building: ConstructionSite = node as ConstructionSite
+		if building == null or building.recipe.sleep_slots <= 0:
+			continue
 		if building.global_position.distance_to(global_position) <= TERRITORY_RADIUS:
 			houses += 1
 	if houses >= 14:
@@ -260,6 +266,7 @@ func _on_sim_tick(dt: float) -> void:
 		return
 	_plan_timer = 15.0
 	_plan_wood()
+	_plan_infrastructure()
 
 
 ## Auto-tala (corazón de la S2, adelantado por orden del dueño): el
@@ -300,3 +307,98 @@ func _plan_wood() -> void:
 			# suministro (4) y construcción (5)
 			TaskBoard.publish(&"chop", tree.entity_id, {"band": band_id}, 7)
 			return
+
+
+## S2 — Infraestructura autoconstruida (docs/S2_DESIGN.md §8): la aldea
+## rotura SU huerto cuando la comida aprieta y levanta SU cobertizo de
+## suministros cuando la población crece. Misma maquinaria que el jugador.
+func _plan_infrastructure() -> void:
+	_plan_farm()
+	_plan_shed()
+
+
+func _plan_farm() -> void:
+	var food_target: float = float(10 + 4 * population())
+	if float(GameState.get_resource(&"food")) >= food_target * 0.6:
+		_hungry_checks = 0
+		return
+	_hungry_checks += 1
+	if _hungry_checks < 6:
+		return
+	if _has_in_territory(&"farms"):
+		return
+	var rect: Rect2 = _find_plot(Vector2(6.0, 6.0), &"farm")
+	if rect.size.x <= 0.0:
+		return
+	FarmField.place(get_parent() as Node3D, rect)
+	EventBus.toast.emit("En %s roturan su primer huerto" % settlement_name, &"success")
+
+
+func _plan_shed() -> void:
+	if population() < 6:
+		return
+	if GameState.get_resource(&"wood") < 10:
+		return
+	if _storage_points_in_territory() >= 2 or _shed_site_pending():
+		return
+	var rect: Rect2 = _find_plot(Vector2(6.5, 6.5), &"zone")
+	if rect.size.x <= 0.0:
+		return
+	var center: Vector2 = rect.get_center()
+	var at: Vector3 = Vector3(center.x, GameState.terrain.get_height(center.x, center.y), center.y)
+	ConstructionSite.place(
+		get_parent() as Node3D, at, 0.0, camp_seed + 77, 0, "res://data/buildings/shed.tres"
+	)
+	EventBus.toast.emit("En %s levantan un cobertizo de suministros" % settlement_name, &"info")
+
+
+## Parcela válida en anillos desde la hoguera, con la MISMA validación
+## que las zonas del jugador (agua, pendiente, solapes, acceso práctico).
+## Rect2 de tamaño cero = no hay sitio esta pasada.
+func _find_plot(plot_size: Vector2, kind: StringName) -> Rect2:
+	var tools: Node = get_tree().get_first_node_in_group(&"tool_manager")
+	if tools == null or not is_inside_tree():
+		return Rect2()
+	for radius: float in [9.0, 12.0, 15.0, 18.0, 21.0]:
+		for step: int in 10:
+			var ang: float = TAU * float(step) / 10.0 + 0.35
+			var cx: float = global_position.x + cos(ang) * radius
+			var cz: float = global_position.z + sin(ang) * radius
+			var rect: Rect2 = Rect2(
+				cx - plot_size.x * 0.5, cz - plot_size.y * 0.5, plot_size.x, plot_size.y
+			)
+			if bool(
+				(tools.call("validate_zone", rect, get_world_3d(), kind) as Dictionary)["valid"]
+			):
+				return rect
+	return Rect2()
+
+
+func _has_in_territory(group: StringName) -> bool:
+	for node: Node in get_tree().get_nodes_in_group(group):
+		var spot: Node3D = node as Node3D
+		if spot == null:
+			continue
+		if spot.global_position.distance_to(global_position) <= TERRITORY_RADIUS * 1.5:
+			return true
+	return false
+
+
+func _storage_points_in_territory() -> int:
+	var count: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"storage"):
+		if (node as Node3D).global_position.distance_to(global_position) <= TERRITORY_RADIUS:
+			count += 1
+	return count
+
+
+func _shed_site_pending() -> bool:
+	for node: Node in get_tree().get_nodes_in_group(&"construction_sites"):
+		var site: ConstructionSite = node as ConstructionSite
+		if site == null or site.completed:
+			continue
+		if site.recipe.id != &"shed":
+			continue
+		if site.global_position.distance_to(global_position) <= TERRITORY_RADIUS:
+			return true
+	return false

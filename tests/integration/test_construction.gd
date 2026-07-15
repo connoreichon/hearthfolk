@@ -114,6 +114,13 @@ func test_cottage_builds_through_all_phases() -> void:
 	assert_true(site.completed)
 	for phase: int in [1, 2, 3, 4]:
 		assert_true(phase in _phases_seen, "pasó por la fase %d" % phase)
+	# Espera de asentamiento: un porteador puede ir aún de camino con 2
+	# maderas cuando suena la señal de obra terminada; al llegar, el carro
+	# rechaza el excedente y lo devuelve al inventario (conservación S2)
+	for _f: int in 1200:
+		await _tree_scene.process_frame
+		if GameState.get_resource(&"wood") == 24:
+			break
 	assert_eq(GameState.get_resource(&"wood"), 24, "las 12 maderas de la obra se consumieron")
 	assert_true(site.is_in_group(&"buildings"), "la obra terminada es un edificio")
 	var visible_pieces: int = 0

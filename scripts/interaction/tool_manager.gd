@@ -25,6 +25,7 @@ var _zone_label: Label
 
 
 func _ready() -> void:
+	add_to_group(&"tool_manager")
 	var layer: CanvasLayer = CanvasLayer.new()
 	layer.layer = 50
 	add_child(layer)

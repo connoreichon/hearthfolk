@@ -264,6 +264,11 @@ func _toggle_settlements() -> void:
 		detail.add_theme_color_override(&"font_color", Color(_palette.ui_text, 0.65))
 		detail.add_theme_font_size_override(&"font_size", 13)
 		info.add_child(detail)
+		var trades: Label = Label.new()
+		trades.text = _profession_summary(camp.band_id)
+		trades.add_theme_color_override(&"font_color", Color(_palette.ui_text, 0.55))
+		trades.add_theme_font_size_override(&"font_size", 12)
+		info.add_child(trades)
 		var go: Button = Button.new()
 		go.text = "Ir"
 		go.focus_mode = Control.FOCUS_NONE
@@ -402,18 +407,52 @@ func _show_citizen(citizen: Citizen) -> void:
 		task_text = "%s #%d" % [String(task.kind), task.id]
 	var state: StringName = citizen.state_machine.current_name()
 	_panel_body.text = (
-		"%s\nÁnimo: %s (%d %%)\nHambre: %d   Energía: %d\nTarea: %s"
+		"%s · %s\nÁnimo: %s (%d %%)\nHambre: %d   Energía: %d\nTarea: %s%s"
 		% [
+			Professions.display_name(citizen.data.profession),
 			String(STATE_TEXT.get(state, String(state))),
 			citizen.mood_text(),
 			int(citizen.morale() * 100.0),
 			int(citizen.hunger),
 			int(citizen.energy),
 			task_text,
+			_traits_text(citizen),
 		]
 	)
 	_panel_progress.visible = false
 	_update_dest_line(citizen)
+
+
+## Rasgos con voz de crónica, nada de números pelados (§S2).
+func _traits_text(citizen: Citizen) -> String:
+	var lines: String = ""
+	for id: StringName in citizen.data.traits:
+		var entry: Dictionary = TraitCatalog.entry(id)
+		if entry.is_empty():
+			continue
+		lines += "\n· %s — %s" % [String(entry["nombre"]), String(entry["detalle"])]
+	return lines
+
+
+## «2 leñadores · 1 agricultor» — resumen de oficios de una banda.
+func _profession_summary(band: int) -> String:
+	var counts: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		var citizen: Citizen = node as Citizen
+		if citizen == null or citizen.band_id != band:
+			continue
+		var profession: StringName = citizen.data.profession
+		counts[profession] = int(counts.get(profession, 0)) + 1
+	var parts: Array[String] = []
+	for profession: StringName in Professions.LIST:
+		var n: int = int(counts.get(profession, 0))
+		if n == 0:
+			continue
+		var trade_name: String = Professions.display_name(profession).to_lower()
+		parts.append("%d %s%s" % [n, trade_name, "es" if n > 1 else ""])
+	if parts.is_empty():
+		return "Aún sin oficios"
+	return " · ".join(parts)
 
 
 func _show_site(site: ConstructionSite) -> void:

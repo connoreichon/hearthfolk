@@ -20,7 +20,7 @@ func enter() -> void:
 	citizen.stop_moving()
 	citizen.visual.mode = &"work"
 	citizen.face_towards(target.global_position)
-	_hit_timer = HIT_INTERVAL / citizen.effective_work_speed()
+	_hit_timer = HIT_INTERVAL / citizen.effective_work_speed(&"chop")
 
 
 func tick(dt: float) -> void:
@@ -33,7 +33,7 @@ func tick(dt: float) -> void:
 	_hit_timer -= dt
 	if _hit_timer > 0.0:
 		return
-	_hit_timer = HIT_INTERVAL / citizen.effective_work_speed()
+	_hit_timer = HIT_INTERVAL / citizen.effective_work_speed(&"chop")
 	if tree.take_hit():
 		TaskBoard.complete(task.id)
 		citizen.current_task_id = -1

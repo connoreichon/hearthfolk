@@ -20,7 +20,7 @@ func enter() -> void:
 	citizen.stop_moving()
 	citizen.face_towards(item.global_position)
 	citizen.visual.mode = &"work"
-	_timer = PICKUP_SECONDS
+	_timer = PICKUP_SECONDS / citizen.effective_work_speed(&"haul")
 
 
 func tick(dt: float) -> void:

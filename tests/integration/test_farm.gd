@@ -41,7 +41,9 @@ func test_farm_cycle_produces_food() -> void:
 
 	var food_start: int = GameState.get_resource(&"food")
 	var harvested: bool = false
-	for _f: int in 4200:
+	# Ventana holgada: con los rasgos de S2 hay cuadrillas torpes con la
+	# azada (work_factor <1) y la primera cosecha puede tardar más
+	for _f: int in 6400:
 		await _tree_scene.process_frame
 		if GameState.get_resource(&"food") > food_start:
 			harvested = true
@@ -49,9 +51,13 @@ func test_farm_cycle_produces_food() -> void:
 	assert_true(
 		harvested, "una cosecha llegó al carro (comida %d)" % GameState.get_resource(&"food")
 	)
-	# El ciclo continúa: tras cosechar se replanta solo
+	# El ciclo continúa: tras cosechar se replanta solo. OJO doble: (1) la
+	# primera fase puede comerse la tarde y DE NOCHE nadie reclama tareas —
+	# reloj a media tarde; (2) el acarreo de la cosecha (prioridad 4) ocupa
+	# a la cuadrilla ANTES que plantar (5) — la ventana debe absorberlo.
+	SimClock.time_of_day = minf(SimClock.time_of_day, 0.45)
 	var replanted: bool = false
-	for _f: int in 900:
+	for _f: int in 5000:
 		await _tree_scene.process_frame
 		if field.count_by_state(FarmField.Plot.BARREN) < 9:
 			replanted = true

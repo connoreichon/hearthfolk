@@ -75,4 +75,12 @@ static func data_from_save(d: Dictionary) -> CitizenData:
 	data.height_scale = float(d.get("height", 1.0))
 	data.move_speed = float(d.get("move_speed", 2.6))
 	data.work_speed = float(d.get("work_speed", 1.0))
+	# S2 — rasgos y oficio; guardados sin las claves vuelven a tirar en
+	# Citizen._ready (misma semilla → mismos rasgos que tuvieron siempre)
+	var saved_attrs: Dictionary = d.get("attrs", {})
+	for key: String in saved_attrs:
+		data.attrs[StringName(key)] = int(saved_attrs[key])
+	for id: Variant in d.get("traits", []):
+		data.traits.append(StringName(String(id)))
+	data.profession = StringName(String(d.get("profession", "")))
 	return data
