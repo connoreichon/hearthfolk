@@ -67,6 +67,16 @@ func test_construction_pulls_builders() -> void:
 	assert_eq(Professions.choose(data, needs), &"constructor", "la obra es urgencia máxima")
 
 
+func test_each_profession_has_a_visible_tool() -> void:
+	for profession: StringName in Professions.LIST:
+		var prop: Node3D = ProfessionProp.build(profession)
+		assert_true(prop != null, "%s lleva herramienta a la espalda" % profession)
+		if prop != null:
+			assert_true(prop.get_child_count() >= 1, "la herramienta tiene piezas")
+			prop.free()
+	assert_true(ProfessionProp.build(&"") == null, "sin oficio: sin herramienta")
+
+
 func test_favored_kinds_map_to_board() -> void:
 	assert_eq(Professions.favored_kinds(&"lenador"), [&"chop"] as Array[StringName])
 	assert_eq(Professions.favored_kinds(&"constructor"), [&"build", &"supply"] as Array[StringName])

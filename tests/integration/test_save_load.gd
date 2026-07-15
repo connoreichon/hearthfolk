@@ -49,11 +49,14 @@ func test_save_load_save_round_trip() -> void:
 	for _f: int in 60:
 		await _tree_scene.process_frame
 
-	# Estabilizar: pausa y habitantes en Idle
+	# Estabilizar: pausa y habitantes en Idle. La carga vuelve al inventario
+	# (stash, no drop): con los oficios de S2 un constructor puede estar en
+	# pleno suministro con 2 maderas en las manos — devolverlas mantiene el
+	# inventario determinista para el round-trip.
 	SimClock.set_speed(0)
 	for node: Node in _tree_scene.get_nodes_in_group(&"citizens"):
 		var citizen: Citizen = node as Citizen
-		citizen.drop_carry(false)
+		citizen.stash_carry()
 		citizen.abandon_task(&"yield")
 		citizen.stop_moving()
 		citizen.state_machine.change(&"Idle")

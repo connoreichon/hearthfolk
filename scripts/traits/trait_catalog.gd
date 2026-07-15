@@ -293,6 +293,49 @@ static func roll_attributes(rng: RandomNumberGenerator) -> Dictionary:
 	return attrs
 
 
+## Rasgos de un hijo a partir de los de sus padres (Build 004, familias).
+## Ya funciona desde el día uno: SOLO se heredan rasgos `hereditary` (los
+## personales como «espalda de mula» no pasan), cada uno con 50 % de
+## probabilidad; `mutation_chance` de un rasgo nuevo al azar; y siempre al
+## menos una virtud. Sin consumidor todavía — el flag deja de ser adorno.
+static func inherit(
+	parent_a: Array, parent_b: Array, rng: RandomNumberGenerator, mutation_chance: float = 0.15
+) -> Array[StringName]:
+	var child: Array[StringName] = []
+	for id: StringName in parent_a + parent_b:
+		var entry_data: Dictionary = entry(id)
+		if entry_data.is_empty():
+			continue
+		if bool(entry_data["hereditary"]) and bool(entry_data["activo"]):
+			if id not in child and rng.randf() < 0.5:
+				child.append(id)
+	if rng.randf() < mutation_chance:
+		var pool: Array[StringName] = active_of_type(VIRTUD) + active_of_type(DEFECTO)
+		var mutation: StringName = pool[rng.randi_range(0, pool.size() - 1)]
+		if mutation not in child:
+			child.append(mutation)
+	var has_virtue: bool = false
+	for id: StringName in child:
+		if int(entry(id)["tipo"]) == VIRTUD:
+			has_virtue = true
+			break
+	if not has_virtue:
+		var virtues: Array[StringName] = active_of_type(VIRTUD)
+		child.append(virtues[rng.randi_range(0, virtues.size() - 1)])
+	return child
+
+
+## Atributos de un hijo: media de los padres ±1 de deriva, acotado 1–10.
+static func inherit_attributes(
+	parent_a: Dictionary, parent_b: Dictionary, rng: RandomNumberGenerator
+) -> Dictionary:
+	var child: Dictionary = {}
+	for key: StringName in ATTR_KEYS:
+		var mean: float = (float(parent_a.get(key, 6)) + float(parent_b.get(key, 6))) * 0.5
+		child[key] = clampi(int(round(mean)) + rng.randi_range(-1, 1), 1, 10)
+	return child
+
+
 ## Atributo final = base + modificadores de rasgos, acotado 1–10.
 static func final_attribute(attrs: Dictionary, traits: Array, key: StringName) -> int:
 	var value: int = int(attrs.get(key, 6))

@@ -88,8 +88,9 @@ func test_spawn_point_is_always_connected_to_fire() -> void:
 	var fire_pos: Vector3 = (
 		(_tree_scene.get_nodes_in_group(&"campfire")[0] as Node3D).global_position
 	)
+	var camp: CampEntity = CampEntity.nearest_camp(_tree_scene, Vector3.ZERO)
 	for _try: int in 3:
-		var spawn: Vector3 = arrivals._safe_spawn_point(world)
+		var spawn: Vector3 = arrivals._safe_spawn_point(world, camp)
 		assert_true(
 			NavUtil.is_reachable(world.get_world_3d(), fire_pos, spawn, 2.5),
 			"el punto de aparición %s tiene ruta hasta la fogata" % str(spawn)

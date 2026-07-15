@@ -2,8 +2,11 @@ class_name StateWander
 extends CitizenState
 ## Paseo aleatorio cerca del asentamiento.
 
-const RADIUS_MIN: float = 3.0
-const RADIUS_MAX: float = 13.0
+# Mínimo AMPLIO a propósito: pegados a la hoguera (agujero de navmesh +
+# obstáculo RVO) muchos ociosos se agolpaban y se atascaban (soak S2). Un
+# anillo de 6-16 m los reparte por el territorio sin salirse de él.
+const RADIUS_MIN: float = 6.0
+const RADIUS_MAX: float = 16.0
 
 var _timeout: float = 0.0
 

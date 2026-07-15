@@ -134,10 +134,17 @@ func _process(_delta: float) -> void:
 		)
 	)
 	var states: Array[String] = []
+	var trades: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
 		var citizen: Citizen = node as Citizen
 		states.append("%s:%s" % [citizen.data.display_name, citizen.state_machine.current_name()])
+		var trade: StringName = citizen.data.profession
+		trades[trade] = int(trades.get(trade, 0)) + 1
 	lines.append("Habitantes: " + " | ".join(states))
+	var trade_parts: Array[String] = []
+	for trade: StringName in trades:
+		trade_parts.append("%s×%d" % [Professions.display_name(trade), int(trades[trade])])
+	lines.append("Oficios: " + (" | ".join(trade_parts) if not trade_parts.is_empty() else "—"))
 	var stats: Dictionary = TaskBoard.stats()
 	(
 		lines

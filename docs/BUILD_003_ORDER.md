@@ -68,7 +68,11 @@ que el jugador los siembre cerca a propósito).
 - `PaletteData` crece con las rampas por bioma de ART_DIRECTION_003.
 - Puerta: 10 colonos sembrados en 3 puntos MUY separados (500+ m) conviven un soak de 20 min con 60 fps en desktop y sin fugas de memoria; captura por bioma × estación; suite + smoke.
 
-### S2 — Rasgos y oficios (con auto-tala: el pilar que faltaba)
+### S2 — Rasgos y oficios (con auto-tala: el pilar que faltaba) — ENTREGADA
+> Diseño simulado en papel en `docs/S2_DESIGN.md`. Implementación:
+> `TraitCatalog`, `Professions`, `ProfessionPlanner`, `ProfessionProp`,
+> `shed.tres`; auto-huerto/auto-cobertizo en `CampEntity`. Tests
+> `test_traits`/`test_professions`/`test_auto_infra` + soak `soak_s2`.
 - 5 atributos (fuerza, destreza, percepción, mano verde, diligencia) + rasgos con efecto visible, INCLUYENDO DEFECTOS de nacimiento (orden del dueño): cada colono nace con al menos una virtud y probablemente un defecto (p. ej. manos de madera → carpintero nato pero torpe con el arma). Panel de info los muestra con lenguaje evocador, no números pelados. Save: clave `traits`.
 - **Catálogo GRANDE y creciente** (orden del dueño 2026-07-15): la v1 activa ~10-12 rasgos con mecánica real, pero el catálogo se define amplio desde el día uno y cada build activa más. Cada rasgo lleva `hereditary: bool` DESDE YA: cuando lleguen las familias (Build 004), los hijos heredarán rasgos de sus padres con mutación ocasional — la genética se enchufa sin migrar datos.
 - El catálogo de habilidades es EXTENSIBLE por diseño: los oficios futuros (marinero con «buena mano al timón», pastor, pescador, panadero, cantero…) se enchufan añadiendo aptitudes al catálogo sin tocar la IA de utilidad. Objetivo de saga: MUCHOS oficios — cada build suma.
@@ -112,9 +116,17 @@ que el jugador los siembre cerca a propósito).
 
 ### S8 — Eras y clímax
 - `EraController`: pieles → madera → piedra por logros (población/edificios/comida); recetas por era (choza de pieles → cabaña → casa de piedra); ropa por era solo en recién llegados.
+- **PROGRESIÓN DE ROPA DESDE CASI DESNUDOS** (orden del dueño 2026-07-15): los colonos EMPIEZAN casi sin ropa (taparrabos / pieles mínimas, mucha piel visible) y van vistiéndose por eras igual que evolucionan las casas y las armas — de forma orgánica y satisfactoria. El `CitizenVisual` necesita capas de ropa conmutables por era (torso/piernas/pies/tocado) y `era` como campo del colono; los recién llegados nacen en la era vigente de su aldea. La paleta de ropa por cultura (S5) tiñe esas capas.
+- **PROGRESIÓN DE ARMAMENTO** (orden del dueño 2026-07-15): las armas evolucionan por era como todo lo demás — palo/piedra afilada → hacha y lanza de madera → puntas de piedra → (Build 004+) metal. Se enchufan al mismo sistema de `ProfessionProp`/equipo visible; el cazador (S6) y la guerra (Build 005) las consumen.
 - Decoración emergente (rasgo creativo → tótem/banco cerca del centro de SU aldea; prioridad correcta: número ALTO).
 - Lobos-como-evento: el círculo de luz de la hoguera es santuario absoluto; susto sin muerte, aullido posicional, crónica. (FSM completa de caza/raid: Build 004.)
-- Puerta: soak 2 años alcanza era de madera con crónica coherente; suite + smoke.
+- Puerta: soak 2 años alcanza era de madera con crónica coherente y ropa que SE VE progresar (capturas era-pieles vs era-madera); suite + smoke.
+
+> **Nota de saga (orden del dueño 2026-07-15): «que progrese TODO».** El mismo
+> principio de fuego lento — empezar tosco y evolucionar de forma orgánica y
+> satisfactoria — aplica a ropa (S8), armamento (S8+), lenguaje y cultura (S5),
+> casas (S7), rango de asentamiento (S1+) y biomas (Build 004). Cada apartado
+> parte de un estado primitivo y sube de nivel por logros, no de golpe.
 
 ### S9 — Cierre
 - Balance con el feedback del probador, soak 40 min ×4 con 3 bandas, export, zip, página itch actualizada, BUILD_003_REPORT.md con guía del probador.
@@ -208,6 +220,20 @@ El jugador forja su valle antes de sembrarlo: TAMAÑO (grande por defecto:
 costa / archipiélago), RÍOS (pocos ↔ muchos), y semilla. Presentado
 bonito: previsualización del mapa dibujada al vuelo (la vista de águila
 del generador). Fase: tras S2, antes del cierre de la 003 si cabe.
+
+> **SIEMPRE PROCEDURAL Y ALEATORIO** (orden del dueño 2026-07-15,
+> reafirmada): esas perillas NO son plantillas ni mapas dibujados a mano —
+> son PARÁMETROS que alimentan el generador procedural (`WorldGen`, ya puro
+> por semilla). Cada perilla ajusta el generador: TAMAÑO → `map_half`;
+> MONTAÑAS → amplitud/frecuencia del ruido de altura; MAR → nivel del agua
+> y máscara de costa; RÍOS → nº de cauces y su `band`. La SEMILLA (aleatoria
+> por defecto, editable) randomiza dentro de esas restricciones: cada
+> partida nueva = semilla nueva = mapa único e irrepetible. La previsualización
+> es el propio generador dibujado al vuelo, no una imagen guardada. Nunca
+> habrá dos valles iguales salvo que se reuse semilla + ajustes idénticos.
+> Implementación: un `MapConfig` (Resource) con esos campos → `WorldGen`
+> los lee en lugar de sus constantes; se guarda con la partida para
+> reproducir el mundo al cargar.
 
 ## Biomas extremos y adaptación humana (Build 004 — «Los Confines»)
 

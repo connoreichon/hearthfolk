@@ -14,6 +14,14 @@ func _ready() -> void:
 	add_to_group(&"profession_planner")
 	SimClock.season_changed.connect(_on_season_changed)
 	SimClock.sim_tick.connect(_on_sim_tick)
+	# Reparto inmediato al sembrar una banda: nada de fundadores sin oficio
+	# esperando al barrido (el jugador está mirando justo en ese momento).
+	EventBus.band_placed.connect(_on_band_placed)
+
+
+func _on_band_placed(_band_id: int, _center: Vector3) -> void:
+	if is_inside_tree():
+		evaluate_all.call_deferred()
 
 
 func _on_season_changed(_season: int) -> void:

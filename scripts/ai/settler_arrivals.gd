@@ -40,27 +40,71 @@ func _spawn_settler() -> void:
 	var worlds: Array[Node] = get_tree().get_nodes_in_group(&"world")
 	if worlds.is_empty() or GameState.terrain == null:
 		return
+	# El recién llegado se une a la aldea con MÁS SITIO (no siempre a la más
+	# cercana al origen del mundo, que la hacía engordar sola y atascaba su
+	# hoguera con multitud). Reparto entre bandas → aldeas parejas.
+	var home: CampEntity = _roomiest_camp()
+	if home == null:
+		return
 	var data: CitizenData = SettlerGen.generate(GameState.rng)
 	var citizen: Citizen = CITIZEN_SCENE.instantiate()
 	citizen.data = data
 	(worlds[0] as Node3D).add_child(citizen)
-	citizen.global_position = _safe_spawn_point(worlds[0] as Node3D)
-	# El recién llegado se une a la banda del campamento más cercano.
-	var home: CampEntity = CampEntity.nearest_camp(get_tree(), citizen.global_position)
-	if home != null:
-		citizen.band_id = home.band_id
+	citizen.band_id = home.band_id
+	citizen.global_position = _safe_spawn_point(worlds[0] as Node3D, home)
 	citizen.state_machine.change(&"ReturnToSettlement")
 	EventBus.toast.emit(
-		"¡%s ha llegado al asentamiento buscando un hogar!" % data.display_name, &"success"
+		"¡%s se une a %s buscando un hogar!" % [data.display_name, home.settlement_name], &"success"
 	)
 	AudioDirector.play_ui(&"ui_confirm")
 
 
+## La aldea con más plazas libres (camas de la banda − población de la banda);
+## empates a favor de la menos poblada. Reparte el crecimiento entre bandas.
+func _roomiest_camp() -> CampEntity:
+	var best: CampEntity = null
+	var best_room: int = -999
+	for node: Node in get_tree().get_nodes_in_group(&"camps"):
+		var camp: CampEntity = node as CampEntity
+		if camp == null:
+			continue
+		var room: int = _beds_of_band(camp.band_id) - _population_of_band(camp.band_id)
+		if room > best_room:
+			best_room = room
+			best = camp
+	return best
+
+
+func _population_of_band(band: int) -> int:
+	var count: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		if (node as Citizen).band_id == band:
+			count += 1
+	return count
+
+
+func _beds_of_band(band: int) -> int:
+	var beds: int = BEDS_PER_CAMP
+	for node: Node in get_tree().get_nodes_in_group(&"buildings"):
+		var building: ConstructionSite = node as ConstructionSite
+		if building == null or not building.completed:
+			continue
+		var camp: CampEntity = CampEntity.camp_of_band(get_tree(), band)
+		if (
+			camp != null
+			and (
+				building.global_position.distance_to(camp.global_position)
+				<= CampEntity.TERRITORY_RADIUS
+			)
+		):
+			beds += building.recipe.sleep_slots
+	return beds
+
+
 ## Mapa gigante (S1): el recién llegado aparece «desde el horizonte» en un
-## anillo alrededor de un campamento, con ruta real validada hasta su
+## anillo alrededor de SU campamento, con ruta real validada hasta su
 ## hoguera (el borde del navmesh puede formar islas — soak 002).
-func _safe_spawn_point(world: Node3D) -> Vector3:
-	var camp: CampEntity = CampEntity.nearest_camp(get_tree(), Vector3.ZERO)
+func _safe_spawn_point(world: Node3D, camp: CampEntity) -> Vector3:
 	if camp == null:
 		return Vector3.ZERO
 	var fire_pos: Vector3 = camp.global_position

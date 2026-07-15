@@ -93,9 +93,16 @@ func _ready() -> void:
 	status_icon.position = Vector3(0.0, 2.05, 0.0)
 	add_child(status_icon)
 	EventBus.citizen_state_changed.connect(_on_state_changed)
+	EventBus.profession_changed.connect(_on_profession_changed)
 
 	_last_pos = global_position
 	SimClock.sim_tick.connect(_on_sim_tick)
+
+
+## El oficio cambió (ProfessionPlanner): renovar la herramienta a la espalda.
+func _on_profession_changed(changed_id: int, profession: StringName) -> void:
+	if changed_id == entity_id and visual != null:
+		visual.set_profession(profession)
 
 
 func _exit_tree() -> void:
@@ -488,34 +495,162 @@ func _check_stuck(dt: float) -> void:
 			_last_pos = global_position
 			EventBus.citizen_stuck.emit(entity_id, global_position)
 			state_machine.on_stuck()
-	# Detector GRUESO (soak 002): órbitas del RVO que saltan >0.35 m pero no
-	# progresan. Sin progreso real en 10 s de sim → teleport suave al camino
-	# (escalera §7.4 paso c, aplicada sin piedad: nada se atasca >15 s).
-	if global_position.distance_to(_coarse_anchor) > 1.2:
+	# Detector GRUESO por DESPLAZAMIENTO NETO en ventana fija (soak S2): el
+	# anterior reseteaba el ancla en cuanto el bicho saltaba >1.2 m, así que
+	# el re-enter del detector fino (nuevo objetivo → micro-avance) lo
+	# reseteaba eternamente y el desatasco fuerte nunca saltaba. Ahora se
+	# muestrea la posición cada 10 s: si el avance NETO es <3 m estaba
+	# acuñado (aunque oscilara) → desatasco, imposible de engañar con
+	# vaivenes. 10 s deja margen ante los 15 s con que la puerta marca atasco.
+	_coarse_timer += dt
+	if _coarse_timer >= 10.0:
+		var net_progress: float = global_position.distance_to(_coarse_anchor)
 		_coarse_anchor = global_position
 		_coarse_timer = 0.0
-	else:
-		_coarse_timer += dt
-		if _coarse_timer >= 10.0:
-			_coarse_timer = 0.0
-			_coarse_anchor = global_position
+		if net_progress < 3.0:
 			_force_unstick()
 
 
-## Desatasco garantizado: al siguiente waypoint del camino; si no hay
-## camino, hacia el objetivo pegado al navmesh; si no, se suelta la tarea.
+## Desatasco garantizado, TRES casos (todos cazados en el soak S2):
+## 1) VARADO en isla (sin camino desde su hoguera): rescate a la hoguera.
+## 2) DESTINO INALCANZABLE pero con camino a casa (prendido contra un labio
+##    del terreno persiguiendo un imposible): abandona y SALTA HACIA CASA
+##    por el navmesh — nunca hacia el waypoint del camino parcial, que lo
+##    devolvía al mismo labio.
+## 3) DESTINO ALCANZABLE, atasco local (cuadrilla apiñada, RVO): waypoint o
+##    descongestión SIN teletransportar a casa (rompía la cosecha, test_farm).
 func _force_unstick() -> void:
 	EventBus.citizen_stuck.emit(entity_id, global_position)
 	var map: RID = get_world_3d().navigation_map
+	# Caso 1 — VARADO en isla (señal FIABLE: sin camino desde la hoguera).
+	# Rescate en cualquier estado (hasta un agricultor puede quedar aislado).
+	if is_stranded_from_home() and _rescue_home(map):
+		abandon_task(&"varado")
+		state_machine.change(&"Idle")
+		return
+	# Caso 2 — prendido contra un labio del terreno YENDO A CASA con destino
+	# inalcanzable: salto hacia la hoguera. SOLO en estados que van a casa —
+	# `is_target_reachable` parpadea a false al recalcular ruta, y aplicarlo a
+	# un agricultor apiñado lo teletransportaba a casa y rompía la cosecha
+	# (regresión de test_farm). Un trabajador jamás se rescata así.
+	var going_home: bool = state_machine.current_name() in [&"Eat", &"Rest", &"ReturnToSettlement"]
+	if _moving and going_home and not nav_agent.is_target_reachable() and _hop_home(map):
+		abandon_task(&"varado")
+		state_machine.change(&"Idle")
+		return
+	# Caso 3 — atasco LOCAL (destino alcanzable, gentío): waypoint o
+	# descongestión, conservando la tarea.
 	var next: Vector3 = nav_agent.get_next_path_position()
 	if next.distance_to(global_position) < 0.4:
 		var toward: Vector3 = global_position.lerp(nav_agent.target_position, 0.35)
 		next = NavigationServer3D.map_get_closest_point(map, toward)
 	if next.distance_to(global_position) < 0.4:
+		var escape: Vector3 = _decongest_point(map)
+		if escape.distance_to(global_position) > 1.5:
+			fade_teleport(escape)
+			return
 		abandon_task(&"stuck")
 		state_machine.change(&"Idle")
 		return
 	fade_teleport(NavigationServer3D.map_get_closest_point(map, next))
+
+
+## ¿Está el colono VARADO? (sin camino desde la hoguera de su banda hasta
+## aquí = isla de navmesh separada). Lo consultan los estados que van a
+## casa (Eat/Rest/Return) para rescatar sin esperar al detector grueso.
+func is_stranded_from_home() -> bool:
+	var camp: CampEntity = home_camp()
+	if camp == null:
+		return false
+	var map: RID = get_world_3d().navigation_map
+	var path: PackedVector3Array = NavigationServer3D.map_get_path(
+		map, camp.global_position, global_position, true
+	)
+	if path.is_empty():
+		return true
+	var end: Vector3 = path[path.size() - 1]
+	return Vector2(end.x, end.z).distance_to(Vector2(global_position.x, global_position.z)) > 3.0
+
+
+## Recuperación hacia el asentamiento (la llaman _force_unstick y Eat/Rest/
+## Return al toparse con un destino imposible). VARADO en isla → salto a la
+## hoguera; con camino a casa pero prendido → salto unos metros HACIA la
+## hoguera por el navmesh (sale del labio del terreno). Vuelve a Idle.
+func recover_home() -> bool:
+	var map: RID = get_world_3d().navigation_map
+	var recovered: bool = _rescue_home(map) if is_stranded_from_home() else _hop_home(map)
+	if recovered:
+		abandon_task(&"varado")
+		state_machine.change(&"Idle")
+	return recovered
+
+
+## Compatibilidad: los estados que iban a casa llamaban rescue_home().
+func rescue_home() -> bool:
+	return recover_home()
+
+
+## Salto a un punto ALCANZABLE junto a la hoguera de su banda. El anillo de
+## la fogata está en el navmesh principal del asentamiento: siempre conecta.
+func _rescue_home(map: RID) -> bool:
+	var camp: CampEntity = home_camp()
+	if camp == null:
+		return false
+	var fire: Vector3 = camp.global_position
+	for i: int in 8:
+		var ang: float = TAU * float(i) / 8.0 + 0.4
+		var spot: Vector3 = fire + Vector3(cos(ang) * 3.0, 0.0, sin(ang) * 3.0)
+		var snapped: Vector3 = NavigationServer3D.map_get_closest_point(map, spot)
+		if snapped.distance_to(fire) < 6.0:
+			fade_teleport(snapped)
+			return true
+	return false
+
+
+## Salto ~6 m HACIA la hoguera por el camino real del navmesh: saca al colono
+## del labio del terreno contra el que empujaba, de vuelta a terreno bueno.
+func _hop_home(map: RID) -> bool:
+	var camp: CampEntity = home_camp()
+	if camp == null:
+		return false
+	var path: PackedVector3Array = NavigationServer3D.map_get_path(
+		map, global_position, camp.global_position, true
+	)
+	if path.size() < 2:
+		return false
+	var travelled: float = 0.0
+	for i: int in range(1, path.size()):
+		travelled += path[i - 1].distance_to(path[i])
+		if travelled >= 6.0:
+			if path[i].distance_to(global_position) > 2.0:
+				fade_teleport(path[i])
+				return true
+			return false
+	# Camino más corto que 6 m: saltar a su final (junto a la hoguera)
+	var last: Vector3 = path[path.size() - 1]
+	if last.distance_to(global_position) > 2.0:
+		fade_teleport(last)
+		return true
+	return false
+
+
+## Punto libre del navmesh para sacar al colono del atasco de multitud.
+## Abanica: primero HACIA FUERA de la hoguera, luego en varios ángulos —
+## si la dirección de escape cae en el río (borde del navmesh) y se queda
+## corta, otra abrirá. global_position solo si no hay ninguna salida.
+func _decongest_point(map: RID) -> Vector3:
+	var fire: Vector3 = CampEntity.nearest_fire_position(get_tree(), global_position)
+	var away: Vector3 = global_position - fire
+	away.y = 0.0
+	var base_ang: float = atan2(away.z, away.x) if away.length() > 0.5 else float(entity_id)
+	for radius: float in [6.0, 8.0, 10.0]:
+		for delta: float in [0.0, 0.7, -0.7, 1.4, -1.4, 2.1, -2.1, PI]:
+			var ang: float = base_ang + delta
+			var target: Vector3 = global_position + Vector3(cos(ang), 0.0, sin(ang)) * radius
+			var snapped: Vector3 = NavigationServer3D.map_get_closest_point(map, target)
+			if snapped.distance_to(global_position) > 2.5:
+				return snapped
+	return global_position
 
 
 func entity_kind() -> StringName:

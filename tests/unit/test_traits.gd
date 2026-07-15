@@ -73,3 +73,43 @@ func test_hereditary_flags_exist_from_day_one() -> void:
 	assert_true(bool(TraitCatalog.entry(&"brazos_de_roble")["hereditary"]))
 	assert_false(bool(TraitCatalog.entry(&"espalda_de_mula")["hereditary"]))
 	assert_true(bool(TraitCatalog.entry(&"miedo_al_agua")["hereditary"]), "también los inactivos")
+
+
+func test_inheritance_only_passes_hereditary_traits() -> void:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	# Padre con un rasgo hereditario y otro personal; madre con otro personal
+	var parent_a: Array[StringName] = [&"brazos_de_roble", &"mal_de_espalda"]
+	var parent_b: Array[StringName] = [&"pies_planos"]
+	var passed_personal: int = 0
+	var passed_hereditary: int = 0
+	for seed_value: int in 200:
+		rng.seed = seed_value
+		# Sin mutación para aislar el canal de herencia puro
+		var child: Array[StringName] = TraitCatalog.inherit(parent_a, parent_b, rng, 0.0)
+		# Siempre al menos una virtud
+		var has_virtue: bool = false
+		for id: StringName in child:
+			if int(TraitCatalog.entry(id)["tipo"]) == TraitCatalog.VIRTUD:
+				has_virtue = true
+		assert_true(has_virtue, "todo hijo nace con al menos una virtud")
+		if &"brazos_de_roble" in child:
+			passed_hereditary += 1
+		if &"mal_de_espalda" in child or &"pies_planos" in child:
+			passed_personal += 1
+	assert_eq(passed_personal, 0, "los rasgos NO hereditarios nunca pasan a los hijos")
+	assert_true(
+		passed_hereditary > 50,
+		"el hereditario pasa ~50 %% de las veces: %d/200" % passed_hereditary
+	)
+
+
+func test_inherited_attributes_average_parents() -> void:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 7
+	var parent_a: Dictionary = {&"str": 10, &"dex": 4, &"per": 6, &"gre": 6, &"dil": 6}
+	var parent_b: Dictionary = {&"str": 8, &"dex": 6, &"per": 6, &"gre": 6, &"dil": 6}
+	for _i: int in 40:
+		var child: Dictionary = TraitCatalog.inherit_attributes(parent_a, parent_b, rng)
+		# str media 9 ±1 → 8..10; dex media 5 ±1 → 4..6
+		assert_true(int(child[&"str"]) >= 8 and int(child[&"str"]) <= 10)
+		assert_true(int(child[&"dex"]) >= 4 and int(child[&"dex"]) <= 6)

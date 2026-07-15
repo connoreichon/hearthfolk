@@ -27,6 +27,9 @@ var _arm_r: Node3D
 var _head: Node3D
 var _chest: MeshInstance3D
 var _hands_marker: Marker3D
+var _back_mount: Marker3D
+var _tool_prop: Node3D
+var _tool_profession: StringName = &""
 
 
 func setup(data: CitizenData, look_seed: int) -> void:
@@ -111,6 +114,13 @@ func setup(data: CitizenData, look_seed: int) -> void:
 	_hands_marker.position = Vector3(0.0, 0.25, 0.28)
 	_torso.add_child(_hands_marker)
 
+	# Soporte a la espalda para la herramienta de oficio (§S2 «verlo todo»)
+	_back_mount = Marker3D.new()
+	_back_mount.name = "BackMount"
+	_back_mount.position = Vector3(0.0, 0.34, -0.16)
+	_torso.add_child(_back_mount)
+	set_profession(data.profession)
+
 
 func set_motion(horizontal_speed: float) -> void:
 	_speed = horizontal_speed
@@ -118,6 +128,31 @@ func set_motion(horizontal_speed: float) -> void:
 
 func hands_node() -> Marker3D:
 	return _hands_marker
+
+
+## Coloca (o retira) la herramienta del oficio a la espalda. Idempotente:
+## no reconstruye si el oficio no cambió (se llama cada vez que el panel
+## refresca, pero el prop solo se rehace al cambiar de verdad de oficio).
+func set_profession(profession: StringName) -> void:
+	if _back_mount == null or profession == _tool_profession:
+		return
+	_tool_profession = profession
+	if _tool_prop != null and is_instance_valid(_tool_prop):
+		_tool_prop.queue_free()
+		_tool_prop = null
+	var prop: Node3D = ProfessionProp.build(profession)
+	if prop == null:
+		return
+	if profession == &"recolector":
+		# El cesto cuelga bajo y recto sobre los riñones
+		prop.position = Vector3(0.0, -0.14, -0.04)
+		prop.rotation = Vector3(deg_to_rad(-12.0), 0.0, 0.0)
+	else:
+		# Hachas, azadas y mazas cruzan la espalda en diagonal
+		prop.position = Vector3(0.03, -0.02, -0.02)
+		prop.rotation = Vector3(deg_to_rad(-10.0), 0.0, deg_to_rad(24.0))
+	_back_mount.add_child(prop)
+	_tool_prop = prop
 
 
 func _process(delta: float) -> void:

@@ -186,12 +186,25 @@ Planificador por campamento (cadencia 1 comprobación/2 h de sim):
   un save v2 sin estas claves tira atributos/rasgos al cargar (mismo RNG
   sembrado por id → estable entre cargas).
 
-## 10. UI
+## 10. UI y presencia visible
 
-- **Selección de colono**: oficio bajo el nombre («Leñadora») + rasgos con
-  nombre evocador y detalle en una línea. Nada de números pelados.
-- **Panel Aldeas**: línea de resumen por aldea «2 leñadores · 1 agricultora ·
-  1 recolector».
+- **Selección de colono**: oficio junto al estado + rasgos con nombre
+  evocador y detalle en una línea. Nada de números pelados.
+- **Panel Aldeas**: línea de resumen por aldea «2 leñadores · 1 agricultor
+  · 1 recolector».
+- **Consola de depuración (F3)**: recuento de oficios en vivo.
+- **Herramienta de oficio A LA ESPALDA** (`ProfessionProp`): el leñador
+  lleva hacha, el agricultor azada, el constructor maza, el recolector
+  cesto con bayas — el oficio se LEE en la figura sin abrir menú («verlo
+  todo»). Cambia sola cuando el colono cambia de oficio.
+
+## 12. Herencia (lista desde el día uno)
+
+Aunque las familias llegan en Build 004, `TraitCatalog.inherit()` y
+`inherit_attributes()` ya existen y están testeados: SOLO pasan los rasgos
+`hereditary` (50 % cada uno), con mutación configurable y virtud
+garantizada; los atributos son la media de los padres ±1. Cuando se
+enchufe la reproducción, la genética no necesita migrar nada.
 
 ## 11. Puerta S2
 
