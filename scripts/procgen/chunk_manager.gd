@@ -8,6 +8,8 @@ extends Node3D
 var world_gen: WorldGen
 ## Padre de los chunks activos (la NavigationRegion3D del mundo).
 var nav_parent: Node3D
+## Terreno lejano: sus parches se ocultan cuando llega el chunk real.
+var far_terrain: FarTerrain
 
 var _chunks: Dictionary = {}
 
@@ -35,6 +37,8 @@ func ensure_active_around(point: Vector3, radius: float = 96.0) -> int:
 			_chunks[coord] = chunk
 			nav_parent.add_child(chunk)
 			chunk.populate(world_gen)
+			if far_terrain != null:
+				far_terrain.hide_patch(coord)
 			created += 1
 	return created
 

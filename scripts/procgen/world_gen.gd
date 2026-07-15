@@ -77,8 +77,8 @@ func river_mask(x: float, z: float) -> float:
 	var wx: float = x + _warp_noise.get_noise_2d(x + 311.0, z) * 40.0
 	var wz: float = z + _warp_noise.get_noise_2d(x, z + 733.0) * 40.0
 	var n: float = absf(_river_noise.get_noise_2d(wx, wz))
-	# Banda del cauce ~0.035 de ruido ≈ 12-18 m de ancho con las orillas
-	return clampf(1.0 - n / 0.035, 0.0, 1.0)
+	# Banda del cauce: ríos de ~10-15 m con lagos donde el ruido se aplana
+	return clampf(1.0 - n / 0.026, 0.0, 1.0)
 
 
 func is_water(x: float, z: float) -> bool:

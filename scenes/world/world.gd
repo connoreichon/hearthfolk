@@ -104,10 +104,13 @@ func _setup_world_gen() -> void:
 	terrain_data = TerrainData.new(world_gen)
 	GameState.terrain = terrain_data
 	map_counts = {}
+	var far: FarTerrain = FarTerrain.create(world_gen)
+	add_child(far)
 	_chunks = ChunkManager.new()
 	_chunks.name = "ChunkManager"
 	_chunks.world_gen = world_gen
 	_chunks.nav_parent = nav_region
+	_chunks.far_terrain = far
 	add_child(_chunks)
 	MapGenerator.spawn_water(self, world_gen)
 

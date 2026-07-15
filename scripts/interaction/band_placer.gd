@@ -36,7 +36,12 @@ func _ready() -> void:
 	group_size = clampi(4, 1, remaining)
 	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
 	if not rigs.is_empty():
-		_camera = (rigs[0] as CameraRig).camera
+		var rig: CameraRig = rigs[0] as CameraRig
+		_camera = rig.camera
+		# Arrancar la vista sobre tierra firme (el origen puede ser lago)
+		var start: Vector3 = _find_valid_near(Vector3.ZERO, 10.0, 20)
+		if start != Vector3.INF:
+			rig.position = Vector3(start.x, rig.position.y, start.z)
 	# Mientras se siembra, las herramientas y el HUD esperan su turno.
 	if _tools != null:
 		_tools.set_process_input(false)
@@ -101,16 +106,15 @@ func _process(_delta: float) -> void:
 	var mouse: Vector2 = get_viewport().get_mouse_position()
 	var origin: Vector3 = _camera.project_ray_origin(mouse)
 	var direction: Vector3 = _camera.project_ray_normal(mouse)
-	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
-		origin, origin + direction * 500.0, 1
-	)
-	var hit: Dictionary = _camera.get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
+	# Intersección ANALÍTICA con WorldGen: durante la siembra el suelo
+	# físico aún no existe (los chunks nacen con los campamentos).
+	var hit: Vector3 = _terrain_ray_point(origin, direction)
+	if hit == Vector3.INF:
 		_ghost.visible = false
 		_point = Vector3.INF
 		_valid = false
 		return
-	_point = hit["position"]
+	_point = hit
 	_valid = _is_valid(_point)
 	var palette: PaletteData = PaletteData.get_default()
 	var disc: CylinderMesh = CylinderMesh.new()
@@ -125,6 +129,32 @@ func _process(_delta: float) -> void:
 		Color(palette.grass_light, 0.4) if _valid else Color(palette.roof, 0.45)
 	)
 	_ghost.visible = true
+
+
+## Marcha del rayo de cámara contra la altura de WorldGen (paso 4 m +
+## bisección): el punto del terreno bajo el cursor sin necesidad de física.
+func _terrain_ray_point(origin: Vector3, direction: Vector3) -> Vector3:
+	var world_gen: WorldGen = GameState.world_gen
+	var prev_t: float = 0.0
+	var t: float = 0.0
+	for _i: int in 240:
+		t += 4.0
+		var p: Vector3 = origin + direction * t
+		if p.y <= world_gen.height(p.x, p.z):
+			var lo: float = prev_t
+			var hi: float = t
+			for _j: int in 14:
+				var mid: float = (lo + hi) * 0.5
+				var m: Vector3 = origin + direction * mid
+				if m.y <= world_gen.height(m.x, m.z):
+					hi = mid
+				else:
+					lo = mid
+			var point: Vector3 = origin + direction * hi
+			point.y = world_gen.height(point.x, point.z)
+			return point
+		prev_t = t
+	return Vector3.INF
 
 
 func _is_valid(point: Vector3) -> bool:
@@ -209,13 +239,16 @@ func autoplace_default() -> void:
 		drop_band(fallback, remaining)
 
 
-func _find_valid_near(anchor: Vector3) -> Vector3:
+func _find_valid_near(anchor: Vector3, ring_step: float = 3.0, rings: int = 8) -> Vector3:
 	var terrain: TerrainData = GameState.terrain
-	for ring: int in 8:
+	for ring: int in rings:
 		for step: int in 8:
 			var ang: float = TAU * float(step) / 8.0
 			var candidate: Vector3 = (
-				anchor + Vector3(cos(ang) * float(ring) * 3.0, 0.0, sin(ang) * float(ring) * 3.0)
+				anchor
+				+ Vector3(
+					cos(ang) * float(ring) * ring_step, 0.0, sin(ang) * float(ring) * ring_step
+				)
 			)
 			candidate.y = terrain.get_height(candidate.x, candidate.z)
 			if _is_valid(candidate):
