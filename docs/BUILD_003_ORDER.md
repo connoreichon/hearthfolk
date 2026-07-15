@@ -72,6 +72,9 @@ que el jugador los siembre cerca a propósito).
 - 5 atributos (fuerza, destreza, percepción, mano verde, diligencia) + rasgos con efecto visible, INCLUYENDO DEFECTOS de nacimiento (orden del dueño): cada colono nace con al menos una virtud y probablemente un defecto (p. ej. manos de madera → carpintero nato pero torpe con el arma). Panel de info los muestra con lenguaje evocador, no números pelados. Save: clave `traits`.
 - **Catálogo GRANDE y creciente** (orden del dueño 2026-07-15): la v1 activa ~10-12 rasgos con mecánica real, pero el catálogo se define amplio desde el día uno y cada build activa más. Cada rasgo lleva `hereditary: bool` DESDE YA: cuando lleguen las familias (Build 004), los hijos heredarán rasgos de sus padres con mutación ocasional — la genética se enchufa sin migrar datos.
 - El catálogo de habilidades es EXTENSIBLE por diseño: los oficios futuros (marinero con «buena mano al timón», pastor, pescador, panadero, cantero…) se enchufan añadiendo aptitudes al catálogo sin tocar la IA de utilidad. Objetivo de saga: MUCHOS oficios — cada build suma.
+- **La demanda manda** (orden del dueño 2026-07-16): los oficios NO son cupos de uno — si la aldea necesita mucha leña, habrá VARIOS leñadores a la vez; la IA de utilidad asigna por necesidad × aptitud, y reequilibra cuando la necesidad cambia.
+- **Infraestructura autoconstruida** (adelantada de S7 por orden del dueño): la aldea levanta SU HUERTO sola cuando la comida aprieta (el agricultor elige parcela llana en el territorio) y SU ALMACÉN cuando el montón de suministros se queda corto — con la misma maquinaria de obras existente. Las casas siguen en S7.
+- **Verlo todo**: el oficio de cada colono visible al seleccionarlo y resumen de oficios por aldea en el panel Aldeas («2 leñadores · 1 agricultor · 1 constructor»).
 - Autoselección de oficio: IA de utilidad (necesidad de aldea × aptitud × preferencia) como pesos retrocompatibles sobre `best_task_for`; reevaluación estacional; leñador/constructor/agricultor/recolector-base.
 - **Auto-tala**: los leñadores marcan árboles solos según el stock de madera objetivo; la T del jugador pasa a sugerencia (prioridad más débil = número mayor). Sin esto no hay madera autónoma y S6 sería letra muerta.
 - Puerta: soak 1 año con reparto de oficios estable (flapping ≤1 cambio/colono/estación) y madera fluyendo sin tocar T.
@@ -147,6 +150,20 @@ rango (Campamento ~30 m → Aldea → Pueblo → Villa → Ciudad).
 - Implementación: por distancia+radio (sin grid pesado); `territory_of(point)`
   en CampEntity; radios en SimConfig por rango; los sistemas consultan, no
   cachean. Fase: núcleo+mojones en S1 (con el mapa), consumo real en S2/S7.
+
+## Salto visual (orden del dueño 2026-07-16: «me parece bastante cutre»)
+
+Dos vías en paralelo, decidiendo con capturas lado a lado:
+1. **Luz y atmósfera** (barato, gran salto de sensación): pasada de
+   iluminación — tonemapping y exposición afinados, SSAO/glow calibrados,
+   niebla de distancia suave, sombras más ricas al amanecer/atardecer.
+2. **Assets CC0** (el dueño autorizó descargas): evaluar packs libres tipo
+   Kenney/Quaternius para lo que peor sale por código — árboles, edificios
+   y (en S6) animales — manteniendo la paleta canon por tinte de material.
+   Decisión final comparando capturas antes/después con el dueño.
+Físicas: pulido de sensación de movimiento (aceleración/frenado de
+colonos, empujones RVO más suaves) — no hay física dura que mejorar en
+un juego de dioses de maqueta.
 
 ## Agua, fronteras y descubrimientos (orden del dueño 2026-07-15)
 
