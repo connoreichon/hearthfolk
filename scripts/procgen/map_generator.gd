@@ -9,9 +9,7 @@ const ROCKS_SMALL: int = 14
 const FLOWER_PATCHES: int = 6
 const BUSHES: int = 8
 
-const CENTER_FLAT_RADIUS: float = 25.0
-const HILL_CENTER: Vector2 = Vector2(38.0, -38.0)
-const WATER_LEVEL: float = -0.55
+const WATER_LEVEL: float = WorldGen.WATER_LEVEL
 
 
 static func generate(parent: Node3D, seed_value: int) -> Dictionary:
@@ -24,40 +22,19 @@ static func generate(parent: Node3D, seed_value: int) -> Dictionary:
 
 
 static func build_terrain_data(seed_value: int) -> TerrainData:
+	# S1: la forma del mundo vive en WorldGen (funciones puras); este array
+	# es solo la caché que necesitan la malla y la colisión del heightfield.
+	# La máscara de sendas queda a 0: los caminos EMERGEN del tráfico (S3).
+	var world_gen: WorldGen = WorldGen.new(seed_value)
+	GameState.world_gen = world_gen
 	var terrain: TerrainData = TerrainData.new()
-	var noise: FastNoiseLite = FastNoiseLite.new()
-	noise.seed = seed_value
-	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	noise.frequency = 0.02
-	noise.fractal_octaves = 3
 	var side: int = terrain.vertex_side()
 	for iz: int in side:
 		for ix: int in side:
 			var x: float = float(ix) - 60.0
 			var z: float = float(iz) - 60.0
-			var dist: float = Vector2(x, z).length()
-			var f_center: float = smoothstep(CENTER_FLAT_RADIUS, 45.0, dist)
-			var h: float = noise.get_noise_2d(x, z) * 2.2 * f_center
-			# Colina suave en el noreste (pico ~4 m con la base del ruido)
-			var hill_d2: float = pow(x - HILL_CENTER.x, 2.0) + pow(z - HILL_CENTER.y, 2.0)
-			h += 3.4 * exp(-hill_d2 / (2.0 * 14.0 * 14.0))
-			# Borde oeste: aplanar hacia el cauce y deprimir el canal
-			var f_west: float = smoothstep(44.0, 52.0, -x)
-			h = lerpf(h, 0.15, f_west)
-			var channel_center: float = -54.0 + sin(z * 0.05) * 2.5
-			var dx: float = x - channel_center
-			h -= 1.3 * exp(-dx * dx / 8.0) * f_west
-			# Vaguada suave sur→centro (relieve, ya sin camino pintado): la
-			# máscara de sendas queda a 0 — desde la Build 003 los caminos
-			# EMERGEN del tráfico (TrafficGrid, S3) sobre este mismo canal.
-			var path_x: float = sin(z * 0.045) * 3.0
-			var d_path: float = absf(x - path_x)
-			var path_w: float = exp(-d_path * d_path / (2.0 * 1.5 * 1.5))
-			path_w *= smoothstep(-4.0, 0.0, z)
-			h = lerpf(h, h * 0.35, path_w)
-			h = clampf(h, -1.6, 4.0)
 			var idx: int = terrain.index_of(ix, iz)
-			terrain.heights[idx] = h
+			terrain.heights[idx] = world_gen.height(x, z)
 			terrain.path_mask[idx] = 0.0
 	return terrain
 

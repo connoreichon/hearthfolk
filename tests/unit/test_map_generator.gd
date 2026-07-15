@@ -14,6 +14,34 @@ func test_same_seed_same_heights() -> void:
 	assert_true(t1.heights != t3.heights, "semilla distinta, alturas distintas")
 
 
+func test_world_gen_biomes_are_deterministic_and_sane() -> void:
+	var gen_a: WorldGen = WorldGen.new(777)
+	var gen_b: WorldGen = WorldGen.new(777)
+	var kinds: Dictionary = {}
+	for probe: Vector2 in [
+		Vector2(0, 0),
+		Vector2(30, 20),
+		Vector2(-30, 25),
+		Vector2(38, -38),
+		Vector2(-50, 0),
+		Vector2(15, -40),
+		Vector2(-20, 44),
+	]:
+		var kind: int = gen_a.biome(probe.x, probe.y)
+		assert_eq(kind, gen_b.biome(probe.x, probe.y), "bioma determinista en %s" % probe)
+		assert_true(kind >= 0 and kind <= WorldGen.Biome.CLARO, "bioma válido en %s" % probe)
+		kinds[kind] = true
+	assert_eq(gen_a.biome(-50.0, 0.0), WorldGen.Biome.RIBERA, "el cauce oeste es Ribera")
+	assert_eq(gen_a.biome(38.0, -38.0), WorldGen.Biome.COLINAS, "la colina NE es Colinas")
+	assert_true(kinds.size() >= 2, "hay variedad de biomas en el mapa")
+	assert_almost_eq(
+		gen_a.height(10.0, 10.0),
+		MapGenerator.build_terrain_data(777).get_height(10.0, 10.0),
+		0.05,
+		"WorldGen y la caché del terreno cuentan la misma altura"
+	)
+
+
 func test_height_limits_and_flat_center() -> void:
 	var terrain: TerrainData = MapGenerator.build_terrain_data(777)
 	var max_h: float = -100.0

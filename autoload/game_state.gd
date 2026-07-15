@@ -8,6 +8,8 @@ var terrain: TerrainData
 
 # Flujo menú → partida: el menú deja aquí la intención y main/world la consume
 var pending_new_seed: int = 0
+## Fuente de verdad del mundo (S1): altura/bioma/agua como funciones puras.
+var world_gen: WorldGen
 ## Siembra de bandas (Build 003): colonos a repartir y si el BandPlacer
 ## debe tomar el control al entrar en partida (solo lo activa el menú;
 ## tests, soaks y guardados viejos usan el campamento central automático).

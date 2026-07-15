@@ -124,6 +124,30 @@ que el jugador los siembre cerca a propósito).
 4. **Tuning "emergente" que no emerge** (caminos, rescoldos, caza): simular en papel antes del soak — regla nueva de la build.
 5. **Jugabilidad continua**: R/H no se retiran hasta S7 verde; cada fase se entrega jugable y visiblemente mejor.
 
+## Territorios del Hogar (orden del dueño 2026-07-15: «¿de quién es el árbol?»)
+
+Cada campamento irradia un TERRITORIO desde su hoguera. Regla simple y
+sólida: un punto pertenece al asentamiento cuya hoguera esté más cerca,
+SI además cae dentro de su radio de influencia — y el radio crece con el
+rango (Campamento ~30 m → Aldea → Pueblo → Villa → Ciudad).
+
+- **Los recursos del territorio son SUYOS**: los leñadores solo talan árboles
+  de su territorio (S2), las casas y huertos se levantan dentro (S7), y los
+  cazadores no persiguen presas hasta el territorio ajeno. Crecer de rango
+  ensancha la frontera → más árboles y tierra → LA razón para prosperar.
+- **Frontera visible y bonita**: mojones de piedra procedurales con la marca
+  cultural del asentamiento (S5: el símbolo del tótem grabado), espaciados
+  por el arco de frontera; al seleccionar una hoguera, el territorio se
+  ilumina con un tinte suave del color de su cultura sobre el terreno.
+- **La siembra manda**: en el mapa gigante la exclusión entre bandas sube
+  (aviso en rojo bajo ~120 m), pero sembrar cerca SIGUE PERMITIDO con
+  Mayús — el hacinamiento es una elección del jugador, con sus tensiones.
+- **El destino**: cuando dos territorios crecidos se tocan, la frontera se
+  disputa — préstamo cultural, alianza… o guerra por recursos (Build 005).
+- Implementación: por distancia+radio (sin grid pesado); `territory_of(point)`
+  en CampEntity; radios en SimConfig por rango; los sistemas consultan, no
+  cachean. Fase: núcleo+mojones en S1 (con el mapa), consumo real en S2/S7.
+
 ## Progresión de asentamiento (norte de la saga, orden del dueño 2026-07-15)
 
 La escalera que guía TODAS las builds futuras, época medieval:
