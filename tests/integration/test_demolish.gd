@@ -25,6 +25,8 @@ func before_each() -> void:
 	for _f: int in 10:
 		await _tree_scene.process_frame
 	SimClock.set_speed(0)
+	# Despensa de leña llena: la auto-tala del campamento no interfiere
+	GameState.add_resource(&"wood", 24)
 	_tools = _game.get_node("ToolManager") as ToolManager
 
 
@@ -92,9 +94,10 @@ func test_demolish_site_frees_spot_and_board() -> void:
 		TaskBoard.first_task_for_target(site_id) == null,
 		"cero tareas huérfanas tras demoler (el bug del probador)"
 	)
+	var redo: Dictionary = _tools.validate_zone(rect, world3d)
 	assert_true(
-		bool(_tools.validate_zone(rect, world3d)["valid"]),
-		"el mismo hueco vuelve a admitir construcción"
+		bool(redo["valid"]),
+		"el mismo hueco vuelve a admitir construcción (fue: %s)" % redo["reason"]
 	)
 	var again: ConstructionSite = _place_house(rect)
 	assert_true(is_instance_valid(again), "se puede reconstruir en el mismo sitio")
@@ -119,9 +122,10 @@ func test_demolish_completed_house_refunds_half() -> void:
 	)
 	assert_eq(_tree_scene.get_nodes_in_group(&"buildings").size(), 0, "la cabaña desaparece")
 	assert_eq(_tree_scene.get_nodes_in_group(&"zones").size(), 0, "su zona se libera")
+	var redo: Dictionary = _tools.validate_zone(rect, _game.get_world_3d())
 	assert_true(
-		bool(_tools.validate_zone(rect, _game.get_world_3d())["valid"]),
-		"el hueco de la cabaña demolida vuelve a ser válido"
+		bool(redo["valid"]),
+		"el hueco de la cabaña demolida vuelve a ser válido (fue: %s)" % redo["reason"]
 	)
 
 

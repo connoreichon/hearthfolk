@@ -150,9 +150,12 @@ func demolish_site(site: ConstructionSite) -> void:
 	for node: Node in get_tree().get_nodes_in_group(&"zones"):
 		var zone: ZoneEntity = node as ZoneEntity
 		if zone != null and zone.rect.grow(1.0).has_point(site_pos):
-			zone.queue_free()
+			zone.free()
 	var site_id: int = site.entity_id
-	site.queue_free()
+	# Muerte INMEDIATA (como en la carga de partidas): si la obra siguiera
+	# en el árbol al rehornear, su agujero quedaría horneado y el hueco
+	# sería inaccesible hasta otro bake casual.
+	site.free()
 	EventBus.construction_cancelled.emit(site_id)
 
 
@@ -161,7 +164,7 @@ func demolish_farm(farm: FarmField) -> void:
 	farm.demolished = true
 	TaskBoard.cancel_for_target(farm.entity_id, &"demolished")
 	EventBus.toast.emit("Huerto retirado", &"info")
-	farm.queue_free()
+	farm.free()
 
 
 func _selectable_at(screen_pos: Vector2) -> Node:

@@ -13,6 +13,15 @@ func before_each() -> void:
 	_tree_scene.root.add_child(_main)
 	SimClock.reset(1, 0.3)
 	SimClock.set_speed(4)
+	# Este test cuenta EXACTAMENTE 6 maderas: se despeja el territorio del
+	# campamento para que la auto-tala no tenga qué marcar (la vida
+	# emergente añadía leña extra y rompía el conteo).
+	var camp: CampEntity = _tree_scene.get_nodes_in_group(&"camps")[0] as CampEntity
+	for node: Node in _tree_scene.get_nodes_in_group(&"trees"):
+		var tree: Node3D = node as Node3D
+		var dist: float = tree.global_position.distance_to(camp.global_position)
+		if dist < CampEntity.TERRITORY_RADIUS + 2.0:
+			tree.free()
 
 
 func after_each() -> void:
@@ -28,14 +37,16 @@ func after_each() -> void:
 func test_ground_wood_ends_in_storage_without_duplicates() -> void:
 	for _f: int in 20:
 		await _tree_scene.process_frame
-	# Sembrar 3 haces (6 unidades) cerca del centro, como tras una tala
+	# Sembrar 3 haces (6 unidades) alrededor del CAMPAMENTO, como tras una
+	# tala (en el mundo gigante el campamento puede no estar en el origen)
 	var world: Node3D = _main.get_node("World") as Node3D
 	var parent: Node3D = world.get_node("NavigationRegion3D") as Node3D
+	var home: Vector3 = (_tree_scene.get_nodes_in_group(&"camps")[0] as Node3D).global_position
 	for i: int in 3:
 		var item: ResourceItem = ResourceItem.create(&"wood", 2, 100 + i)
 		parent.add_child(item)
 		var ang: float = TAU * float(i) / 3.0
-		var pos: Vector3 = Vector3(cos(ang) * 7.0, 0.0, sin(ang) * 7.0)
+		var pos: Vector3 = home + Vector3(cos(ang) * 7.0, 0.0, sin(ang) * 7.0)
 		pos.y = GameState.terrain.get_height(pos.x, pos.z)
 		item.global_position = pos
 	assert_eq(GameState.get_resource(&"wood"), 0)

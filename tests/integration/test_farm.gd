@@ -9,6 +9,8 @@ func before_each() -> void:
 	_tree_scene = Engine.get_main_loop() as SceneTree
 	GameState.setup_new_game(2222)
 	GameState.add_resource(&"food", 30)
+	# Despensa de leña llena: la auto-tala del campamento no interfiere
+	GameState.add_resource(&"wood", 24)
 	# Cultivo acelerado para la ventana del test (se restaura después)
 	SimConfig.get_default().crop_stage_seconds = 6.0
 	_main = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()

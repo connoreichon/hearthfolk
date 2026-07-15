@@ -9,6 +9,8 @@ func before_each() -> void:
 	_tree_scene = Engine.get_main_loop() as SceneTree
 	GameState.setup_new_game(2222)
 	GameState.add_resource(&"food", 12)
+	# Despensa de leña llena: la auto-tala del campamento no interfiere
+	GameState.add_resource(&"wood", 24)
 	_main = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()
 	_tree_scene.root.add_child(_main)
 	SimClock.reset(1, 0.3)
@@ -74,7 +76,10 @@ func _nearest_adult_tree() -> TreeEntity:
 	var best_d: float = INF
 	for node: Node in _tree_scene.get_nodes_in_group(&"trees"):
 		var tree: TreeEntity = node as TreeEntity
-		if tree == null or not tree.choppable():
+		# Sin marcar: la auto-tala del campamento puede haber madrugado, y
+		# marcar dos veces el mismo árbol duplicaría la tarea (como la T
+		# del jugador, que también ignora los ya marcados).
+		if tree == null or tree.marked or not tree.choppable():
 			continue
 		var d: float = tree.global_position.length()
 		if d < best_d:

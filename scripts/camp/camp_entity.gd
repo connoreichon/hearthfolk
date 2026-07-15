@@ -7,9 +7,16 @@ extends Node3D
 ## Números de colisión/RVO: los conquistados en los soaks de la 002
 ## (cilindro 1.35 dentro del agujero ~1.45; RVO + agente 0.35 < agujero).
 
+## Radio del territorio del campamento (S1; crecerá con el rango en S8).
+const TERRITORY_RADIUS: float = 30.0
+## Leña objetivo del asentamiento: por debajo, el campamento marca árboles.
+const WOOD_TARGET: int = 24
+
 var entity_id: int = 0
 var band_id: int = 0
 var camp_seed: int = 0
+
+var _plan_timer: float = 0.0
 
 
 static func create(new_band_id: int, seed_value: int) -> CampEntity:
@@ -146,7 +153,43 @@ func _ready() -> void:
 	add_to_group(&"persistent")
 	if entity_id == 0:
 		entity_id = EntityRegistry.register(self, &"camp")
+	SimClock.sim_tick.connect(_on_sim_tick)
 
 
 func _exit_tree() -> void:
 	EntityRegistry.unregister(entity_id)
+
+
+func _on_sim_tick(dt: float) -> void:
+	if not is_inside_tree():
+		return
+	_plan_timer -= dt
+	if _plan_timer > 0.0:
+		return
+	_plan_timer = 15.0
+	_plan_wood()
+
+
+## Auto-tala (corazón de la S2, adelantado por orden del dueño): el
+## campamento se procura su propia leña marcando el árbol más cercano de
+## SU TERRITORIO cuando la reserva baja — con prioridad más débil que las
+## órdenes del jugador (0 = máxima), que estas se respetan primero.
+func _plan_wood() -> void:
+	if GameState.get_resource(&"wood") >= WOOD_TARGET:
+		return
+	var stats: Dictionary = TaskBoard.stats()
+	if int(stats["free"]) + int(stats["claimed"]) >= 14:
+		return
+	var best: TreeEntity = null
+	var best_d: float = TERRITORY_RADIUS * TERRITORY_RADIUS
+	for node: Node in get_tree().get_nodes_in_group(&"trees"):
+		var tree: TreeEntity = node as TreeEntity
+		if tree == null or tree.marked or not tree.choppable():
+			continue
+		var d: float = tree.global_position.distance_squared_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = tree
+	if best != null:
+		best.set_marked(true)
+		TaskBoard.publish(&"chop", best.entity_id, {}, 6)

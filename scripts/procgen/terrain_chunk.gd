@@ -71,6 +71,7 @@ func populate(world_gen: WorldGen) -> void:
 	var origin_x: float = float(coord.x) * CHUNK_SIZE
 	var origin_z: float = float(coord.y) * CHUNK_SIZE
 	var tree_index: int = 0
+	_build_water_blockers(world_gen, origin_x, origin_z)
 	for point: Vector2 in points:
 		var x: float = origin_x + point.x
 		var z: float = origin_z + point.y
@@ -101,6 +102,36 @@ func populate(world_gen: WorldGen) -> void:
 		elif roll < 0.36 and (which == WorldGen.Biome.CLARO or which == WorldGen.Biome.PRADERA):
 			_place_local(PropGen.flower_patch(rng.randi()), x, h, z, rng)
 	EntityRegistry.reserve_below(DYNAMIC_ID_FLOOR)
+
+
+## El agua profunda NO se cruza (orden del dueño): cajas invisibles en la
+## capa de horneado sobre las celdas de cauce — el navmesh las esquiva y
+## los ríos son fronteras reales hasta que se descubran los puentes.
+func _build_water_blockers(world_gen: WorldGen, origin_x: float, origin_z: float) -> void:
+	var blockers: StaticBody3D = StaticBody3D.new()
+	blockers.name = "WaterBlockers"
+	blockers.collision_layer = 1 << 5
+	blockers.collision_mask = 0
+	var cell: float = 4.0
+	var cells: int = int(CHUNK_SIZE / cell)
+	var any: bool = false
+	for iz: int in cells:
+		for ix: int in cells:
+			var cx: float = origin_x + (float(ix) + 0.5) * cell
+			var cz: float = origin_z + (float(iz) + 0.5) * cell
+			if world_gen.river_mask(cx, cz) < 0.5:
+				continue
+			any = true
+			var shape: CollisionShape3D = CollisionShape3D.new()
+			var box: BoxShape3D = BoxShape3D.new()
+			box.size = Vector3(cell, 4.0, cell)
+			shape.shape = box
+			shape.position = Vector3(cx - position.x, WorldGen.WATER_LEVEL + 0.6, cz - position.z)
+			blockers.add_child(shape)
+	if any:
+		add_child(blockers)
+	else:
+		blockers.free()
 
 
 func _place_local(node: Node3D, x: float, h: float, z: float, rng: RandomNumberGenerator) -> void:

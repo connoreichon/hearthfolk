@@ -148,6 +148,23 @@ rango (Campamento ~30 m → Aldea → Pueblo → Villa → Ciudad).
   en CampEntity; radios en SimConfig por rango; los sistemas consultan, no
   cachean. Fase: núcleo+mojones en S1 (con el mapa), consumo real en S2/S7.
 
+## Agua, fronteras y descubrimientos (orden del dueño 2026-07-15)
+
+- **El agua profunda NO se cruza**: el cauce de los ríos queda excluido de
+  la navegación (bloqueadores de horneado sobre las celdas de agua, por
+  chunk). Los ríos son fronteras de verdad: rodear… o progresar.
+- **Descubrimientos**: la tecnología llega de forma orgánica, empujada por
+  la necesidad. El primero de la saga: **EL PUENTE** — cuando un
+  asentamiento en era de madera acumula leña y sus caminos chocan una y
+  otra vez contra el río, a alguien se le ocurre (rasgo creativo + crónica
+  + hito): tramo de puente construible sobre agua que une las dos orillas
+  y rehornea la navegación. (S8 si la era de madera llega a tiempo;
+  si no, primera pieza de la Build 004.) Después vendrán más
+  descubrimientos con el mismo patrón: necesidad repetida + creatividad.
+- **Paseo forrajero**: el ocio no es vagar — es explorar los alrededores
+  del campamento BUSCANDO recursos (sesgo del paseo hacia árboles, bayas
+  y setas del territorio; lo que encuentran alimenta la auto-asignación).
+
 ## Progresión de asentamiento (norte de la saga, orden del dueño 2026-07-15)
 
 La escalera que guía TODAS las builds futuras, época medieval:

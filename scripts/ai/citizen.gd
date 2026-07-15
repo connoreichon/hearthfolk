@@ -326,6 +326,14 @@ func _build_carry_visual(amount: int) -> Node3D:
 	return bundle
 
 
+## El campamento de mi banda (o el más cercano si el mío ya no existe).
+func home_camp() -> CampEntity:
+	var camp: CampEntity = CampEntity.camp_of_band(get_tree(), band_id)
+	if camp != null:
+		return camp
+	return CampEntity.nearest_camp(get_tree(), global_position)
+
+
 func find_storage() -> Node3D:
 	return CampEntity.nearest_storage_node(get_tree(), global_position)
 
