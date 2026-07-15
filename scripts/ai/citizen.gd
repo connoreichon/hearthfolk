@@ -425,6 +425,8 @@ func _on_velocity_computed(safe_velocity: Vector3) -> void:
 	if _step_distance > 1.1:
 		_step_distance = 0.0
 		AudioDirector.play_footstep(global_position)
+		# Deja huella: el tráfico acumulado se vuelve senda de tierra (S3)
+		TrafficGrid.stamp(global_position)
 	if horizontal > 0.2:
 		var yaw: float = atan2(velocity.x, velocity.z)
 		visual.rotation.y = lerp_angle(

@@ -70,6 +70,9 @@ func _ready() -> void:
 	var events: WorldEvents = WorldEvents.new()
 	events.name = "WorldEvents"
 	add_child(events)
+	var ambient: AmbientLife = AmbientLife.new()
+	ambient.name = "AmbientLife"
+	add_child(ambient)
 	# Las obras alteran la navegación: rehornear al empezar y al terminar
 	EventBus.construction_started.connect(_on_construction_changed)
 	EventBus.construction_completed.connect(_on_construction_changed)
@@ -121,6 +124,8 @@ func _setup_world_gen() -> void:
 	_chunks.far_terrain = far
 	add_child(_chunks)
 	MapGenerator.spawn_water(self, world_gen)
+	# Rejilla de tráfico (S3): las sendas emergen por donde caminan los colonos.
+	TrafficGrid.setup(world_gen.map_half)
 
 
 ## Funda el campamento de una banda: activa el suelo bajo sus pies
@@ -328,8 +333,18 @@ func _setup_light_and_environment() -> void:
 	sun.light_energy = 1.15
 	sun.light_color = Color("#FFF4E0")
 	sun.shadow_enabled = true
-	sun.shadow_blur = 1.5
-	sun.directional_shadow_max_distance = 130.0
+	sun.shadow_blur = 1.2
+	# Penumbra suave real (el sol tiene tamaño): sombras nítidas cerca y
+	# blandas lejos, no un borde duro de cartón.
+	sun.light_angular_distance = 1.2
+	sun.light_bake_mode = Light3D.BAKE_DISABLED
+	# 4 cascadas PSSM: sombras finas cerca de la cámara y cobertura lejana.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_split_1 = 0.06
+	sun.directional_shadow_split_2 = 0.15
+	sun.directional_shadow_split_3 = 0.4
+	sun.directional_shadow_blend_splits = true
+	sun.directional_shadow_max_distance = 240.0
 	add_child(sun)
 
 	# Falda de horizonte: pradera lejana bajo el borde del mapa, para que

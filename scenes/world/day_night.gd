@@ -11,6 +11,9 @@ var _color_gradient: Gradient = load("res://data/config/daylight_gradient.tres")
 var _energy_curve: Curve = load("res://data/config/daylight_energy.tres")
 var _flicker_noise: FastNoiseLite = FastNoiseLite.new()
 var _flicker_t: float = 0.0
+## Densidad de niebla base (la del Environment), capturada al vuelo para
+## modularla al amanecer sin fijar un número duro aquí.
+var _base_fog: float = -1.0
 
 var _day_sky_top: Color = Color("#6E9BC4")
 var _day_horizon: Color = Color("#C9D6C2")
@@ -44,6 +47,12 @@ func _process(delta: float) -> void:
 		sky_material.ground_horizon_color = _day_horizon.lerp(_night_horizon, night_f)
 	if environment != null:
 		environment.ambient_light_energy = lerpf(1.0, 0.4, night_f)
+		# Niebla del amanecer (S3): el valle amanece brumoso y se despeja.
+		# Pico en t≈0.1 (recién salido el sol), se disipa hacia el mediodía.
+		if _base_fog < 0.0:
+			_base_fog = environment.fog_density
+		var dawn_mist: float = clampf(1.0 - absf(t - 0.1) / 0.12, 0.0, 1.0)
+		environment.fog_density = _base_fog * (1.0 + dawn_mist * 3.2)
 
 	_update_fire(delta)
 

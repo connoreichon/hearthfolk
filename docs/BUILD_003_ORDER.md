@@ -83,10 +83,15 @@ que el jugador los siembre cerca a propósito).
 - **Auto-tala**: los leñadores marcan árboles solos según el stock de madera objetivo; la T del jugador pasa a sugerencia (prioridad más débil = número mayor). Sin esto no hay madera autónoma y S6 sería letra muerta.
 - Puerta: soak 1 año con reparto de oficios estable (flapping ≤1 cambio/colono/estación) y madera fluyendo sin tocar T.
 
-### S3 — Caminos emergentes + ambiente vivo
-- `TrafficGrid` (celda 1 m, pisadas desde el gancho existente de citizen, decaimiento estacional) → senda de tierra en el shader. **Rehacer el tuning sobre papel primero** (los números del diseño no producían senda visible). Sin bonus de velocidad v1.
-- Peces del río 100 % GPU, pájaros posados en rocas/tocones (no en árboles talables), luciérnagas de noche, hojas en otoño, niebla del amanecer.
-- Puerta: tras 1 año de soak, las rutas diarias se VEN como sendas (captura), suite + smoke.
+### S3 — Caminos emergentes + ambiente vivo — ENTREGADA (núcleo)
+> Diseño en `docs/S3_DESIGN.md` (tuning sobre papel). Implementación:
+> autoload `TrafficGrid` (rejilla 1024², pisada desde el gancho de pasos de
+> citizen, decaimiento diario) + `traffic_tex` en `terrain_blend.gdshader`;
+> `AmbientLife` (luciérnagas de noche, hojas en otoño) + niebla del amanecer
+> en `day_night`. Soak `soak_s3.gd`. Peces/pájaros: pendientes (S3.1 o S6).
+- `TrafficGrid` (celda 1 m, pisadas desde el gancho existente de citizen, decaimiento diario) → senda de tierra en el shader. Tuning sobre papel HECHO (STAMP 0.02, decay 0.96/día, umbral shader 0.16–0.72): las sendas emergen en ~2-3 días de uso y se difuminan en semanas si se abandonan. Sin bonus de velocidad v1.
+- Ambiente vivo v1: luciérnagas de noche y hojas en otoño (GPU, siguen a la cámara) + niebla del amanecer. Peces del río y pájaros posados: pendientes.
+- Puerta: soak medio año (soak_s3) — rutas diarias VISIBLES como tierra pisada (captura s3_sendas.png), sin atascos ni fuga de memoria. Suite + smoke.
 
 ### S4 — El latido (que no aburra): rescoldos, crónica y tensión
 - **Rescoldos**: recurso regenerable del espíritu. Verbos v1: **avivar** una hoguera (inspiración temporal, duración corregida en unidades de sim y pacto explícito con day_night) y **bendecir** a un aldeano (rasgo temporal). Susurrar y terreno sagrado/prohibido: FUERA (Build 004 — susurrar necesita la autoconstrucción; lo sagrado será ritual de los aldeanos, no brocha del dios).
@@ -264,10 +269,71 @@ cuesta AÑOS: cuando dos asentamientos crecidos se encuentran, **se alían o
 guerrean** (Build 005+) — la distancia a la que el jugador sembró las bandas
 al principio decide cuánto tarda ese destino.
 
+## Arquitectura medieval que crece por niveles (orden del dueño 2026-07-16)
+
+> «Que crezca como una ciudad medieval de verdad; que las casas empiecen de
+> una manera y poco a poco se mejoren hasta que se haga una ciudad; que haya
+> edificios y casas a distintos niveles a la vez; castillos, murallas y al
+> final batallas de ejércitos con muchísima gente (ciudades de ~1000).»
+
+- **Casas por NIVELES (mejora in situ)**: cada casa nace humilde (choza de
+  ramas y pieles) y sube de nivel por logros del asentamiento y del hogar:
+  choza → cabaña de madera → casa de entramado → casa de piedra → caserón
+  urbano. Un aldeano mejora SU casa cuando hay materiales y rango; en una
+  aldea grande conviven casas de varios niveles a la vez (barrios que crecen
+  a ritmos distintos). El nivel se VE en la silueta, el material y el tejado.
+- **VARIEDAD de estructuras**: no una casa clonada mil veces. Un puñado de
+  variantes por tipo y nivel (p. ej. 4-6 plantas de choza, 4-6 de cabaña…)
+  y variación procedural por semilla dentro de cada una (ventanas, tejado,
+  color de madera, anexos) → repetición reconocible pero nunca monótona.
+- **Se amoldan al TERRENO**: las casas se asientan en el desnivel (zócalos,
+  pilotes en pendiente, orientación a la ladera); nada de edificios flotando
+  o clavados en cuestas imposibles. El `PlotValidator` (S7) puntúa llano,
+  seco y con vistas; en terreno bravo se adaptan, no se rechazan sin más.
+- **Rango del asentamiento = arquitectura**: Campamento (hoguera + petates)
+  → Aldea (chozas/cabañas) → Pueblo (pozo, plaza, cercas, primeras casas de
+  piedra) → Villa (mercado, murete, calles empedradas por los caminos S3) →
+  **Ciudad** (CASTILLO, murallas con puertas y torres, barrios, puerto si hay
+  costa). Cada salto reescribe el skyline; el castillo es el corazón.
+- **Muchísima gente en ciudades (~1000)**: objetivo de saga. Exige LOD de
+  aldeanos (multimesh/imposters a distancia, IA simplificada en masa) y
+  presupuesto de rendimiento serio — un sistema de MULTITUD, no 1000 FSM
+  completas. Batallas de ejércitos medievales cuando dos ciudades chocan
+  (Build 005+): formaciones, no duelos 1-a-1.
+- **Más OFICIOS y cosas que hacer**: cada nivel de asentamiento abre trabajos
+  (cantero, herrero, panadero, pozero, tendero, guardia, albañil…) y obras
+  (pozo, mercado, muralla, castillo). El catálogo de `Professions` y de
+  recetas crece con el rango. Los aldeanos SIEMPRE tienen algo mejor que
+  construir a medida que la ciudad sube de nivel.
+
+## Camas y BUEN DISEÑO de todo (orden del dueño 2026-07-16)
+
+- **Camas/petates SIEMPRE presentes**: quien duerma al raso junto a la hoguera
+  tiene su petate o saco enrollado a la vista (no dormir sobre la hierba
+  pelada). Bien diseñados, con su manta y almohadón. Al subir de era pasan a
+  camas de madera dentro de las casas.
+- **Estándar de calidad permanente**: NADA de placeholders cutres. Cada
+  objeto y edificio del juego —petates, herramientas, casas, pozos, carros,
+  murallas, castillos— se diseña con mimo (silueta legible, paleta canon,
+  detalle procedural). El listón es «que mole mucho», no «que cumpla».
+
+## Relieve del terreno: montañas, acantilados, mar, desniveles (orden 2026-07-16)
+
+El valle actual es suave (lomas ≤5 m). La saga quiere DRAMA de relieve:
+cordilleras y picos, **acantilados** (cortados de roca), **mar** con costa
+(no solo ríos), mesetas y hondonadas. El generador (`WorldGen`) sube de nivel:
+capa de montaña de alta amplitud, umbral de acantilado (pendiente casi
+vertical con roca), nivel de mar configurable, y biomas que siguen la altura
+(nieve en cimas, roca en cortados, playa en la costa). Se enchufa al **creador
+de mapas** (perillas montañas/mar) y a Build 004 (biomas extremos). La
+navegación y la construcción respetan el relieve (no se cruza un acantilado
+sin escalera/puente; las casas se amoldan al desnivel).
+
 ## Fuera de alcance (builds futuras)
 
 Build 004: puertos y barcos · encuentros culturales completos (préstamo,
 rivalidad, emisarios) · drift cultural · economía por aldea · susurrar ideas
 · terreno sagrado · diales de prioridad · RAID de lobos · matriz musical
-completa · rangos Villa/Ciudad con murallas y castillos.
-Build 005+: guerra y alianzas entre ciudades · comercio entre asentamientos.
+completa · rangos Villa/Ciudad con murallas y castillos · relieve extremo.
+Build 005+: guerra y alianzas entre ciudades · comercio entre asentamientos ·
+batallas de ejércitos · ciudades de ~1000 con sistema de multitud/LOD.

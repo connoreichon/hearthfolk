@@ -22,6 +22,7 @@ EntityRegistry="*res://autoload/entity_registry.gd"
 SaveManager="*res://autoload/save_manager.gd"
 AudioDirector="*res://autoload/audio_director.gd"
 DebugOverlay="*res://autoload/debug_console.gd"
+TrafficGrid="*res://autoload/traffic_grid.gd"
 
 [debug]
 
@@ -73,3 +74,8 @@ snow_amount={
 [rendering]
 
 renderer/rendering_method="forward_plus"
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=3
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1

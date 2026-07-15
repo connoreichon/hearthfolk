@@ -74,7 +74,49 @@ static func create(new_band_id: int, seed_value: int) -> CampEntity:
 	pile_body.add_to_group(&"storage")
 	pile_body.add_to_group(&"selectable")
 	camp.add_child(pile_body)
+	_add_bedrolls(camp, rng)
 	return camp
+
+
+## Petates SIEMPRE presentes junto a la hoguera (orden del dueño): quien
+## duerma al raso tiene su saco con estera, almohadón y rollo a los pies —
+## nada de dormir sobre la hierba pelada. (Camas de madera dentro de las
+## casas llegan con las eras, S8.)
+static func _add_bedrolls(camp: Node3D, rng: RandomNumberGenerator) -> void:
+	var count: int = 3
+	for i: int in count:
+		var ang: float = TAU * float(i) / float(count) + 1.1 + rng.randf_range(-0.15, 0.15)
+		var bed: Node3D = _make_bedroll(rng)
+		bed.position = Vector3(cos(ang) * 2.8, 0.0, sin(ang) * 2.8)
+		bed.rotation.y = -ang + PI * 0.5
+		camp.add_child(bed)
+
+
+static func _make_bedroll(rng: RandomNumberGenerator) -> Node3D:
+	var palette: PaletteData = PaletteData.get_default()
+	var cloths: Array[Color] = [
+		palette.cart_cloth, Color("#B07A55"), Color("#8A9A6B"), Color("#9B6A6A")
+	]
+	var cloth: Color = cloths[rng.randi() % cloths.size()]
+	var roll: Node3D = Node3D.new()
+	roll.name = "Bedroll"
+	var mat: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.7, 0.07, 1.5), 0.03), cloth, "Mat"
+	)
+	mat.position.y = 0.04
+	roll.add_child(mat)
+	var pillow: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.5, 0.13, 0.28), 0.05), cloth.lightened(0.18), "Pillow"
+	)
+	pillow.position = Vector3(0.0, 0.11, -0.6)
+	roll.add_child(pillow)
+	var foot_roll: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.09, 0.09, 0.72, 8), palette.wood_light, "Roll"
+	)
+	foot_roll.rotation.z = PI * 0.5
+	foot_roll.position = Vector3(0.0, 0.09, 0.72)
+	roll.add_child(foot_roll)
+	return roll
 
 
 ## La hoguera (miembro del grupo &"campfire") de este campamento.

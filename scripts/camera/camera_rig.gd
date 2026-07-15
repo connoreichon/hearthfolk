@@ -13,7 +13,10 @@ var overview: bool = false
 
 var _cfg: CameraConfig
 var _target_zoom: float = 40.0
-var _panning: bool = false
+var _panning: bool = false  # arrastre con botón central
+var _pan_left: bool = false  # arrastre con botón IZQUIERDO (modo Selección)
+var _rotating: bool = false  # arrastre con botón DERECHO = rotar
+var _tilt_offset: float = 0.0  # picado manual añadido (rueda + arrastre der.)
 var _focus_tween: Tween
 
 @onready var arm: SpringArm3D = $Arm
@@ -74,7 +77,8 @@ func _process(delta: float) -> void:
 	var far_zoom: float = OVERVIEW_ZOOM_MAX if overview else _cfg.zoom_max
 	var far_tilt: float = 68.0 if overview else _cfg.tilt_far_deg
 	var zoom_f: float = clampf(inverse_lerp(_cfg.zoom_min, far_zoom, arm.spring_length), 0.0, 1.0)
-	arm.rotation_degrees.x = -lerpf(_cfg.tilt_near_deg, far_tilt, zoom_f)
+	var base_tilt: float = lerpf(_cfg.tilt_near_deg, far_tilt, zoom_f)
+	arm.rotation_degrees.x = -clampf(base_tilt + _tilt_offset, 20.0, 89.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -87,23 +91,40 @@ func _unhandled_input(event: InputEvent) -> void:
 			_target_zoom = clampf(_target_zoom * (1.0 + _cfg.zoom_step), _cfg.zoom_min, wheel_max)
 		elif mouse_button.button_index == MOUSE_BUTTON_MIDDLE:
 			_panning = mouse_button.pressed
-		elif (
-			mouse_button.button_index == MOUSE_BUTTON_LEFT
-			and mouse_button.pressed
-			and mouse_button.double_click
-		):
-			_focus_on_clicked_terrain(mouse_button.position)
+		elif mouse_button.button_index == MOUSE_BUTTON_RIGHT:
+			# Botón derecho arrastrando = ROTAR la cámara (orden del dueño).
+			_rotating = mouse_button.pressed
+		elif mouse_button.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_button.pressed and mouse_button.double_click:
+				_focus_on_clicked_terrain(mouse_button.position)
+			else:
+				# Arrastre con IZQUIERDO = mover el mapa (solo en Selección: en
+				# una herramienta el izquierdo talla/marca). El clic para
+				# seleccionar lo maneja ToolManager; arrastrar solo panea.
+				_pan_left = mouse_button.pressed and not _tool_active()
 	var motion: InputEventMouseMotion = event as InputEventMouseMotion
-	if motion != null and _panning:
-		_kill_focus_tween()
-		var flat: Basis = Basis(Vector3.UP, rotation.y)
-		var factor: float = arm.spring_length * 0.0016
-		position += flat * Vector3(-motion.relative.x, 0.0, -motion.relative.y) * factor
+	if motion != null:
+		if _panning or _pan_left:
+			_kill_focus_tween()
+			var flat: Basis = Basis(Vector3.UP, rotation.y)
+			var factor: float = arm.spring_length * 0.0016
+			position += flat * Vector3(-motion.relative.x, 0.0, -motion.relative.y) * factor
+		elif _rotating:
+			_kill_focus_tween()
+			rotation.y -= motion.relative.x * 0.006
+			_tilt_offset = clampf(_tilt_offset + motion.relative.y * 0.14, -18.0, 32.0)
 	if event.is_action_pressed(&"camera_focus"):
 		focus_settlement()
 	if event.is_action_pressed(&"camera_overview"):
 		# Vista de águila a voluntad (M): gestionar el valle desde el cielo
 		set_overview(not overview)
+
+
+## ¿Hay una herramienta activa (tala/zona/huerto/demoler)? Entonces el
+## arrastre izquierdo es para ella, no para panear.
+func _tool_active() -> bool:
+	var tools: Node = get_tree().get_first_node_in_group(&"tool_manager")
+	return tools != null and StringName(tools.get(&"current_tool")) != &"none"
 
 
 func set_zoom(zoom: float) -> void:
