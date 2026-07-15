@@ -120,9 +120,13 @@ func first_task_for_target(target_id: int, kind: StringName = &"") -> Task:
 	return null
 
 
-## Mejor tarea libre para un habitante: filtra blacklist y cooldown,
-## ordena por prioridad (0 = máxima) y después por distancia.
-func best_task_for(citizen_id: int, from_position: Vector3, kinds: Array[StringName] = []) -> Task:
+## Mejor tarea libre para un habitante: filtra blacklist, cooldown y BANDA
+## (las tareas etiquetadas con "band" son de esa aldea — nadie cruza medio
+## mapa a trabajar para otros), ordena por prioridad (0 = máxima) y
+## después por distancia.
+func best_task_for(
+	citizen_id: int, from_position: Vector3, kinds: Array[StringName] = [], band: int = -1
+) -> Task:
 	var best: Task = null
 	var best_score: float = INF
 	for task: Task in _tasks.values():
@@ -133,6 +137,8 @@ func best_task_for(citizen_id: int, from_position: Vector3, kinds: Array[StringN
 		if task.cooldown_until > SimClock.elapsed_sim_seconds:
 			continue
 		if not kinds.is_empty() and task.kind not in kinds:
+			continue
+		if band >= 0 and task.payload.has("band") and int(task.payload["band"]) != band:
 			continue
 		var dist: float = 0.0
 		var target: Node = EntityRegistry.get_node_by_id(task.target_id)

@@ -267,4 +267,4 @@ func _plan_wood() -> void:
 			best = tree
 	if best != null:
 		best.set_marked(true)
-		TaskBoard.publish(&"chop", best.entity_id, {}, 6)
+		TaskBoard.publish(&"chop", best.entity_id, {"band": band_id}, 6)

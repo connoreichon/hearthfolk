@@ -16,7 +16,8 @@ func tick(_dt: float) -> void:
 	var task: TaskBoard.Task = TaskBoard.best_task_for(
 		citizen.entity_id,
 		citizen.global_position,
-		[&"farm_harvest", &"haul", &"supply", &"chop", &"build", &"farm_plant"]
+		[&"farm_harvest", &"haul", &"supply", &"chop", &"build", &"farm_plant"],
+		citizen.band_id
 	)
 	if task == null:
 		citizen.state_machine.change(&"Wander")
