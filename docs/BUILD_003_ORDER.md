@@ -47,16 +47,31 @@ implementación aprendidas por los críticos, vigentes en TODA la build:
 - El mapa base queda 100 % naturaleza. `--autoplace` (4+4+2 fijo) para tests, sonda y `--newgame`.
 - Puerta: suite + soak 20 min con 3 bandas vivas (comen, descansan, acarrean a SU campamento) + smoke release.
 
-### S1 — Mapa 2.0 y gráficos base (la mayor inversión visual por hora)
-- Biomas por ruido de dominio con fronteras suaves: Pradera, Bosque Umbrío, Ribera de Juncos, Colinas de Piedra + Claro Florido raro (0–1). Densidades de árbol/roca contrastadas y agua consultable — la variedad que las culturas necesitarán.
-- Terreno 2.0: albedo por ruido, roca en pendiente, orilla húmeda con máscara real de río, **sombras de nubes** scrolleadas por el viento (en vez de sky shader: la cámara pica 48–55° y no ve el cielo).
-- Agua viva (olas, espuma por profundidad, hielo en invierno), hierba instanciada (MultiMesh, 1 draw call), viento en vertex shader.
+### S1 — MAPA GIGANTE por chunks + biomas + gráficos base
+**Orden del dueño (2026-07-15)**: el mapa de 120 m es de juguete — las bandas
+se ven entre sí nada más sembrar. El mapa pasa a ser GIGANTE y procedural
+para que los asentamientos tarden años en crecer hasta encontrarse (salvo
+que el jugador los siembre cerca a propósito).
+- **Escala**: objetivo Build 003 ≈ **1×1 km** (16×16 chunks de 64 m; ~70×
+  el área actual), con la arquitectura preparada para crecer más:
+  - Terreno por CHUNKS (malla + colisión + navmesh region POR chunk,
+    horneado asíncrono y solo cerca de actividad; regiones conectadas).
+  - Props por chunk (Poisson local con densidad por bioma); streaming
+    visual simple por distancia a cámara (los chunks lejanos, LOD plano).
+  - `TerrainData` global por función (altura/pendiente puras por ruido,
+    sin array monolítico), máscara de sendas por chunk.
+  - Cámara: límites del mapa desde config; zoom máximo más alto + (S4+)
+    minimapa para orientarse.
+- Biomas por ruido de dominio con fronteras suaves: Pradera, Bosque Umbrío, Ribera de Juncos, Colinas de Piedra + Claros Floridos raros. Red de ríos en vez del arroyo único del borde. Densidades de árbol/roca contrastadas y agua consultable.
+- Terreno 2.0: albedo por ruido, roca en pendiente, orilla húmeda, **sombras de nubes** scrolleadas por el viento.
+- Agua viva (olas, espuma, hielo en invierno), hierba instanciada cerca de cámara, viento en vertex shader.
 - `PaletteData` crece con las rampas por bioma de ART_DIRECTION_003.
-- Puerta: captura por bioma × estación, 60 fps en desktop, suite + smoke.
+- Puerta: 10 colonos sembrados en 3 puntos MUY separados (500+ m) conviven un soak de 20 min con 60 fps en desktop y sin fugas de memoria; captura por bioma × estación; suite + smoke.
 
 ### S2 — Rasgos y oficios (con auto-tala: el pilar que faltaba)
 - 5 atributos (fuerza, destreza, percepción, mano verde, diligencia) + rasgos con efecto visible, INCLUYENDO DEFECTOS de nacimiento (orden del dueño): cada colono nace con al menos una virtud y probablemente un defecto (p. ej. manos de madera → carpintero nato pero torpe con el arma). Panel de info los muestra con lenguaje evocador, no números pelados. Save: clave `traits`.
-- El catálogo de habilidades es EXTENSIBLE por diseño: los oficios futuros (marinero de la Build 004, con «buena mano al timón») se enchufan añadiendo aptitudes al catálogo sin tocar la IA de utilidad.
+- **Catálogo GRANDE y creciente** (orden del dueño 2026-07-15): la v1 activa ~10-12 rasgos con mecánica real, pero el catálogo se define amplio desde el día uno y cada build activa más. Cada rasgo lleva `hereditary: bool` DESDE YA: cuando lleguen las familias (Build 004), los hijos heredarán rasgos de sus padres con mutación ocasional — la genética se enchufa sin migrar datos.
+- El catálogo de habilidades es EXTENSIBLE por diseño: los oficios futuros (marinero con «buena mano al timón», pastor, pescador, panadero, cantero…) se enchufan añadiendo aptitudes al catálogo sin tocar la IA de utilidad. Objetivo de saga: MUCHOS oficios — cada build suma.
 - Autoselección de oficio: IA de utilidad (necesidad de aldea × aptitud × preferencia) como pesos retrocompatibles sobre `best_task_for`; reevaluación estacional; leñador/constructor/agricultor/recolector-base.
 - **Auto-tala**: los leñadores marcan árboles solos según el stock de madera objetivo; la T del jugador pasa a sugerencia (prioridad más débil = número mayor). Sin esto no hay madera autónoma y S6 sería letra muerta.
 - Puerta: soak 1 año con reparto de oficios estable (flapping ≤1 cambio/colono/estación) y madera fluyendo sin tocar T.
@@ -84,6 +99,7 @@ implementación aprendidas por los críticos, vigentes en TODA la build:
 - Conejo PRIMERO (valida núcleo steering/director/despawn con arte mínimo), luego ciervo con manadas y balanceo por fase.
 - Caza **rediseñada sobre papel** antes de codificar (la tríada huida-tirada-carne del diseño era incoherente): cazador nato como 5º oficio, carne al pipeline de acarreo.
 - Arbustos de bayas persistentes (patrón TreeEntity) + recolección con gameplay.
+- **Hoja de ruta de fauna** (orden del dueño 2026-07-15): tres familias con núcleo común — PRESAS (conejo, ciervo; jabalí que se defiende), PELIGROSA (lobos S8; oso en 004), y **DOMESTICABLE** (Build 004: gallinas/cabras/ovejas capturables → corral + pastor como oficio → huevos/leche/lana). El núcleo AnimalEntity se diseña ya con las tres familias en mente.
 - Puerta: soak 1 año — caza ≥30 % de la comida invernal, ninguna persecución >30 s, poblaciones estables.
 
 ### S7 — Autoconstrucción (el corazón del pitch)
@@ -108,9 +124,21 @@ implementación aprendidas por los críticos, vigentes en TODA la build:
 4. **Tuning "emergente" que no emerge** (caminos, rescoldos, caza): simular en papel antes del soak — regla nueva de la build.
 5. **Jugabilidad continua**: R/H no se retiran hasta S7 verde; cada fase se entrega jugable y visiblemente mejor.
 
-## Fuera de alcance (Build 004)
+## Progresión de asentamiento (norte de la saga, orden del dueño 2026-07-15)
 
-Puertos y barcos · guerra o daño · encuentros culturales completos (préstamo,
-rivalidad, emisarios — v1 solo «vieron humo al otro lado del arroyo») · drift
-cultural · economía por aldea · susurrar ideas · terreno sagrado · diales de
-prioridad globales · RAID de lobos · matriz musical completa.
+La escalera que guía TODAS las builds futuras, época medieval:
+**Campamento** (hoguera) → **Aldea** (primeras casas) → **Pueblo** (pozo,
+oficios, decoración) → **Villa** (mercado, murete, caminos consolidados) →
+**Ciudad** (castillo, murallas, puerto si hay costa, comercio). El nombre del
+asentamiento y su rango se muestran y se celebran (hito + crónica). Crecer
+cuesta AÑOS: cuando dos asentamientos crecidos se encuentran, **se alían o
+guerrean** (Build 005+) — la distancia a la que el jugador sembró las bandas
+al principio decide cuánto tarda ese destino.
+
+## Fuera de alcance (builds futuras)
+
+Build 004: puertos y barcos · encuentros culturales completos (préstamo,
+rivalidad, emisarios) · drift cultural · economía por aldea · susurrar ideas
+· terreno sagrado · diales de prioridad · RAID de lobos · matriz musical
+completa · rangos Villa/Ciudad con murallas y castillos.
+Build 005+: guerra y alianzas entre ciudades · comercio entre asentamientos.
