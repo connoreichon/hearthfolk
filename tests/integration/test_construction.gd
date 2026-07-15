@@ -10,8 +10,12 @@ var _completed_id: int = -1
 func before_each() -> void:
 	_tree_scene = Engine.get_main_loop() as SceneTree
 	GameState.setup_new_game(2222)
-	GameState.add_resource(&"food", 12)
-	GameState.add_resource(&"wood", 12)
+	# Comida holgada: el hambre ralentiza el trabajo un 35 % y colaba la
+	# recta final de la obra fuera de la ventana del test
+	GameState.add_resource(&"food", 30)
+	# 36 = despensa llena INCLUSO tras consumir la obra sus 12 (si baja de
+	# 24 a mitad de test, la auto-tala despierta y roba obreros)
+	GameState.add_resource(&"wood", 36)
 	_main = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()
 	_tree_scene.root.add_child(_main)
 	SimClock.reset(1, 0.2)
@@ -71,7 +75,7 @@ func test_cottage_builds_through_all_phases() -> void:
 	# Ventana con margen: el test más largo de la suite roza el límite bajo
 	# carga (mismo remedio que test_haul_flow); el DBG de abajo hace la
 	# autopsia si aun así se agota.
-	for _f: int in 7000:
+	for _f: int in 9500:
 		await _tree_scene.process_frame
 		if _completed_id != -1:
 			break
@@ -110,7 +114,7 @@ func test_cottage_builds_through_all_phases() -> void:
 	assert_true(site.completed)
 	for phase: int in [1, 2, 3, 4]:
 		assert_true(phase in _phases_seen, "pasó por la fase %d" % phase)
-	assert_eq(GameState.get_resource(&"wood"), 0, "las 12 maderas se consumieron")
+	assert_eq(GameState.get_resource(&"wood"), 24, "las 12 maderas de la obra se consumieron")
 	assert_true(site.is_in_group(&"buildings"), "la obra terminada es un edificio")
 	var visible_pieces: int = 0
 	var cottage: Node3D = site.get_node("Cottage") as Node3D
@@ -156,8 +160,8 @@ func test_zone_validation_rules() -> void:
 	)
 	assert_false(over_fire["valid"], "sobre la fogata inválida")
 	assert_true(
-		"obstáculos" in String(over_fire["reason"]),
-		"la razón es el obstáculo (fue: %s)" % over_fire["reason"]
+		"obstáculos" in String(over_fire["reason"]) or "agua" in String(over_fire["reason"]),
+		"la razón es obstáculo o agua vecina (fue: %s)" % over_fire["reason"]
 	)
 
 	# Zona limpia: buscar un hueco real cerca del campamento (mapa gigante:

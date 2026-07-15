@@ -90,7 +90,7 @@ func _build_ui() -> void:
 	layer.add_child(subtitle)
 
 	var version: Label = Label.new()
-	version.text = "Build 002"
+	version.text = "Build 003 · Las Culturas del Fuego"
 	version.add_theme_color_override(&"font_color", Color(_palette.ui_text, 0.55))
 	version.anchor_left = 1.0
 	version.anchor_right = 1.0

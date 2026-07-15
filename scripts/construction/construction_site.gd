@@ -244,7 +244,9 @@ func _manage_build_tasks() -> void:
 	)
 	if can_work_now():
 		while _build_tasks.size() < MAX_BUILDERS:
-			_build_tasks.append(TaskBoard.publish(&"build", entity_id, {"site_id": entity_id}, 6))
+			# Prioridad 5: construir paga MÁS que la auto-tala (7) — si no,
+			# los obreros se iban a por árboles y la obra se eternizaba
+			_build_tasks.append(TaskBoard.publish(&"build", entity_id, {"site_id": entity_id}, 5))
 	else:
 		for task_id: int in _build_tasks:
 			var task: TaskBoard.Task = TaskBoard.get_task(task_id)

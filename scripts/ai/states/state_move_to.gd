@@ -21,6 +21,13 @@ func enter() -> void:
 		citizen.abandon_task(&"target_gone")
 		citizen.state_machine.change(&"FindTask")
 		return
+	# Cinturón: las tareas con estado propio se reencaminan, no se tiran
+	if task.kind == &"supply":
+		citizen.state_machine.change(&"Supply")
+		return
+	if task.kind == &"farm_plant" or task.kind == &"farm_harvest":
+		citizen.state_machine.change(&"Farm")
+		return
 	citizen.visual.mode = &"walk"
 	citizen.move_to_near(target.global_position, float(STAND_OFFS.get(task.kind, 1.15)))
 

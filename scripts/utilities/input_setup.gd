@@ -11,6 +11,7 @@ static func setup() -> void:
 	_add_key(&"camera_rotate_left", KEY_Q)
 	_add_key(&"camera_rotate_right", KEY_E)
 	_add_key(&"camera_focus", KEY_F)
+	_add_key(&"camera_overview", KEY_M)
 	_add_key(&"sim_pause", KEY_SPACE)
 	_add_key(&"sim_speed_1", KEY_1)
 	_add_key(&"sim_speed_2", KEY_2)

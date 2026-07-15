@@ -248,7 +248,7 @@ func _mark(tree: TreeEntity) -> void:
 	if tree.marked or not tree.choppable():
 		return
 	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), tree.global_position)
-	if not NavUtil.is_reachable(camera.get_world_3d(), fire_pos, tree.global_position, 2.5):
+	if not NavUtil.is_practical(camera.get_world_3d(), fire_pos, tree.global_position, 2.5):
 		EventBus.toast.emit("Sin acceso: no hay camino hasta ese árbol", &"warn")
 		return
 	tree.set_marked(true)
@@ -389,20 +389,24 @@ func _zone_geometry_error(rect: Rect2, kind: StringName = &"zone") -> String:
 	var terrain: TerrainData = GameState.terrain
 	if terrain == null:
 		return "Sin terreno"
-	var corners: Array[Vector2] = [
+	var center_p: Vector2 = rect.get_center()
+	var probes: Array[Vector2] = [
 		rect.position,
 		rect.end,
 		Vector2(rect.position.x, rect.end.y),
 		Vector2(rect.end.x, rect.position.y),
+		Vector2(center_p.x, rect.position.y),
+		Vector2(center_p.x, rect.end.y),
+		Vector2(rect.position.x, center_p.y),
+		Vector2(rect.end.x, center_p.y),
+		center_p,
 	]
-	for corner: Vector2 in corners:
-		if not terrain.is_inside(corner.x, corner.y, 2.0):
+	for probe: Vector2 in probes:
+		if not terrain.is_inside(probe.x, probe.y, 2.0):
 			return "Fuera del mapa"
-		if (
-			GameState.world_gen != null
-			and GameState.world_gen.river_mask(corner.x, corner.y) > 0.45
-		):
-			return "Sobre el agua"
+	var water_error: String = _zone_water_error(rect, probes)
+	if not water_error.is_empty():
+		return water_error
 	var slope_total: float = 0.0
 	for ix: int in 5:
 		for iz: int in 5:
@@ -411,6 +415,27 @@ func _zone_geometry_error(rect: Rect2, kind: StringName = &"zone") -> String:
 			slope_total += terrain.get_slope_deg(sx, sz)
 	if slope_total / 25.0 > 8.0:
 		return "Terreno demasiado inclinado"
+	return ""
+
+
+## Regla del agua de las parcelas: borde+centro secos (0.30, POR DEBAJO
+## de los bloqueadores de cauce 0.35 — donde se construye, se navega) y el
+## ANILLO DE ENTREGA (3 m) también seco, o la puerta queda pellizcada
+## entre el agujero de la obra y el muro del río.
+func _zone_water_error(rect: Rect2, probes: Array[Vector2]) -> String:
+	if GameState.world_gen == null:
+		return ""
+	for probe: Vector2 in probes:
+		if GameState.world_gen.river_mask(probe.x, probe.y) > 0.30:
+			return "Sobre el agua"
+	var ring: Rect2 = rect.grow(3.0)
+	var ring_center: Vector2 = ring.get_center()
+	for i: int in 12:
+		var ang: float = TAU * float(i) / 12.0
+		var rx: float = ring_center.x + cos(ang) * ring.size.x * 0.5
+		var rz: float = ring_center.y + sin(ang) * ring.size.y * 0.5
+		if GameState.world_gen.river_mask(rx, rz) > 0.30:
+			return "Sobre el agua"
 	return ""
 
 
@@ -441,7 +466,7 @@ func _zone_access_error(rect: Rect2, world: World3D) -> String:
 	var center: Vector2 = rect.get_center()
 	var center_3d: Vector3 = Vector3(center.x, terrain.get_height(center.x, center.y), center.y)
 	var fire_pos: Vector3 = CampEntity.nearest_fire_position(get_tree(), center_3d)
-	if not NavUtil.is_reachable(world, fire_pos, center_3d, 3.5):
+	if not NavUtil.is_practical(world, fire_pos, center_3d, 3.5):
 		return "Sin acceso desde el asentamiento"
 	return ""
 

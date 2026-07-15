@@ -55,7 +55,7 @@ func test_camp_marks_trees_for_wood() -> void:
 	)
 	var task: TaskBoard.Task = TaskBoard.first_task_for_target(marked.entity_id, &"chop")
 	assert_true(task != null, "la tala entra al tablón")
-	assert_eq(task.priority, 6, "prioridad más débil que las órdenes del jugador")
+	assert_eq(task.priority, 7, "prioridad más débil que las órdenes del jugador")
 	assert_eq(int(task.payload.get("band", -99)), camp.band_id, "la tarea lleva la banda")
 	var stranger: TaskBoard.Task = TaskBoard.best_task_for(
 		999999, marked.global_position, [&"chop"], camp.band_id + 7

@@ -26,10 +26,18 @@ func enter() -> void:
 			# (b) apartarse a un punto navegable a 2–4 m
 			_side_step(map)
 		_:
-			# (c) teleport suave al punto navegable más cercano + soltar tarea
-			var safe: Vector3 = NavigationServer3D.map_get_closest_point(
-				map, citizen.global_position
+			# (c) teleport suave A SU ISLA: el «punto navegable más cercano»
+			# desde una orilla podía ser LA OTRA ORILLA y exiliaba al colono
+			# al otro lado del río. El final del camino DESDE SU HOGUERA
+			# hasta aquí siempre pisa la isla del campamento.
+			var camp: CampEntity = citizen.home_camp()
+			var anchor: Vector3 = camp.global_position if camp != null else citizen.global_position
+			var home_path: PackedVector3Array = NavigationServer3D.map_get_path(
+				map, anchor, citizen.global_position, true
 			)
+			var safe: Vector3 = anchor + Vector3(2.0, 0.05, 2.0)
+			if not home_path.is_empty():
+				safe = home_path[home_path.size() - 1]
 			citizen.fade_teleport(safe)
 			citizen.abandon_task(&"stuck")
 			_attempt = 0
@@ -39,10 +47,18 @@ func tick(dt: float) -> void:
 	_wait -= dt
 	if _wait > 0.0:
 		return
-	if citizen.current_task_id != -1:
-		citizen.state_machine.change(&"MoveToResource")
-	else:
+	# Reanudar la tarea EN SU ESTADO (el enrutado ciego a MoveToResource
+	# tiraba las tareas de suministro y huerto como «desconocidas» y el
+	# suministrador entraba en bucle: atasco → estado equivocado → abandono).
+	var task: TaskBoard.Task = citizen.current_task()
+	if task == null:
 		citizen.state_machine.change(&"FindTask")
+	elif task.kind == &"supply":
+		citizen.state_machine.change(&"Supply")
+	elif task.kind == &"farm_plant" or task.kind == &"farm_harvest":
+		citizen.state_machine.change(&"Farm")
+	else:
+		citizen.state_machine.change(&"MoveToResource")
 
 
 func on_stuck() -> void:
@@ -53,4 +69,11 @@ func _side_step(map: RID) -> void:
 	var ang: float = citizen.local_rng.randf() * TAU
 	var radius: float = citizen.local_rng.randf_range(2.0, 4.0)
 	var side: Vector3 = citizen.global_position + Vector3(cos(ang) * radius, 0.0, sin(ang) * radius)
-	citizen.move_to(NavigationServer3D.map_get_closest_point(map, side))
+	# Final del camino real: nunca apuntar a la isla de enfrente
+	var path: PackedVector3Array = NavigationServer3D.map_get_path(
+		map, citizen.global_position, side, true
+	)
+	if path.is_empty():
+		citizen.move_to(NavigationServer3D.map_get_closest_point(map, side))
+	else:
+		citizen.move_to(path[path.size() - 1])

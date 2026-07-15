@@ -15,7 +15,7 @@ func enter() -> void:
 	_timeout = TIMEOUT
 	var dest: Node3D = _destination()
 	if dest == null:
-		citizen.drop_carry(true)
+		citizen.stash_carry()
 		citizen.abandon_task(&"no_destination")
 		citizen.state_machine.change(&"FindTask")
 		return
@@ -27,7 +27,7 @@ func tick(dt: float) -> void:
 	_timeout -= dt
 	var dest: Node3D = _destination()
 	if dest == null or _timeout <= 0.0:
-		citizen.drop_carry(true)
+		citizen.stash_carry()
 		citizen.abandon_task(&"unreachable")
 		citizen.state_machine.change(&"FindTask")
 		return

@@ -37,7 +37,8 @@ func _init(seed_value: int, half: float = DEFAULT_HALF) -> void:
 	_river_noise = FastNoiseLite.new()
 	_river_noise.seed = seed_value + 500
 	_river_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_river_noise.frequency = 0.0016
+	# Frecuencia baja: pocos ríos LARGOS y algún lago, no un valle acharcado
+	_river_noise.frequency = 0.0008
 	_biome_noise = FastNoiseLite.new()
 	_biome_noise.seed = seed_value + 101
 	_biome_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -57,7 +58,10 @@ func _init(seed_value: int, half: float = DEFAULT_HALF) -> void:
 ## DE RÍOS tallada encima. Pendientes pensadas para navmesh (<22° casi
 ## en todas partes; los cerros y orillas son el relieve con carácter).
 func height(x: float, z: float) -> float:
-	var h: float = _height_noise.get_noise_2d(x, z) * 2.4
+	# Suelo firme SIEMPRE sobre el agua: las hondonadas del ruido se
+	# comprimen (suelo ~0.0) — solo los ríos y lagos tallados se hunden.
+	var n: float = _height_noise.get_noise_2d(x, z)
+	var h: float = 0.4 + maxf(n, -0.15) * 2.6
 	# Cerros: donde el ruido de colinas sube de umbral, el relieve se
 	# multiplica — cadenas suaves de lomas altas, no picos alpinos.
 	var hill: float = _hill_noise.get_noise_2d(x, z)
@@ -74,11 +78,13 @@ func height(x: float, z: float) -> float:
 ## Cercanía al agua 0..1 (1 = centro del cauce). El río es la banda donde
 ## el ruido de ríos cruza el cero — serpentea solo, sin trazado a mano.
 func river_mask(x: float, z: float) -> float:
-	var wx: float = x + _warp_noise.get_noise_2d(x + 311.0, z) * 40.0
-	var wz: float = z + _warp_noise.get_noise_2d(x, z + 733.0) * 40.0
+	# Warp suave: serpentea la línea del cauce SIN trocearla en charcos
+	var wx: float = x + _warp_noise.get_noise_2d(x + 311.0, z) * 10.0
+	var wz: float = z + _warp_noise.get_noise_2d(x, z + 733.0) * 10.0
 	var n: float = absf(_river_noise.get_noise_2d(wx, wz))
-	# Banda del cauce: ríos de ~10-15 m con lagos donde el ruido se aplana
-	return clampf(1.0 - n / 0.026, 0.0, 1.0)
+	# Banda del cauce: ríos ANCHOS (~25-35 m con orillas) que pesan en el
+	# mapa y en la vista — cruzar un río debe imponer (orden del dueño).
+	return clampf(1.0 - n / 0.032, 0.0, 1.0)
 
 
 func is_water(x: float, z: float) -> bool:

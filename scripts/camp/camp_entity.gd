@@ -123,6 +123,23 @@ static func nearest_storage_node(tree: SceneTree, from: Vector3) -> Node3D:
 	return best
 
 
+## ¿El claro entero está seco y lejos del agua? Muestreo DENSO (centro +
+## 12 puntos a 4 m + 8 a 8 m): los meandros se cuelan entre muestras
+## sueltas — visto con el navmesh en la mano.
+static func clearing_is_dry(world_gen: WorldGen, x: float, z: float) -> bool:
+	if world_gen.river_mask(x, z) > 0.08:
+		return false
+	for i: int in 12:
+		var ang: float = TAU * float(i) / 12.0
+		if world_gen.river_mask(x + cos(ang) * 4.0, z + sin(ang) * 4.0) > 0.08:
+			return false
+	for i: int in 8:
+		var ang: float = TAU * float(i) / 8.0 + 0.3
+		if world_gen.river_mask(x + cos(ang) * 8.0, z + sin(ang) * 8.0) > 0.08:
+			return false
+	return true
+
+
 ## Campamento de una banda concreta (null si su campamento murió).
 static func camp_of_band(tree: SceneTree, which_band: int) -> CampEntity:
 	for node: Node in tree.get_nodes_in_group(&"camps"):
@@ -255,16 +272,31 @@ func _plan_wood() -> void:
 	var stats: Dictionary = TaskBoard.stats()
 	if int(stats["free"]) + int(stats["claimed"]) >= 14:
 		return
-	var best: TreeEntity = null
-	var best_d: float = TERRITORY_RADIUS * TERRITORY_RADIUS
+	var candidates: Array[TreeEntity] = []
 	for node: Node in get_tree().get_nodes_in_group(&"trees"):
 		var tree: TreeEntity = node as TreeEntity
 		if tree == null or tree.marked or not tree.choppable():
 			continue
-		var d: float = tree.global_position.distance_squared_to(global_position)
-		if d < best_d:
-			best_d = d
-			best = tree
-	if best != null:
-		best.set_marked(true)
-		TaskBoard.publish(&"chop", best.entity_id, {"band": band_id}, 6)
+		if (
+			tree.global_position.distance_squared_to(global_position)
+			< (TERRITORY_RADIUS * TERRITORY_RADIUS)
+		):
+			candidates.append(tree)
+	candidates.sort_custom(
+		func(a: TreeEntity, b: TreeEntity) -> bool:
+			return (
+				a.global_position.distance_squared_to(global_position)
+				< b.global_position.distance_squared_to(global_position)
+			)
+	)
+	# Como la T del jugador: nunca marcar un árbol SIN RUTA (un río entre
+	# medias convertía la tala rutinaria en peregrinajes fallidos)
+	for tree: TreeEntity in candidates.slice(0, 4):
+		if not is_inside_tree():
+			return
+		if NavUtil.is_practical(get_world_3d(), global_position, tree.global_position, 2.5):
+			tree.set_marked(true)
+			# Prioridad 7: la MÁS débil — cede ante órdenes del jugador (5),
+			# suministro (4) y construcción (5)
+			TaskBoard.publish(&"chop", tree.entity_id, {"band": band_id}, 7)
+			return

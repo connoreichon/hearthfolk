@@ -197,11 +197,11 @@ func _check_interrupts() -> void:
 	if current in [&"Eat", &"Rest", &"RecoverFromStuck"]:
 		return
 	if hunger < _cfg.hunger_threshold_eat and GameState.get_resource(&"food") > 0:
-		drop_carry(true)
+		stash_carry()
 		abandon_task(&"yield")
 		state_machine.change(&"Eat")
 	elif energy < _cfg.energy_threshold_rest:
-		drop_carry(true)
+		stash_carry()
 		abandon_task(&"yield")
 		state_machine.change(&"Rest")
 	elif SimClock.is_night() and current in [&"Idle", &"Wander", &"FindTask"]:
@@ -287,6 +287,15 @@ func deliver_carry(destination: Node3D) -> void:
 
 
 ## Soltar la carga al suelo (interrupciones): vuelve a ser un item físico.
+## Devolver lo cargado al almacén global (el porteador «vuelve con ello»,
+## abstracto): un timeout a mitad de viaje NO siembra el mapa de madera
+## perdida que luego atrae acarreos kilométricos.
+func stash_carry() -> void:
+	if carrying_amount > 0:
+		GameState.add_resource(carrying_type, carrying_amount)
+	drop_carry(false)
+
+
 func drop_carry(spawn_on_ground: bool) -> void:
 	if carrying_amount <= 0:
 		return
@@ -403,7 +412,10 @@ func move_to(point: Vector3) -> void:
 
 
 ## Acercarse a una entidad sin chocar con ella: objetivo desplazado
-## stand_off metros hacia el habitante y pegado al navmesh.
+## stand_off metros hacia el habitante y pegado al navmesh — al FINAL DEL
+## CAMINO REAL desde donde estoy. El snap a «punto más cercano» podía caer
+## en un islote (entre el agujero de una obra y el muro del río) y el
+## agente perseguía un fantasma inalcanzable hasta el timeout.
 func move_to_near(point: Vector3, stand_off: float) -> void:
 	var dir: Vector3 = global_position - point
 	dir.y = 0.0
@@ -411,7 +423,14 @@ func move_to_near(point: Vector3, stand_off: float) -> void:
 		dir = Vector3.FORWARD
 	var approach: Vector3 = point + dir.normalized() * stand_off
 	var map: RID = get_world_3d().navigation_map
-	move_to(NavigationServer3D.map_get_closest_point(map, approach))
+	var snapped_point: Vector3 = NavigationServer3D.map_get_closest_point(map, approach)
+	var path: PackedVector3Array = NavigationServer3D.map_get_path(
+		map, global_position, snapped_point, true
+	)
+	if path.is_empty():
+		move_to(snapped_point)
+		return
+	move_to(path[path.size() - 1])
 
 
 func stop_moving() -> void:

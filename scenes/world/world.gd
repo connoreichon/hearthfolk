@@ -88,12 +88,17 @@ func _auto_camp_spot() -> Vector3:
 			var z: float = sin(ang) * float(ring) * 6.0
 			if not world_gen.is_inside(x, z, 3.0):
 				continue
-			if world_gen.river_mask(x, z) > 0.18:
+			if not _camp_ring_dry(x, z):
 				continue
 			if terrain_data.get_slope_deg(x, z) > 18.0:
 				continue
 			return Vector3(x, 0.0, z)
 	return Vector3.ZERO
+
+
+## El claro del campamento entero en seco (muestreo denso compartido).
+func _camp_ring_dry(x: float, z: float) -> bool:
+	return CampEntity.clearing_is_dry(GameState.world_gen, x, z)
 
 
 ## Mundo gigante (S1): WorldGen como fuente de verdad, fachada TerrainData,
@@ -127,10 +132,26 @@ func found_camp(center: Vector3, band: int) -> CampEntity:
 	var camp: CampEntity = CampEntity.create(band, GameState.derive_seed(["camp", band]))
 	camp.position = Vector3(center.x, terrain_data.get_height(center.x, center.z) - 0.02, center.z)
 	nav_region.add_child(camp)
+	# El montón de suministros busca suelo SECO y llano alrededor de la
+	# hoguera (el ángulo aleatorio podía plantarlo dentro del río).
 	var pile: StaticBody3D = camp.storage_body()
+	var world_gen: WorldGen = GameState.world_gen
+	var base_ang: float = atan2(pile.position.z, pile.position.x)
+	for i: int in 8:
+		var ang: float = base_ang + TAU * float(i) / 8.0
+		var px: float = center.x + cos(ang) * 3.2
+		var pz: float = center.z + sin(ang) * 3.2
+		var ph: float = world_gen.height(px, pz)
+		if world_gen.river_mask(px, pz) > 0.15 or ph < WorldGen.WATER_LEVEL + 0.2:
+			continue
+		if terrain_data.get_slope_deg(px, pz) > 22.0:
+			continue
+		pile.position = Vector3(px - center.x, 0.0, pz - center.z)
+		pile.rotation.y = -ang
+		break
 	var pile_global: Vector3 = pile.global_position
 	pile.global_position.y = terrain_data.get_height(pile_global.x, pile_global.z)
-	camp.assign_identity(GameState.world_gen.biome(center.x, center.z))
+	camp.assign_identity(world_gen.biome(center.x, center.z))
 	EventBus.toast.emit("Se funda %s" % camp.settlement_name, &"success")
 	return camp
 
@@ -341,14 +362,21 @@ func _setup_light_and_environment() -> void:
 	_sky_mat = sky_mat
 	_env = env
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.0
+	# Pulido de salida: AgX da color más rico y luces menos quemadas
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_exposure = 1.15
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.6
 	env.ssao_radius = 1.5
 	env.glow_enabled = true
 	env.glow_intensity = 0.35
 	env.glow_hdr_threshold = 1.15
+	# Niebla de distancia suave: perspectiva aérea para el mapa gigante —
+	# lo lejano se funde con el horizonte en vez de cortarse en seco
+	env.fog_enabled = true
+	env.fog_light_color = Color("#CAD5C4")
+	env.fog_density = 0.0007
+	env.fog_sky_affect = 0.2
 	world_env.environment = env
 	add_child(world_env)
 

@@ -3,6 +3,11 @@ extends CitizenState
 ## Evalúa prioridades (§7.3) y reclama la mejor tarea del TaskBoard.
 ## Regla de oro: nunca actuar sobre un objetivo sin reclamarlo.
 
+## Presupuesto de distancia: en el mapa gigante, un trabajo a más de esto
+## no es tuyo (los desvíos legales alrededor de un río podían convertir
+## una tarea «cercana» en una expedición que caducaba a medio camino).
+const MAX_TASK_DISTANCE: float = 45.0
+
 
 func state_name() -> StringName:
 	return &"FindTask"
@@ -20,6 +25,13 @@ func tick(_dt: float) -> void:
 		citizen.band_id
 	)
 	if task == null:
+		citizen.state_machine.change(&"Wander")
+		return
+	var target: Node3D = EntityRegistry.get_node_by_id(task.target_id) as Node3D
+	if (
+		target != null
+		and citizen.global_position.distance_to(target.global_position) > MAX_TASK_DISTANCE
+	):
 		citizen.state_machine.change(&"Wander")
 		return
 	if not TaskBoard.claim(task.id, citizen.entity_id):

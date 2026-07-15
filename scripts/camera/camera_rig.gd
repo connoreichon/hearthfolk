@@ -5,6 +5,11 @@ extends Node3D
 
 ## Altura mínima de la cámara sobre el terreno que tenga debajo.
 const CAMERA_CLEARANCE: float = 3.0
+## Zoom máximo en vista de águila (siembra): se ve el mapa entero.
+const OVERVIEW_ZOOM_MAX: float = 720.0
+
+## Vista de águila (siembra de bandas): zoom ampliado y picado más vertical.
+var overview: bool = false
 
 var _cfg: CameraConfig
 var _target_zoom: float = 40.0
@@ -64,25 +69,22 @@ func _process(delta: float) -> void:
 		if deficit > 0.0:
 			target_y = maxf(target_y, position.y + deficit)
 		position.y = lerpf(position.y, target_y, k)
-	# Zoom exponencial suavizado + inclinación 48°→55°
+	# Zoom exponencial suavizado + inclinación 48°→55° (68° en vista águila)
 	arm.spring_length = lerpf(arm.spring_length, _target_zoom, k)
-	var zoom_f: float = clampf(
-		inverse_lerp(_cfg.zoom_min, _cfg.zoom_max, arm.spring_length), 0.0, 1.0
-	)
-	arm.rotation_degrees.x = -lerpf(_cfg.tilt_near_deg, _cfg.tilt_far_deg, zoom_f)
+	var far_zoom: float = OVERVIEW_ZOOM_MAX if overview else _cfg.zoom_max
+	var far_tilt: float = 68.0 if overview else _cfg.tilt_far_deg
+	var zoom_f: float = clampf(inverse_lerp(_cfg.zoom_min, far_zoom, arm.spring_length), 0.0, 1.0)
+	arm.rotation_degrees.x = -lerpf(_cfg.tilt_near_deg, far_tilt, zoom_f)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
 	if mouse_button != null:
+		var wheel_max: float = OVERVIEW_ZOOM_MAX if overview else _cfg.zoom_max
 		if mouse_button.button_index == MOUSE_BUTTON_WHEEL_UP and mouse_button.pressed:
-			_target_zoom = clampf(
-				_target_zoom * (1.0 - _cfg.zoom_step), _cfg.zoom_min, _cfg.zoom_max
-			)
+			_target_zoom = clampf(_target_zoom * (1.0 - _cfg.zoom_step), _cfg.zoom_min, wheel_max)
 		elif mouse_button.button_index == MOUSE_BUTTON_WHEEL_DOWN and mouse_button.pressed:
-			_target_zoom = clampf(
-				_target_zoom * (1.0 + _cfg.zoom_step), _cfg.zoom_min, _cfg.zoom_max
-			)
+			_target_zoom = clampf(_target_zoom * (1.0 + _cfg.zoom_step), _cfg.zoom_min, wheel_max)
 		elif mouse_button.button_index == MOUSE_BUTTON_MIDDLE:
 			_panning = mouse_button.pressed
 		elif (
@@ -99,10 +101,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		position += flat * Vector3(-motion.relative.x, 0.0, -motion.relative.y) * factor
 	if event.is_action_pressed(&"camera_focus"):
 		focus_settlement()
+	if event.is_action_pressed(&"camera_overview"):
+		# Vista de águila a voluntad (M): gestionar el valle desde el cielo
+		set_overview(not overview)
 
 
 func set_zoom(zoom: float) -> void:
-	_target_zoom = clampf(zoom, _cfg.zoom_min, _cfg.zoom_max)
+	var zoom_max: float = OVERVIEW_ZOOM_MAX if overview else _cfg.zoom_max
+	_target_zoom = clampf(zoom, _cfg.zoom_min, zoom_max)
+
+
+## Vista de águila on/off (la siembra ve el mapa entero; al volver, zoom de juego).
+func set_overview(enabled: bool) -> void:
+	overview = enabled
+	set_zoom(520.0 if enabled else 40.0)
 
 
 func get_state() -> Dictionary:

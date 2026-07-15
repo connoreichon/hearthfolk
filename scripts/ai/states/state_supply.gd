@@ -29,13 +29,13 @@ func tick(dt: float) -> void:
 	_timeout -= dt
 	var task: TaskBoard.Task = citizen.current_task()
 	if task == null or _timeout <= 0.0:
-		citizen.drop_carry(true)
+		citizen.stash_carry()
 		citizen.abandon_task(&"timeout")
 		citizen.state_machine.change(&"FindTask")
 		return
 	var site: ConstructionSite = citizen.task_target() as ConstructionSite
 	if site == null:
-		citizen.drop_carry(true)
+		citizen.stash_carry()
 		citizen.abandon_task(&"target_gone")
 		citizen.state_machine.change(&"FindTask")
 		return

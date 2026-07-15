@@ -106,6 +106,12 @@ func _build_top_bar() -> void:
 	settlements_button.focus_mode = Control.FOCUS_NONE
 	settlements_button.pressed.connect(_toggle_settlements)
 	row.add_child(settlements_button)
+	var overview_button: Button = Button.new()
+	overview_button.text = "Águila"
+	overview_button.tooltip_text = "Vista de águila: el valle entero (M)"
+	overview_button.focus_mode = Control.FOCUS_NONE
+	overview_button.pressed.connect(_toggle_overview)
+	row.add_child(overview_button)
 
 
 func _build_bottom_bar() -> void:
@@ -269,7 +275,17 @@ func _toggle_settlements() -> void:
 func _focus_camp(point: Vector3) -> void:
 	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
 	if not rigs.is_empty():
-		(rigs[0] as CameraRig).focus_on(point)
+		var rig: CameraRig = rigs[0] as CameraRig
+		# Ir a una aldea también baja del águila al suelo
+		rig.set_overview(false)
+		rig.focus_on(point)
+
+
+func _toggle_overview() -> void:
+	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
+	if not rigs.is_empty():
+		var rig: CameraRig = rigs[0] as CameraRig
+		rig.set_overview(not rig.overview)
 
 
 func _on_toast(message: String, kind: StringName) -> void:

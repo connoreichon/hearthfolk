@@ -210,14 +210,16 @@ func _build_water_blockers(world_gen: WorldGen, origin_x: float, origin_z: float
 	blockers.name = "WaterBlockers"
 	blockers.collision_layer = 1 << 5
 	blockers.collision_mask = 0
-	var cell: float = 4.0
+	# Celda de 2 m y umbral 0.30: MURO continuo sobre el cauce (con 4 m
+	# quedaban huecos diagonales y el navmesh cruzaba el río).
+	var cell: float = 2.0
 	var cells: int = int(CHUNK_SIZE / cell)
 	var any: bool = false
 	for iz: int in cells:
 		for ix: int in cells:
 			var cx: float = origin_x + (float(ix) + 0.5) * cell
 			var cz: float = origin_z + (float(iz) + 0.5) * cell
-			if world_gen.river_mask(cx, cz) < 0.5:
+			if world_gen.river_mask(cx, cz) < 0.30:
 				continue
 			any = true
 			var shape: CollisionShape3D = CollisionShape3D.new()

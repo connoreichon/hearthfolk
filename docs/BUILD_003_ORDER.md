@@ -182,6 +182,51 @@ un juego de dioses de maqueta.
   del campamento BUSCANDO recursos (sesgo del paseo hacia árboles, bayas
   y setas del territorio; lo que encuentran alimenta la auto-asignación).
 
+## UN SOLO DIOS: EL JUGADOR (orden del dueño 2026-07-16)
+
+No hay panteón: los aldeanos rezan al JUGADOR, le levantan esculturas y
+tótems, y las Culturas del Fuego son formas distintas de venerarle. Sus
+poderes son NATURALES, nunca mágicos: terremotos, tsunamis, huracanes,
+sequías (Build 004-005, junto al coste en rescoldos). Futuro (cuando haya
+más juego): PETICIONES AL DIOS — un aldeano necesitado alza la vista con
+una exclamación animada y bonita, y un texto dice qué le pediría a su
+dios; atenderla o ignorarla moldea la fe de su aldea.
+
+## Idiomas (dentro de Culturas del Fuego, orden del dueño)
+
+Cada cultura tiene su IDIOMA: generador de léxico por semilla cultural
+(sílabas y sonoridad propias) que alimenta topónimos, nombres de gente,
+gritos de festival y la crónica («en el habla de Vega: "brann-ka"»).
+Los dialectos divergen por bioma. Tras una guerra (Build 005): el vencedor
+impone su lengua… o nace una lengua criolla de las dos — se decidirá
+jugando qué es más sabroso.
+
+## Creador de mapas (menú de nueva partida, original — no WorldBox)
+
+El jugador forja su valle antes de sembrarlo: TAMAÑO (grande por defecto:
+«bastante grandecito»), MONTAÑAS (suaves ↔ cordilleras), MAR (sin costa /
+costa / archipiélago), RÍOS (pocos ↔ muchos), y semilla. Presentado
+bonito: previsualización del mapa dibujada al vuelo (la vista de águila
+del generador). Fase: tras S2, antes del cierre de la 003 si cabe.
+
+## Biomas extremos y adaptación humana (Build 004 — «Los Confines»)
+
+Aprovechando la inmensidad: NEVADO con montañas y DESIERTO en los
+extremos del mapa (gradiente climático), cada uno con recursos MINERALES
+propios, armas, ropa y dialecto — y la GENTE nace adaptada: tono de piel,
+abrigo, costumbres. El clima se ve y se sufre: aliento en el frío,
+espejismos de calor, ropa que cambia. La adaptación climática visible es
+requisito, no adorno.
+
+## Proporciones y fuego lento (orden del dueño)
+
+- **Ríos MÁS ANCHOS** (ya): el cauce debe pesar en el mapa y en la vista.
+- El viaje debe COSTAR: velocidades y distancias calibradas para que
+  cruzar el valle sea una expedición, no un paseo (revisión en S9).
+- **Progresión a fuego lento**: crecer de Campamento a Ciudad debe llevar
+  MUCHAS horas de juego satisfactorias; los diseños físicos cambian con
+  el rango (casas de aldea ≠ edificios de ciudad, calles, murallas).
+
 ## Progresión de asentamiento (norte de la saga, orden del dueño 2026-07-15)
 
 La escalera que guía TODAS las builds futuras, época medieval:
