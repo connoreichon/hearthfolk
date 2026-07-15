@@ -333,19 +333,22 @@ func _setup_light_and_environment() -> void:
 	add_child(sun)
 
 	# Falda de horizonte: pradera lejana bajo el borde del mapa, para que
-	# mirar más allá del límite no enseñe el vacío marrón del cielo.
+	# mirar más allá del límite (o desde la vista de águila) no enseñe el
+	# vacío del cielo. Radio amplio: cubre las esquinas del mapa (≈724 m) con
+	# margen, tono de bosque lejano velado por la niebla — continente, no borde.
 	var skirt: MeshInstance3D = MeshInstance3D.new()
 	skirt.name = "HorizonSkirt"
 	var disc: CylinderMesh = CylinderMesh.new()
-	disc.top_radius = 600.0
-	disc.bottom_radius = 600.0
+	disc.top_radius = 1100.0
+	disc.bottom_radius = 1100.0
 	disc.height = 0.1
-	disc.radial_segments = 32
+	disc.radial_segments = 48
 	var skirt_mat: StandardMaterial3D = StandardMaterial3D.new()
-	skirt_mat.albedo_color = palette.grass.darkened(0.22)
+	skirt_mat.albedo_color = palette.grass.lerp(palette.grass_light, 0.3).darkened(0.12)
+	skirt_mat.roughness = 1.0
 	disc.material = skirt_mat
 	skirt.mesh = disc
-	skirt.position = Vector3(0.0, -1.2, 0.0)
+	skirt.position = Vector3(0.0, -1.0, 0.0)
 	add_child(skirt)
 
 	var world_env: WorldEnvironment = WorldEnvironment.new()
@@ -355,9 +358,9 @@ func _setup_light_and_environment() -> void:
 	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color("#6E9BC4")
 	sky_mat.sky_horizon_color = Color("#C9D6C2")
-	# Verde oliva apagado, no tierra: si algún ángulo enseña el hemisferio
-	# inferior del cielo, que parezca pradera en la niebla y no barro.
-	sky_mat.ground_bottom_color = palette.dirt.lerp(palette.grass, 0.55)
+	# Hemisferio inferior = pradera lejana velada (no caqui): si un ángulo
+	# de la vista de águila mira por debajo del horizonte, ve continente.
+	sky_mat.ground_bottom_color = palette.grass.lerp(Color("#C9D6C2"), 0.45)
 	sky_mat.ground_horizon_color = Color("#C9D6C2")
 	var sky: Sky = Sky.new()
 	sky.sky_material = sky_mat
@@ -365,21 +368,27 @@ func _setup_light_and_environment() -> void:
 	_sky_mat = sky_mat
 	_env = env
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	# Pulido de salida: AgX da color más rico y luces menos quemadas
+	# Pulido de salida: AgX da luces menos quemadas pero tiende a lavar el
+	# color; el ajuste de saturación/contraste lo devuelve (la imagen se veía
+	# descolorida — feedback del probador).
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = 1.15
+	env.tonemap_exposure = 1.2
+	env.adjustment_enabled = true
+	env.adjustment_brightness = 1.02
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.28
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.6
 	env.ssao_radius = 1.5
 	env.glow_enabled = true
 	env.glow_intensity = 0.35
 	env.glow_hdr_threshold = 1.15
-	# Niebla de distancia suave: perspectiva aérea para el mapa gigante —
-	# lo lejano se funde con el horizonte en vez de cortarse en seco
+	# Niebla de distancia SUAVE: perspectiva aérea para el mapa gigante, pero
+	# floja para no lavar la vista de águila (densidad baja + poco en el cielo).
 	env.fog_enabled = true
-	env.fog_light_color = Color("#CAD5C4")
-	env.fog_density = 0.0007
-	env.fog_sky_affect = 0.2
+	env.fog_light_color = Color("#BFD0C4")
+	env.fog_density = 0.00035
+	env.fog_sky_affect = 0.1
 	world_env.environment = env
 	add_child(world_env)
 

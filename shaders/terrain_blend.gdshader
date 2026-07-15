@@ -12,11 +12,15 @@ global uniform vec4 season_grass_tint;
 global uniform float snow_amount;
 
 varying float v_path;
+varying float v_forest;   // COLOR.g = bosque (0 pradera .. 1 fronda)
+varying float v_highland; // COLOR.b = colinas / tierras altas
 varying vec3 v_world_pos;
 varying vec3 v_normal_w;
 
 void vertex() {
 	v_path = COLOR.r;
+	v_forest = COLOR.g;
+	v_highland = COLOR.b;
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_normal_w = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
@@ -29,6 +33,13 @@ void fragment() {
 	float slope = 1.0 - v_normal_w.y;
 	float dirt_amount = clamp(v_path + smoothstep(0.10, 0.28, slope), 0.0, 1.0);
 	grass = mix(grass, season_grass_tint.rgb, season_grass_tint.a);
+	// Tinte por BIOMA (S1/estética): la fronda oscurece y enfría el verde;
+	// las tierras altas lo secan hacia tostado. El valle se lee de un vistazo
+	// —praderas, bosques umbríos, colinas— también desde la vista de águila.
+	vec3 forest_green = grass * vec3(0.50, 0.70, 0.40);
+	grass = mix(grass, forest_green, clamp(v_forest, 0.0, 1.0) * 0.92);
+	vec3 highland_dry = mix(grass, vec3(0.58, 0.54, 0.36), 0.7);
+	grass = mix(grass, highland_dry, clamp(v_highland, 0.0, 1.0) * 0.62);
 	vec3 base = mix(grass, dirt, dirt_amount);
 	// Roca asomando en pendientes fuertes (gris frío con veta de ruido)
 	vec3 rock = mix(vec3(0.48, 0.49, 0.48), vec3(0.56, 0.55, 0.52), n_fine);

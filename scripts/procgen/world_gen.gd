@@ -106,6 +106,20 @@ func biome(x: float, z: float) -> int:
 	return Biome.PRADERA
 
 
+## Peso CONTINUO de bosque 0..1 (mismo eje que biome() pero suave): tinta
+## el terreno de verde más oscuro donde hay fronda, sin fronteras duras.
+## El mapa se lee de un vistazo (praderas claras, bosques umbríos).
+func forest_weight(x: float, z: float) -> float:
+	var wx: float = x + _warp_noise.get_noise_2d(x, z) * 45.0
+	var wz: float = z + _warp_noise.get_noise_2d(x + 977.0, z - 553.0) * 45.0
+	return smoothstep(0.05, 0.5, _biome_noise.get_noise_2d(wx, wz))
+
+
+## Peso CONTINUO de tierras altas 0..1: tono seco y tostado en las colinas.
+func highland_weight(x: float, z: float) -> float:
+	return smoothstep(0.12, 0.5, _hill_noise.get_noise_2d(x, z))
+
+
 ## Densidad relativa de árboles del bioma (multiplicador para los props).
 func tree_density(which: int) -> float:
 	match which:

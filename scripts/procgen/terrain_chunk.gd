@@ -33,18 +33,24 @@ static func create(world_gen: WorldGen, chunk_coord: Vector2i) -> TerrainChunk:
 	var side: int = RESOLUTION + 1
 	var heights: PackedFloat32Array = PackedFloat32Array()
 	heights.resize(side * side)
+	# Tintes de bioma por vértice: R libre (caminos S3), G bosque, B colina.
+	var tints: PackedColorArray = PackedColorArray()
+	tints.resize(side * side)
 	var step: float = CHUNK_SIZE / float(RESOLUTION)
 	var origin_x: float = float(chunk_coord.x) * CHUNK_SIZE
 	var origin_z: float = float(chunk_coord.y) * CHUNK_SIZE
 	for iz: int in side:
 		for ix: int in side:
-			heights[iz * side + ix] = world_gen.height(
-				origin_x + float(ix) * step, origin_z + float(iz) * step
+			var wx: float = origin_x + float(ix) * step
+			var wz: float = origin_z + float(iz) * step
+			heights[iz * side + ix] = world_gen.height(wx, wz)
+			tints[iz * side + ix] = Color(
+				0.0, world_gen.forest_weight(wx, wz), world_gen.highland_weight(wx, wz), 1.0
 			)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	mesh_instance.name = "Mesh"
-	mesh_instance.mesh = _build_mesh(heights, side, step)
+	mesh_instance.mesh = _build_mesh(heights, tints, side, step)
 	mesh_instance.material_override = MapGenerator.terrain_material(PaletteData.get_default())
 	chunk.add_child(mesh_instance)
 
@@ -241,7 +247,9 @@ func _place_local(node: Node3D, x: float, h: float, z: float, rng: RandomNumberG
 	add_child(node)
 
 
-static func _build_mesh(heights: PackedFloat32Array, side: int, step: float) -> ArrayMesh:
+static func _build_mesh(
+	heights: PackedFloat32Array, tints: PackedColorArray, side: int, step: float
+) -> ArrayMesh:
 	var verts: PackedVector3Array = PackedVector3Array()
 	var normals: PackedVector3Array = PackedVector3Array()
 	var colors: PackedColorArray = PackedColorArray()
@@ -259,7 +267,7 @@ static func _build_mesh(heights: PackedFloat32Array, side: int, step: float) -> 
 			var hd: float = heights[clampi(iz - 1, 0, side - 1) * side + ix]
 			var hu: float = heights[clampi(iz + 1, 0, side - 1) * side + ix]
 			normals[idx] = Vector3(hl - hr, 2.0 * step, hd - hu).normalized()
-			colors[idx] = Color(0.0, 0.0, 0.0)
+			colors[idx] = tints[idx]
 	for iz: int in side - 1:
 		for ix: int in side - 1:
 			var i00: int = iz * side + ix

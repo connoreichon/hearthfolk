@@ -68,7 +68,11 @@ static func _build_patch(world_gen: WorldGen, coord: Vector2i) -> ArrayMesh:
 			var hd: float = world_gen.height(wx, wz - step)
 			var hu: float = world_gen.height(wx, wz + step)
 			normals[idx] = Vector3(hl - hr, 2.0 * step, hd - hu).normalized()
-			colors[idx] = Color(0.0, 0.0, 0.0)
+			# Bioma por vértice (G bosque, B colina): el mapa lejano y la vista
+			# de águila muestran praderas, bosques y colinas, no un verde plano.
+			colors[idx] = Color(
+				0.0, world_gen.forest_weight(wx, wz), world_gen.highland_weight(wx, wz), 1.0
+			)
 	for iz: int in side - 1:
 		for ix: int in side - 1:
 			var i00: int = iz * side + ix
