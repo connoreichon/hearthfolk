@@ -13,6 +13,9 @@ const TREE_ID_STRIDE: int = 2048
 ## Los IDs dinámicos (colonos, obras, campamentos) viven por encima.
 const DYNAMIC_ID_FLOOR: int = 20_000_000
 
+static var _grass_mesh: ArrayMesh
+static var _grass_material: ShaderMaterial
+
 var coord: Vector2i = Vector2i.ZERO
 var populated: bool = false
 
@@ -72,6 +75,7 @@ func populate(world_gen: WorldGen) -> void:
 	var origin_z: float = float(coord.y) * CHUNK_SIZE
 	var tree_index: int = 0
 	_build_water_blockers(world_gen, origin_x, origin_z)
+	_plant_grass(world_gen, rng, origin_x, origin_z)
 	for point: Vector2 in points:
 		var x: float = origin_x + point.x
 		var z: float = origin_z + point.y
@@ -105,6 +109,97 @@ func populate(world_gen: WorldGen) -> void:
 		elif roll < 0.36 and (which == WorldGen.Biome.CLARO or which == WorldGen.Biome.PRADERA):
 			_place_local(PropGen.flower_patch(rng.randi()), x, h, z, rng)
 	EntityRegistry.reserve_below(DYNAMIC_ID_FLOOR)
+
+
+## Hierba mecida (S1): matas instanciadas en UN draw call por chunk, con
+## densidad por bioma, color variado y viento del shader de hierba.
+func _plant_grass(
+	world_gen: WorldGen, rng: RandomNumberGenerator, origin_x: float, origin_z: float
+) -> void:
+	var palette: PaletteData = PaletteData.get_default()
+	var transforms: Array[Transform3D] = []
+	var colors: Array[Color] = []
+	for _i: int in 900:
+		var x: float = origin_x + rng.randf() * CHUNK_SIZE
+		var z: float = origin_z + rng.randf() * CHUNK_SIZE
+		if not world_gen.is_inside(x, z, 2.0):
+			continue
+		var which: int = world_gen.biome(x, z)
+		var density: float = 1.0
+		match which:
+			WorldGen.Biome.BOSQUE:
+				density = 0.45
+			WorldGen.Biome.COLINAS:
+				density = 0.35
+			WorldGen.Biome.RIBERA:
+				density = 0.7
+		if rng.randf() > density:
+			continue
+		var h: float = world_gen.height(x, z)
+		if h < WorldGen.WATER_LEVEL + 0.2:
+			continue
+		var basis: Basis = Basis(Vector3.UP, rng.randf() * TAU)
+		basis = basis.scaled(Vector3.ONE * rng.randf_range(0.7, 1.25))
+		transforms.append(Transform3D(basis, Vector3(x - position.x, h - 0.01, z - position.z)))
+		colors.append(palette.grass.lerp(palette.grass_light, rng.randf()))
+	if transforms.is_empty():
+		return
+	var multi: MultiMesh = MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = true
+	multi.mesh = _tuft_mesh()
+	multi.instance_count = transforms.size()
+	for i: int in transforms.size():
+		multi.set_instance_transform(i, transforms[i])
+		multi.set_instance_color(i, colors[i])
+	var instance: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	instance.name = "Grass"
+	instance.multimesh = multi
+	instance.material_override = _grass_mat()
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(instance)
+
+
+static func _tuft_mesh() -> ArrayMesh:
+	if _grass_mesh != null:
+		return _grass_mesh
+	var verts: PackedVector3Array = PackedVector3Array()
+	var normals: PackedVector3Array = PackedVector3Array()
+	var indices: PackedInt32Array = PackedInt32Array()
+	# Dos quads cruzados, afilados hacia arriba (mata de hierba de cuento)
+	for quad: int in 2:
+		var dir: Vector3 = Vector3(1, 0, 0) if quad == 0 else Vector3(0, 0, 1)
+		var base_i: int = verts.size()
+		(
+			verts
+			. append_array(
+				[
+					-dir * 0.11,
+					dir * 0.11,
+					dir * 0.035 + Vector3(0, 0.45, 0),
+					-dir * 0.035 + Vector3(0, 0.45, 0),
+				]
+			)
+		)
+		for _v: int in 4:
+			normals.append(Vector3.UP)
+		indices.append_array([base_i, base_i + 1, base_i + 2, base_i, base_i + 2, base_i + 3])
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	_grass_mesh = ArrayMesh.new()
+	_grass_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return _grass_mesh
+
+
+static func _grass_mat() -> ShaderMaterial:
+	if _grass_material != null:
+		return _grass_material
+	_grass_material = ShaderMaterial.new()
+	_grass_material.shader = load("res://shaders/grass.gdshader")
+	return _grass_material
 
 
 ## El agua profunda NO se cruza (orden del dueño): cajas invisibles en la

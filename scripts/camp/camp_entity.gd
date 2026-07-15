@@ -132,10 +132,43 @@ static func camp_of_band(tree: SceneTree, which_band: int) -> CampEntity:
 	return null
 
 
-## Bautiza el asentamiento según su bioma madre (determinista por semilla).
+## Bautiza el asentamiento según su bioma madre (determinista por semilla)
+## y levanta los MOJONES que dibujan su frontera en el mundo.
 func assign_identity(biome: int) -> void:
 	home_biome = biome
 	settlement_name = SettlementNames.generate(camp_seed, biome)
+	_raise_boundary_stones()
+
+
+## Anillo de mojones en el borde del territorio: piedra baja con chispa de
+## brasa encima — la frontera se LEE en el paisaje, no en un menú.
+func _raise_boundary_stones() -> void:
+	var terrain: TerrainData = GameState.terrain
+	var world_gen: WorldGen = GameState.world_gen
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = camp_seed + 55
+	for i: int in 10:
+		var ang: float = TAU * float(i) / 10.0 + rng.randf_range(-0.1, 0.1)
+		var x: float = global_position.x + cos(ang) * TERRITORY_RADIUS
+		var z: float = global_position.z + sin(ang) * TERRITORY_RADIUS
+		if not world_gen.is_inside(x, z, 2.0):
+			continue
+		var h: float = world_gen.height(x, z)
+		if h < WorldGen.WATER_LEVEL + 0.15 or terrain.get_slope_deg(x, z) > 30.0:
+			continue
+		var stone: MeshInstance3D = PropGen.rock(rng.randi(), false)
+		stone.name = "Mojon%d" % i
+		stone.scale = Vector3.ONE * 0.85
+		stone.position = Vector3(
+			x - global_position.x, h - 0.04 - global_position.y, z - global_position.z
+		)
+		add_child(stone)
+		var ember: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.beveled_box(Vector3(0.09, 0.09, 0.09), 0.02), Color("#E8703A"), "Chispa"
+		)
+		ember.position = stone.position + Vector3(0.0, 0.34, 0.0)
+		ember.rotation.y = rng.randf() * TAU
+		add_child(ember)
 
 
 ## Rango del asentamiento por casas terminadas en su territorio.
