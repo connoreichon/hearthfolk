@@ -56,6 +56,7 @@ func _ready() -> void:
 	add_to_group(&"persistent")
 	add_to_group(&"selectable")
 	var shape: CollisionShape3D = CollisionShape3D.new()
+	shape.name = "Body"
 	var box: BoxShape3D = BoxShape3D.new()
 	box.size = Vector3(recipe.footprint.x + 0.4, 2.6, recipe.footprint.y + 0.4)
 	shape.shape = box
@@ -63,6 +64,7 @@ func _ready() -> void:
 	add_child(shape)
 	# Disco RVO dentro del agujero del navmesh (lado corto del footprint)
 	var obstacle: NavigationObstacle3D = NavigationObstacle3D.new()
+	obstacle.name = "Obstacle"
 	obstacle.radius = minf(recipe.footprint.x, recipe.footprint.y) * 0.5 + 0.2
 	obstacle.avoidance_enabled = true
 	add_child(obstacle)
@@ -316,6 +318,48 @@ func debug_complete() -> void:
 		phase_index = 1
 	while not completed:
 		apply_work(recipe.phases[phase_index - 1].work_units + 0.1)
+
+
+## S7 — Sube la casa TERMINADA al nivel siguiente: consume madera, rehace el
+## edificio con el aspecto del nuevo nivel (floreo) y reajusta colisión. Así
+## la aldea mejora sus casas poco a poco: choza → cabaña → casa de piedra.
+func upgrade_to_next() -> bool:
+	if not completed or recipe.upgrade_to.is_empty() or not is_inside_tree():
+		return false
+	# Colchón: una mejora no vacía la despensa (fuego lento).
+	if GameState.get_resource(&"wood") < recipe.upgrade_cost + 4:
+		return false
+	if not GameState.take_resource(&"wood", recipe.upgrade_cost):
+		return false
+	var next: BuildingRecipe = load(recipe.upgrade_to)
+	recipe = next
+	var old: Node = get_node_or_null("Cottage")
+	if old != null:
+		old.free()
+	var gen: Dictionary = CottageGen.build(
+		building_seed, next.footprint.x * 0.5, next.footprint.y * 0.5, next.id
+	)
+	add_child(gen["root"])
+	_pieces = {1: gen["foundation"], 2: gen["frame"], 3: gen["walls"], 4: gen["roof"]}
+	_shown = {1: 0, 2: 0, 3: 0, 4: 0}
+	_window_light = gen["window_light"]
+	for phase: int in [1, 2, 3, 4]:
+		_reveal_pieces(phase, 1.0)
+	_resize_body(next.footprint)
+	_spawn_sawdust(global_position + Vector3(0.0, 1.4, 0.0))
+	AudioDirector.play_at(&"hammer", global_position, -6.0)
+	EventBus.building_upgraded.emit(entity_id, next.tier)
+	EventBus.toast.emit("Una casa mejora a %s" % next.display_name, &"success")
+	return true
+
+
+func _resize_body(footprint: Vector2) -> void:
+	var body: CollisionShape3D = get_node_or_null("Body") as CollisionShape3D
+	if body != null and body.shape is BoxShape3D:
+		(body.shape as BoxShape3D).size = Vector3(footprint.x + 0.4, 2.6, footprint.y + 0.4)
+	var obstacle: NavigationObstacle3D = get_node_or_null("Obstacle") as NavigationObstacle3D
+	if obstacle != null:
+		obstacle.radius = minf(footprint.x, footprint.y) * 0.5 + 0.2
 
 
 func _build_stakes() -> Node3D:

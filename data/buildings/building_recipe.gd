@@ -9,6 +9,11 @@ extends Resource
 @export var total_height: float = 4.2
 @export var sleep_slots: int = 2
 @export var phases: Array[BuildingPhase] = []
+## S7 — Nivel de la casa (1 choza · 2 cabaña · 3 casa de piedra) y su mejora
+## al nivel siguiente (ruta de receta + coste en madera de la mejora).
+@export var tier: int = 2
+@export var upgrade_to: String = ""
+@export var upgrade_cost: int = 0
 
 
 func total_wood_cost() -> int:

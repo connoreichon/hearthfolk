@@ -77,9 +77,15 @@ func _ready() -> void:
 	EventBus.construction_started.connect(_on_construction_changed)
 	EventBus.construction_completed.connect(_on_construction_changed)
 	EventBus.construction_cancelled.connect(_on_construction_changed)
+	# Una mejora de casa cambia el footprint: rehornear también
+	EventBus.building_upgraded.connect(_on_building_upgraded)
 
 
 func _on_construction_changed(_building_id: int) -> void:
+	_bake_navmesh()
+
+
+func _on_building_upgraded(_building_id: int, _tier: int) -> void:
 	_bake_navmesh()
 
 

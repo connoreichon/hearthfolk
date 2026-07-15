@@ -114,10 +114,19 @@ que el jugador los siembre cerca a propósito).
 - **Hoja de ruta de fauna** (orden del dueño 2026-07-15): tres familias con núcleo común — PRESAS (conejo, ciervo; jabalí que se defiende), PELIGROSA (lobos S8; oso en 004), y **DOMESTICABLE** (Build 004: gallinas/cabras/ovejas capturables → corral + pastor como oficio → huevos/leche/lana). El núcleo AnimalEntity se diseña ya con las tres familias en mente.
 - Puerta: soak 1 año — caza ≥30 % de la comida invernal, ninguna persecución >30 s, poblaciones estables.
 
-### S7 — Autoconstrucción (el corazón del pitch)
-- `PlotValidator` extraído de tool_manager (geometría+solape, SIN acceso) + `HomePlanner`: cuándo (vínculo/pareja, sin cama, madera objetivo) y dónde (scoring: llano, cerca de SU hoguera, no pegado, cerca de recursos) decide construir cada aldeano; la obra entra al TaskBoard/ConstructionSite existentes.
-- Retirada REAL de R/H del jugador. Camas con dueño (reserva).
-- Puerta: soak 2 años — 10 colonos sembrados levantan ≥4 casas solos en sitios razonables, cero intervención.
+### S7 — Autoconstrucción por NIVELES (el corazón del pitch) — ENTREGADA (núcleo)
+> Diseño en `docs/S7_DESIGN.md`. Implementación: recetas `choza`/`cottage_a`/
+> `casa_piedra` con `tier`/`upgrade_to`/`upgrade_cost`; `CottageGen` con los 3
+> niveles; `ConstructionSite.upgrade_to_next()` (rehace la casa al nivel
+> siguiente con floreo, reajusta colisión, rehornea navmesh); HomePlanner en
+> `CampEntity` (`_plan_home`/`_plan_upgrades`). Tests `test_homes.gd`, soak
+> `soak_s7.gd`. Verificado: una banda de 8 levanta 5 casas y madura de chozas a
+> CASAS DE PIEDRA, con niveles conviviendo (captura s7_aldea.png, sube a Pueblo).
+- Los aldeanos levantan una CHOZA humilde cuando alguien no tiene cama (asentamiento establecido, pob ≥5), con la maquinaria de obras existente. Emplazamiento con `_find_plot` (llano, seco, en territorio, acceso practicable), puerta a la hoguera.
+- Las casas TERMINADAS suben de nivel cuando la aldea crece y hay madera: choza→cabaña (pob ≥4), cabaña→casa de piedra (pob ≥7). Una mejora por pasada → maduran poco a poco y a distintos ritmos (casas de varios niveles a la vez).
+- Camas con dueño: cada casa da `sleep_slots` (1→2→3); `claim_sleep_slot` las reserva por colono.
+- PENDIENTE (S7.1 / S8): retirada real de R/H del jugador; emplazamiento adaptado a desnivel fuerte; upgrades conducidos por el propio aldeano (obra, no instantáneo); más variedad de plantas por nivel.
+- Puerta: soak 1-2 años — banda sembrada levanta ≥3 casas SOLA y alguna sube de nivel, cero intervención, sin atascos ni fugas.
 
 ### S8 — Eras y clímax
 - `EraController`: pieles → madera → piedra por logros (población/edificios/comida); recetas por era (choza de pieles → cabaña → casa de piedra); ropa por era solo en recién llegados.

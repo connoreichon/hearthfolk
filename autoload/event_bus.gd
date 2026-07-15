@@ -28,6 +28,7 @@ signal construction_phase_advanced(building_id: int, phase: int)
 signal construction_completed(building_id: int)
 signal construction_stalled(building_id: int, missing: Dictionary)
 signal construction_cancelled(building_id: int)
+signal building_upgraded(building_id: int, tier: int)
 
 # Siembra de bandas (Build 003)
 signal band_placed(band_id: int, center: Vector3)

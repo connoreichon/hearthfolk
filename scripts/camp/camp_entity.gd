@@ -11,6 +11,8 @@ extends Node3D
 const TERRITORY_RADIUS: float = 30.0
 ## Leña objetivo del asentamiento: por debajo, el campamento marca árboles.
 const WOOD_TARGET: int = 24
+## Receta de la primera casa (nivel 1); mejora sola a cabaña y casa de piedra.
+const HOME_RECIPE: String = "res://data/buildings/choza.tres"
 
 var entity_id: int = 0
 var band_id: int = 0
@@ -357,6 +359,82 @@ func _plan_wood() -> void:
 func _plan_infrastructure() -> void:
 	_plan_farm()
 	_plan_shed()
+	_plan_home()
+	_plan_upgrades()
+
+
+## S7 — Los aldeanos levantan una CHOZA cuando alguien no tiene cama en casa
+## (dormir al raso junto a la hoguera es el recurso, no el objetivo). Una
+## casa en obra a la vez: fuego lento. La choza mejora sola con el tiempo.
+func _plan_home() -> void:
+	# Solo asentamientos ESTABLECIDOS construyen casas (una banda pequeña
+	# acampa; una crecida se echa raíces). Umbral de 5 habitantes.
+	if population() < 5:
+		return
+	if population() <= _house_beds():
+		return
+	if GameState.get_resource(&"wood") < 10:
+		return
+	if _house_under_construction():
+		return
+	var rect: Rect2 = _find_plot(Vector2(6.0, 6.0), &"zone")
+	if rect.size.x <= 0.0:
+		return
+	var center: Vector2 = rect.get_center()
+	var at: Vector3 = Vector3(center.x, GameState.terrain.get_height(center.x, center.y), center.y)
+	# Puerta hacia la hoguera (como las casas del jugador)
+	var to_fire: Vector3 = global_position - at
+	var yaw: float = snappedf(atan2(to_fire.x, to_fire.z) - PI * 0.5, PI * 0.5)
+	ConstructionSite.place(
+		get_parent() as Node3D, at, yaw, camp_seed + 900 + _house_beds(), 0, HOME_RECIPE
+	)
+	EventBus.toast.emit("En %s levantan una nueva choza" % settlement_name, &"info")
+
+
+## S7 — Una casa TERMINADA sube de nivel cuando la aldea crece y hay madera
+## de sobra: choza→cabaña (pob ≥4), cabaña→casa de piedra (pob ≥7). Una
+## mejora por pasada: las casas maduran poco a poco, a distintos ritmos.
+func _plan_upgrades() -> void:
+	var pop: int = population()
+	for node: Node in get_tree().get_nodes_in_group(&"buildings"):
+		var site: ConstructionSite = node as ConstructionSite
+		if site == null or not site.completed or site.recipe.upgrade_to.is_empty():
+			continue
+		if site.global_position.distance_to(global_position) > TERRITORY_RADIUS:
+			continue
+		var next_tier: int = site.recipe.tier + 1
+		if next_tier == 2 and pop < 4:
+			continue
+		if next_tier >= 3 and pop < 7:
+			continue
+		if GameState.get_resource(&"wood") < site.recipe.upgrade_cost + 6:
+			continue
+		if site.upgrade_to_next():
+			return
+
+
+## Camas dentro de casas de la banda (las de la hoguera son el recurso base).
+func _house_beds() -> int:
+	var beds: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"buildings"):
+		var site: ConstructionSite = node as ConstructionSite
+		if site == null or not site.completed:
+			continue
+		if site.global_position.distance_to(global_position) <= TERRITORY_RADIUS:
+			beds += site.recipe.sleep_slots
+	return beds
+
+
+func _house_under_construction() -> bool:
+	for node: Node in get_tree().get_nodes_in_group(&"construction_sites"):
+		var site: ConstructionSite = node as ConstructionSite
+		if site == null or site.completed:
+			continue
+		if site.recipe.sleep_slots <= 0:
+			continue
+		if site.global_position.distance_to(global_position) <= TERRITORY_RADIUS:
+			return true
+	return false
 
 
 func _plan_farm() -> void:

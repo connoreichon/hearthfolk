@@ -5,41 +5,41 @@
 
 [sub_resource type="Resource" id="phase_1"]
 script = ExtResource("2_ph")
-display_name = "Cimientos"
+display_name = "Cimientos de piedra"
 wood_cost = 3
-work_units = 20.0
+work_units = 24.0
 mesh_group = &"foundation"
 
 [sub_resource type="Resource" id="phase_2"]
 script = ExtResource("2_ph")
 display_name = "Estructura"
 wood_cost = 4
-work_units = 26.0
+work_units = 30.0
 mesh_group = &"frame"
 
 [sub_resource type="Resource" id="phase_3"]
 script = ExtResource("2_ph")
-display_name = "Paredes"
-wood_cost = 3
-work_units = 22.0
+display_name = "Muros de piedra"
+wood_cost = 4
+work_units = 28.0
 mesh_group = &"walls"
 
 [sub_resource type="Resource" id="phase_4"]
 script = ExtResource("2_ph")
-display_name = "Tejado y acabado"
-wood_cost = 2
-work_units = 16.0
+display_name = "Tejado y chimenea"
+wood_cost = 3
+work_units = 22.0
 mesh_group = &"roof"
 
 [resource]
 script = ExtResource("1_rec")
-id = &"cottage_a"
-display_name = "Cabaña"
-footprint = Vector2(5, 4)
-wall_height = 2.6
-total_height = 4.2
-sleep_slots = 2
-tier = 2
-upgrade_to = "res://data/buildings/casa_piedra.tres"
-upgrade_cost = 14
+id = &"casa_piedra"
+display_name = "Casa de piedra"
+footprint = Vector2(5.5, 4.5)
+wall_height = 2.95
+total_height = 4.8
+sleep_slots = 3
+tier = 3
+upgrade_to = ""
+upgrade_cost = 0
 phases = [SubResource("phase_1"), SubResource("phase_2"), SubResource("phase_3"), SubResource("phase_4")]
