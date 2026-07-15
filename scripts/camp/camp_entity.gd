@@ -15,6 +15,9 @@ const WOOD_TARGET: int = 24
 var entity_id: int = 0
 var band_id: int = 0
 var camp_seed: int = 0
+## Nombre propio del asentamiento (topónimo automático) y su bioma madre.
+var settlement_name: String = ""
+var home_biome: int = WorldGen.Biome.PRADERA
 
 var _plan_timer: float = 0.0
 
@@ -129,6 +132,39 @@ static func camp_of_band(tree: SceneTree, which_band: int) -> CampEntity:
 	return null
 
 
+## Bautiza el asentamiento según su bioma madre (determinista por semilla).
+func assign_identity(biome: int) -> void:
+	home_biome = biome
+	settlement_name = SettlementNames.generate(camp_seed, biome)
+
+
+## Rango del asentamiento por casas terminadas en su territorio.
+func rank_name() -> String:
+	var houses: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"buildings"):
+		var building: Node3D = node as Node3D
+		if building.global_position.distance_to(global_position) <= TERRITORY_RADIUS:
+			houses += 1
+	if houses >= 14:
+		return "Ciudad"
+	if houses >= 8:
+		return "Villa"
+	if houses >= 4:
+		return "Pueblo"
+	if houses >= 1:
+		return "Aldea"
+	return "Campamento"
+
+
+## Habitantes de la banda de este asentamiento.
+func population() -> int:
+	var count: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		if (node as Citizen).band_id == band_id:
+			count += 1
+	return count
+
+
 func entity_kind() -> String:
 	return "camp"
 
@@ -138,14 +174,20 @@ func save_data() -> Dictionary:
 		"id": entity_id,
 		"band": band_id,
 		"seed": camp_seed,
+		"name": settlement_name,
+		"biome": home_biome,
 		"pos": [global_position.x, global_position.y, global_position.z],
 	}
 
 
 func load_data(d: Dictionary) -> void:
 	band_id = int(d.get("band", 0))
+	settlement_name = String(d.get("name", ""))
+	home_biome = int(d.get("biome", WorldGen.Biome.PRADERA))
 	var pos: Array = d.get("pos", [0.0, 0.0, 0.0])
 	global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
+	if settlement_name.is_empty():
+		assign_identity(home_biome)
 
 
 func _ready() -> void:

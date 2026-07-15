@@ -40,12 +40,13 @@ static func spawn_water(parent: Node3D, world_gen: WorldGen) -> void:
 	water.name = "Water"
 	var water_mesh: PlaneMesh = PlaneMesh.new()
 	water_mesh.size = Vector2(world_gen.map_half * 2.0, world_gen.map_half * 2.0)
+	# Subdivisiones para que las olas de vértice tengan con qué ondular
+	water_mesh.subdivide_width = 96
+	water_mesh.subdivide_depth = 96
 	water.mesh = water_mesh
 	water.position = Vector3(0.0, WATER_LEVEL, 0.0)
-	var water_mat: StandardMaterial3D = StandardMaterial3D.new()
-	water_mat.albedo_color = Color(palette.water, 0.78)
-	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water_mat.roughness = 0.2
-	water_mat.metallic = 0.0
+	var water_mat: ShaderMaterial = ShaderMaterial.new()
+	water_mat.shader = load("res://shaders/water.gdshader")
+	water_mat.set_shader_parameter(&"water_color", Color(palette.water, 0.78))
 	water.material_override = water_mat
 	parent.add_child(water)

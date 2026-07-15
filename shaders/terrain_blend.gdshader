@@ -30,6 +30,15 @@ void fragment() {
 	float dirt_amount = clamp(v_path + smoothstep(0.10, 0.28, slope), 0.0, 1.0);
 	grass = mix(grass, season_grass_tint.rgb, season_grass_tint.a);
 	vec3 base = mix(grass, dirt, dirt_amount);
+	// Roca asomando en pendientes fuertes (gris frío con veta de ruido)
+	vec3 rock = mix(vec3(0.48, 0.49, 0.48), vec3(0.56, 0.55, 0.52), n_fine);
+	base = mix(base, rock, smoothstep(0.3, 0.52, slope));
+	// Orilla húmeda: banda oscura junto al nivel del agua (-0.55)
+	float wet = smoothstep(0.45, -0.05, v_world_pos.y - (-0.55));
+	base = mix(base, base * 0.62, wet * 0.8);
+	// Sombras de nubes deslizándose con el tiempo (mundo vivo desde arriba)
+	float clouds = texture(noise_tex, v_world_pos.xz * 0.004 + vec2(TIME * 0.008, TIME * 0.005)).r;
+	base *= 1.0 - smoothstep(0.62, 0.85, clouds) * 0.14;
 	// Nieve: cubre la hierba, respeta un poco el camino y acumula con ruido
 	float snow_mask = snow_amount * (1.0 - dirt_amount * 0.55) * (0.75 + n_fine * 0.25);
 	ALBEDO = mix(base, vec3(0.92, 0.93, 0.95), clamp(snow_mask, 0.0, 1.0));

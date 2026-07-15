@@ -130,6 +130,8 @@ func found_camp(center: Vector3, band: int) -> CampEntity:
 	var pile: StaticBody3D = camp.storage_body()
 	var pile_global: Vector3 = pile.global_position
 	pile.global_position.y = terrain_data.get_height(pile_global.x, pile_global.z)
+	camp.assign_identity(GameState.world_gen.biome(center.x, center.z))
+	EventBus.toast.emit("Se funda %s" % camp.settlement_name, &"success")
 	return camp
 
 

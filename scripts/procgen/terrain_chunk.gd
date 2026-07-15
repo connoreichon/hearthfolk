@@ -75,9 +75,12 @@ func populate(world_gen: WorldGen) -> void:
 	for point: Vector2 in points:
 		var x: float = origin_x + point.x
 		var z: float = origin_z + point.y
-		if not world_gen.is_inside(x, z, 2.0) or world_gen.is_water(x, z):
+		if not world_gen.is_inside(x, z, 2.0):
 			continue
 		var h: float = world_gen.height(x, z)
+		# Nada brota sumergido (lagos e islas de la banda del cauce incluidos)
+		if h < WorldGen.WATER_LEVEL + 0.15:
+			continue
 		var slope_x: float = world_gen.height(x + 1.0, z) - h
 		var slope_z: float = world_gen.height(x, z + 1.0) - h
 		if slope_x * slope_x + slope_z * slope_z > 0.16:

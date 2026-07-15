@@ -35,6 +35,7 @@ var _selected_id: int = -1
 var _dest_line: MeshInstance3D
 var _milestones_panel: PanelContainer
 var _milestones_label: Label
+var _settlements_panel: PanelContainer
 
 
 func _ready() -> void:
@@ -100,6 +101,11 @@ func _build_top_bar() -> void:
 	milestones_button.focus_mode = Control.FOCUS_NONE
 	milestones_button.pressed.connect(_toggle_milestones)
 	row.add_child(milestones_button)
+	var settlements_button: Button = Button.new()
+	settlements_button.text = "Aldeas"
+	settlements_button.focus_mode = Control.FOCUS_NONE
+	settlements_button.pressed.connect(_toggle_settlements)
+	row.add_child(settlements_button)
 
 
 func _build_bottom_bar() -> void:
@@ -206,6 +212,64 @@ func _toggle_milestones() -> void:
 		var nodes: Array[Node] = get_tree().get_nodes_in_group(&"milestones")
 		if not nodes.is_empty():
 			_milestones_label.text = String(nodes[0].call(&"summary"))
+
+
+## Panel de aldeas (orden del dueño): cada asentamiento con su emblema,
+## nombre, rango y población — y un botón para volar la cámara hasta él.
+func _toggle_settlements() -> void:
+	if _settlements_panel == null:
+		_settlements_panel = PanelContainer.new()
+		_settlements_panel.add_theme_stylebox_override(&"panel", _panel_style())
+		_settlements_panel.position = Vector2(10.0, 60.0)
+		add_child(_settlements_panel)
+	else:
+		_settlements_panel.visible = not _settlements_panel.visible
+	if not _settlements_panel.visible:
+		return
+	for child: Node in _settlements_panel.get_children():
+		child.free()
+	var box: VBoxContainer = VBoxContainer.new()
+	box.add_theme_constant_override(&"separation", 8)
+	_settlements_panel.add_child(box)
+	var title: Label = Label.new()
+	title.text = "Aldeas del valle"
+	title.add_theme_color_override(&"font_color", _palette.accent)
+	title.add_theme_font_size_override(&"font_size", 18)
+	box.add_child(title)
+	var camps: Array[Node] = get_tree().get_nodes_in_group(&"camps")
+	camps.sort_custom(
+		func(a: Node, b: Node) -> bool: return (a as CampEntity).band_id < (b as CampEntity).band_id
+	)
+	for node: Node in camps:
+		var camp: CampEntity = node as CampEntity
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override(&"separation", 10)
+		box.add_child(row)
+		row.add_child(SettlementEmblem.new(camp.home_biome, camp.camp_seed))
+		var info: VBoxContainer = VBoxContainer.new()
+		row.add_child(info)
+		var name_label: Label = Label.new()
+		name_label.text = camp.settlement_name
+		name_label.add_theme_color_override(&"font_color", _palette.ui_text)
+		name_label.add_theme_font_size_override(&"font_size", 16)
+		info.add_child(name_label)
+		var detail: Label = Label.new()
+		detail.text = "%s · %d habitantes" % [camp.rank_name(), camp.population()]
+		detail.add_theme_color_override(&"font_color", Color(_palette.ui_text, 0.65))
+		detail.add_theme_font_size_override(&"font_size", 13)
+		info.add_child(detail)
+		var go: Button = Button.new()
+		go.text = "Ir"
+		go.focus_mode = Control.FOCUS_NONE
+		go.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		go.pressed.connect(_focus_camp.bind(camp.global_position))
+		row.add_child(go)
+
+
+func _focus_camp(point: Vector3) -> void:
+	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
+	if not rigs.is_empty():
+		(rigs[0] as CameraRig).focus_on(point)
 
 
 func _on_toast(message: String, kind: StringName) -> void:
