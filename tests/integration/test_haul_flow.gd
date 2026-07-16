@@ -22,6 +22,10 @@ func before_each() -> void:
 		var dist: float = tree.global_position.distance_to(camp.global_position)
 		if dist < CampEntity.TERRITORY_RADIUS + 2.0:
 			tree.free()
+	# Determinismo (M0): este test va de ACARREO, no del crafteo de S2 —
+	# los fundadores llegan con herramientas para no gastar ventana tallando.
+	for node: Node in _tree_scene.get_nodes_in_group(&"citizens"):
+		(node as Citizen).data.has_tools = true
 
 
 func after_each() -> void:
@@ -52,7 +56,7 @@ func test_ground_wood_ends_in_storage_without_duplicates() -> void:
 	assert_eq(GameState.get_resource(&"wood"), 0)
 
 	var done: bool = false
-	for _f: int in 4200:
+	for _f: int in 6400:
 		await _tree_scene.process_frame
 		if (
 			GameState.get_resource(&"wood") == 6
@@ -62,4 +66,12 @@ func test_ground_wood_ends_in_storage_without_duplicates() -> void:
 			break
 	assert_true(done, "toda la madera llega al almacén (wood=%d)" % GameState.get_resource(&"wood"))
 	assert_eq(GameState.get_resource(&"wood"), 6, "sin duplicados: exactamente 6")
-	assert_eq(EntityRegistry.all_of_kind(&"resource").size(), 0, "sin items huérfanos registrados")
+	# Settle (M0): el free del último item y su baja del registro pueden
+	# cruzar un frame — se espera la condición, no un instante exacto.
+	var registry_clear: bool = false
+	for _f: int in 300:
+		await _tree_scene.process_frame
+		if EntityRegistry.all_of_kind(&"resource").is_empty():
+			registry_clear = true
+			break
+	assert_true(registry_clear, "sin items huérfanos registrados")

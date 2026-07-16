@@ -2,10 +2,19 @@ class_name NavUtil
 ## Utilidades de navegación: comprobación de alcanzabilidad (§16).
 
 
+## ¿El mapa de navegación ya hizo su PRIMERA sincronización? Consultarlo
+## antes dispara «query failed because it was made before first map
+## synchronization» (cazado por el revisor de la 004 en el frame 0).
+static func map_ready(map: RID) -> bool:
+	return NavigationServer3D.map_get_iteration_id(map) != 0
+
+
 static func is_reachable(
 	world: World3D, from: Vector3, to: Vector3, tolerance: float = 1.6
 ) -> bool:
 	var map: RID = world.navigation_map
+	if not map_ready(map):
+		return false
 	if _path_reaches(map, from, to, tolerance):
 		return true
 	# El snap del origen puede caer en una ISLA del navmesh (p. ej. la tapa
@@ -33,6 +42,8 @@ static func is_practical(
 	slack: float = 60.0
 ) -> bool:
 	var map: RID = world.navigation_map
+	if not map_ready(map):
+		return false
 	var path: PackedVector3Array = _best_path(map, from, to, tolerance)
 	if path.is_empty():
 		return false

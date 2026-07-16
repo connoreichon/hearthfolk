@@ -14,6 +14,9 @@ func enter() -> void:
 	_attempt += 1
 	_wait = 0.5
 	var map: RID = citizen.get_world_3d().navigation_map
+	# Mapa sin su primera sincronización: no hay recuperación que hacer aún
+	if not NavUtil.map_ready(map):
+		return
 	match _attempt:
 		1:
 			# (a) reintentar la ruta actual
@@ -69,6 +72,9 @@ func _side_step(map: RID) -> void:
 	var ang: float = citizen.local_rng.randf() * TAU
 	var radius: float = citizen.local_rng.randf_range(2.0, 4.0)
 	var side: Vector3 = citizen.global_position + Vector3(cos(ang) * radius, 0.0, sin(ang) * radius)
+	if not NavUtil.map_ready(map):
+		citizen.move_to(side)
+		return
 	# Final del camino real: nunca apuntar a la isla de enfrente
 	var path: PackedVector3Array = NavigationServer3D.map_get_path(
 		map, citizen.global_position, side, true

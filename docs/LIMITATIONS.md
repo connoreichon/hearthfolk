@@ -1,13 +1,27 @@
-# LIMITATIONS — limitaciones reales de la Build 001, sin maquillar
+# LIMITATIONS — limitaciones reales, sin maquillar
 
-- **Música omitida** (previsto en la orden §13): los buses y el sistema de audio están listos; no hay pista musical. Plan: pieza generativa por capas en `gen_audio.py` en una build futura.
+## Vigentes (Build 004, M0)
+
+- **Runner: 4 instancias ObjectDB al salir** (2 `MeshInstance3D` sin ruta +
+  2 `StandardMaterial3D`), estables entre corridas. Los `RID leaked` y los
+  `resources still in use` están a CERO tras M0 (ResourceJanitor +
+  AudioDirector.shutdown + drenaje del hilo de audio). No crece con el
+  número de tests ni afecta al juego. Plan: rastrear instance_id en M5.
+- **Vista de águila**: la falda de horizonte (disco r=1100) se percibe en
+  ángulos rasantes desde el borde. Plan: fundido con niebla en M2.
+- **Sombra blob**: quad plano que no sigue la pendiente. Plan: M2 (decal o
+  raycast de 3 puntos, como pide la orden 004).
+- **Música**: aún omitida; buses listos. Plan: M6 (generativa por capas).
+
+## Históricas (Build 001, las que siguen aplicando)
+
+- **Necesidades descanso/seguridad/vínculo**: seguridad y vínculo ya alimentan la moral (Q4); descanso sigue inerte en datos.
 - **Necesidades descanso/seguridad/vínculo inertes**: existen en datos, guardado y panel de depuración, pero no alteran la IA (así lo pide §7.1 para esta build).
 - **Ritmo de necesidades del contrato**: con los valores literales de §3 (hambre 1.4/min de simulación), el primer "comer por hambre" tarda varios días in-game. El descanso nocturno sí ocurre cada día. El cheat F3 «Vaciar necesidades» permite ver el ciclo comer/dormir al momento. Decisión documentada en DECISIONS.md.
 - **Demoler**: cancela obras (con reembolso) y zonas, y desmarca árboles; la cabaña TERMINADA no se puede demoler en esta build.
 - **Cursor de zona**: la herramienta de tala tiene cursor de hacha pixel-art propio; la de zona usa el cursor en cruz del sistema, no un icono propio.
 - **Tooltip "Demasiado joven"**: es un Label3D flotante sobre el árbol, no un tooltip de UI anclado al cursor.
 - **UI construida por código**: `hud.tscn`/`panel_selection.tscn`/`debug_overlay.tscn` del árbol §2.1 no existen como escenas; la UI vive en `scripts/ui/hud.gd` y `autoload/debug_console.gd` (misma razón que el input map: una sola fuente de verdad tipada). El resto de la estructura §2.1 se respeta.
-- **Avisos "RID leaked at exit" en el runner de tests**: solo al salir del proceso de tests (quit con escena viva y materiales estáticos cacheados). No ocurren en ejecución normal del juego ni en el export. Pendiente de limpieza fina.
-- **Sombra blob**: quad estático bajo los pies; no se deforma con la pendiente del terreno.
+- ~~Avisos "RID leaked at exit" en el runner~~ — RESUELTO en Build 004 M0.
 - **El agua es un plano visual** (así lo pide §4): sin simulación ni interacción.
 - **Guardado**: 1 slot, como pide §14. La cámara restaurada puede derivar milímetros por el suavizado del pivot (semánticamente irrelevante, verificado con tolerancia en el test).

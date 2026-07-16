@@ -417,11 +417,18 @@ func _setup_light_and_environment() -> void:
 func _bake_navmesh() -> void:
 	var nav_mesh: NavigationMesh = NavigationMesh.new()
 	# cell 0.3 = valor del mapa de navegación en project.godot (evita warnings)
-	nav_mesh.agent_radius = 0.6
+	# Radio en múltiplo EXACTO de la celda (0.4×1): si no, el bake lo cierra
+	# por arriba con pérdida de precisión y lo canta en consola. Con 0.8 el
+	# margen rozaba la geometría del campamento y mutaba los edge errors.
+	nav_mesh.agent_radius = 0.4
 	nav_mesh.agent_height = 1.8
 	nav_mesh.agent_max_climb = 0.6
 	nav_mesh.agent_max_slope = 42.0
-	nav_mesh.cell_size = 0.3
+	# Celda XY 0.4 (M0 de la 004): con 0.3, las laderas fuertes del relieve
+	# nuevo metían >2 aristas por celda de rasterización («7 edge errors»,
+	# semilla 4444). La altura se queda en 0.3: el path_height_offset de los
+	# agentes (0.6) depende de ella.
+	nav_mesh.cell_size = 0.4
 	nav_mesh.cell_height = 0.3
 	nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	# terrain(1) | building(16) | prop_static(32). Los árboles NO se hornean:

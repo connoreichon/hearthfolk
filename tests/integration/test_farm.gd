@@ -42,8 +42,9 @@ func test_farm_cycle_produces_food() -> void:
 	var food_start: int = GameState.get_resource(&"food")
 	var harvested: bool = false
 	# Ventana holgada: con los rasgos de S2 hay cuadrillas torpes con la
-	# azada (work_factor <1) y la primera cosecha puede tardar más
-	for _f: int in 6400:
+	# azada (work_factor <1), y el navmesh de celda 0.4 (M0) rodea un pelín
+	# más los obstáculos — la primera cosecha puede tardar más
+	for _f: int in 8200:
 		await _tree_scene.process_frame
 		if GameState.get_resource(&"food") > food_start:
 			harvested = true

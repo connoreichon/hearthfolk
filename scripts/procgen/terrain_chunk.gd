@@ -229,23 +229,37 @@ func _build_water_blockers(world_gen: WorldGen, origin_x: float, origin_z: float
 	blockers.collision_layer = 1 << 5
 	blockers.collision_mask = 0
 	# Celda de 2 m y umbral 0.30: MURO continuo sobre el cauce (con 4 m
-	# quedaban huecos diagonales y el navmesh cruzaba el río).
+	# quedaban huecos diagonales y el navmesh cruzaba el río). Las celdas
+	# CONTIGUAS en X se fusionan en UNA tira (M0 de la 004): cientos de
+	# cajas tocándose cara a cara metían >2 aristas coplanares en la misma
+	# celda de rasterización del navmesh («7 edge errors» del revisor).
 	var cell: float = 2.0
 	var cells: int = int(CHUNK_SIZE / cell)
 	var any: bool = false
 	for iz: int in cells:
-		for ix: int in cells:
-			var cx: float = origin_x + (float(ix) + 0.5) * cell
-			var cz: float = origin_z + (float(iz) + 0.5) * cell
-			if world_gen.river_mask(cx, cz) < 0.30:
-				continue
-			any = true
-			var shape: CollisionShape3D = CollisionShape3D.new()
-			var box: BoxShape3D = BoxShape3D.new()
-			box.size = Vector3(cell, 4.0, cell)
-			shape.shape = box
-			shape.position = Vector3(cx - position.x, WorldGen.WATER_LEVEL + 0.6, cz - position.z)
-			blockers.add_child(shape)
+		var cz: float = origin_z + (float(iz) + 0.5) * cell
+		var run_start: int = -1
+		for ix: int in cells + 1:
+			var wet: bool = false
+			if ix < cells:
+				var cx: float = origin_x + (float(ix) + 0.5) * cell
+				wet = world_gen.river_mask(cx, cz) >= 0.30
+			if wet and run_start == -1:
+				run_start = ix
+			elif not wet and run_start != -1:
+				# Cierra la tira [run_start, ix): una sola caja alargada
+				any = true
+				var length: float = float(ix - run_start) * cell
+				var mid_x: float = origin_x + float(run_start) * cell + length * 0.5
+				var shape: CollisionShape3D = CollisionShape3D.new()
+				var box: BoxShape3D = BoxShape3D.new()
+				box.size = Vector3(length, 4.0, cell)
+				shape.shape = box
+				shape.position = Vector3(
+					mid_x - position.x, WorldGen.WATER_LEVEL + 0.6, cz - position.z
+				)
+				blockers.add_child(shape)
+				run_start = -1
 	if any:
 		add_child(blockers)
 	else:

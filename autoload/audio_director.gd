@@ -12,6 +12,7 @@ var _ambience_day: AudioStreamPlayer
 var _ambience_night: AudioStreamPlayer
 var _fire_player: AudioStreamPlayer3D
 var _music_player: AudioStreamPlayer
+var _music_fade: Tween
 var _music_season: int = -1
 var _bird_timer: float = 6.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -102,6 +103,31 @@ func get_bus_volume_linear(bus_name: String) -> float:
 	return db_to_linear(AudioServer.get_bus_volume_db(idx))
 
 
+## M0 (Build 004): salida limpia — parar toda voz y soltar los streams
+## cacheados para que el proceso no reporte AudioStreamWAV filtrados.
+func shutdown() -> void:
+	set_process(false)
+	if _music_fade != null and _music_fade.is_valid():
+		_music_fade.kill()
+	if SimClock.phase_changed.is_connected(_on_phase_changed):
+		SimClock.phase_changed.disconnect(_on_phase_changed)
+	if SimClock.season_changed.is_connected(_on_music_season):
+		SimClock.season_changed.disconnect(_on_music_season)
+	for child: Node in get_children():
+		if child is AudioStreamPlayer:
+			(child as AudioStreamPlayer).stop()
+			(child as AudioStreamPlayer).stream = null
+		elif child is AudioStreamPlayer3D:
+			(child as AudioStreamPlayer3D).stop()
+			(child as AudioStreamPlayer3D).stream = null
+		child.free()
+	_ambience_day = null
+	_ambience_night = null
+	_fire_player = null
+	_music_player = null
+	_streams.clear()
+
+
 func _setup_ambience() -> void:
 	_ambience_day = _make_loop_player(&"ambience_forest", -14.0)
 	_ambience_night = _make_loop_player(&"insects_night", -60.0)
@@ -140,14 +166,21 @@ func _on_music_season(season: int) -> void:
 	var stream: AudioStreamWAV = (_streams[sound] as AudioStreamWAV).duplicate()
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	stream.loop_end = stream.data.size() / 2
+	# Captura local blindada: el callback del fundido dispara 2 s después y
+	# el player puede haber muerto (shutdown del runner, cambio de escena).
+	var player: AudioStreamPlayer = _music_player
+	if _music_fade != null and _music_fade.is_valid():
+		_music_fade.kill()
 	var fade: Tween = create_tween()
-	fade.tween_property(_music_player, "volume_db", -50.0, 2.0)
+	_music_fade = fade
+	fade.tween_property(player, "volume_db", -50.0, 2.0)
 	fade.tween_callback(
 		func() -> void:
-			_music_player.stream = stream
-			_music_player.play()
+			if is_instance_valid(player):
+				player.stream = stream
+				player.play()
 	)
-	fade.tween_property(_music_player, "volume_db", -13.0, 3.0)
+	fade.tween_property(player, "volume_db", -13.0, 3.0)
 
 
 func _make_loop_player(sound: StringName, volume_db: float) -> AudioStreamPlayer:

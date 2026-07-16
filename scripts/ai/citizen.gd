@@ -395,6 +395,10 @@ func rest_spot() -> Vector3:
 		return center + Vector3(2.3, 0.0, 0.0)
 	var world_3d: World3D = get_world_3d()
 	var map: RID = world_3d.navigation_map
+	# Mapa sin su primera sincronización (frame 0 / tests): nada de queries —
+	# fallback seguro junto al fuego (M0 de la 004, cazado por el revisor).
+	if not NavUtil.map_ready(map):
+		return center + Vector3(2.3, 0.0, 0.0)
 	var base_slot: int = entity_id % 8
 	for i: int in 8:
 		var ang: float = float((base_slot + i) % 8) * TAU / 8.0 + 0.4
@@ -464,6 +468,9 @@ func move_to_near(point: Vector3, stand_off: float) -> void:
 		dir = Vector3.FORWARD
 	var approach: Vector3 = point + dir.normalized() * stand_off
 	var map: RID = get_world_3d().navigation_map
+	if not NavUtil.map_ready(map):
+		move_to(approach)
+		return
 	var snapped_point: Vector3 = NavigationServer3D.map_get_closest_point(map, approach)
 	var path: PackedVector3Array = NavigationServer3D.map_get_path(
 		map, global_position, snapped_point, true
@@ -537,6 +544,8 @@ func _check_stuck(dt: float) -> void:
 func _force_unstick() -> void:
 	EventBus.citizen_stuck.emit(entity_id, global_position)
 	var map: RID = get_world_3d().navigation_map
+	if not NavUtil.map_ready(map):
+		return
 	# Caso 1 — VARADO en isla (señal FIABLE: sin camino desde la hoguera).
 	# Rescate en cualquier estado (hasta un agricultor puede quedar aislado).
 	if is_stranded_from_home() and _rescue_home(map):
@@ -578,6 +587,8 @@ func is_stranded_from_home() -> bool:
 	if camp == null:
 		return false
 	var map: RID = get_world_3d().navigation_map
+	if not NavUtil.map_ready(map):
+		return false
 	var path: PackedVector3Array = NavigationServer3D.map_get_path(
 		map, camp.global_position, global_position, true
 	)
@@ -609,7 +620,7 @@ func rescue_home() -> bool:
 ## la fogata está en el navmesh principal del asentamiento: siempre conecta.
 func _rescue_home(map: RID) -> bool:
 	var camp: CampEntity = home_camp()
-	if camp == null:
+	if camp == null or not NavUtil.map_ready(map):
 		return false
 	var fire: Vector3 = camp.global_position
 	for i: int in 8:
@@ -626,7 +637,7 @@ func _rescue_home(map: RID) -> bool:
 ## del labio del terreno contra el que empujaba, de vuelta a terreno bueno.
 func _hop_home(map: RID) -> bool:
 	var camp: CampEntity = home_camp()
-	if camp == null:
+	if camp == null or not NavUtil.map_ready(map):
 		return false
 	var path: PackedVector3Array = NavigationServer3D.map_get_path(
 		map, global_position, camp.global_position, true
@@ -654,6 +665,8 @@ func _hop_home(map: RID) -> bool:
 ## si la dirección de escape cae en el río (borde del navmesh) y se queda
 ## corta, otra abrirá. global_position solo si no hay ninguna salida.
 func _decongest_point(map: RID) -> Vector3:
+	if not NavUtil.map_ready(map):
+		return global_position
 	var fire: Vector3 = CampEntity.nearest_fire_position(get_tree(), global_position)
 	var away: Vector3 = global_position - fire
 	away.y = 0.0

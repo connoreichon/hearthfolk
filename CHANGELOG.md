@@ -1,5 +1,23 @@
 # CHANGELOG — Hearthfolk
 
+# BUILD 004 — «Camino al Mercado» (en curso)
+
+## M0 — Arreglos previos (2026-07-16)
+- `NavUtil.map_ready()` + guards en TODAS las queries de navegación
+  tempranas (rest_spot, move_to_near, desatascos, llegadas, recover):
+  adiós al `query failed before first map synchronization`. Test de
+  regresión `test_nav_ready.gd`.
+- 0 «edge errors» del bake: celda XY 0.4 + agent_radius 0.4 (múltiplos
+  exactos), bloqueadores de agua fusionados en tiras, y respiro de 2
+  frames entre ficheros del runner. Diagnóstico por bisección con el
+  filtro nuevo `HF_TEST_FILTER` del runner.
+- `test_haul_flow` determinista (herramientas de serie, ventana mayor,
+  settle por condición): 20/20 corridas verdes.
+- Salida limpia del runner: `ResourceJanitor` (caches estáticos) +
+  `AudioDirector.shutdown()` (tween de música blindado y matado, streams
+  liberados) + drenaje del hilo de audio. 0 RID leaked; quedan 4 objetos
+  efímeros estables documentados en LIMITATIONS.md.
+
 # BUILD 002 — «Un año en la colina» (2026-07-14)
 
 ## Q0 — Cara de juego

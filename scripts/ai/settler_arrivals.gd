@@ -112,6 +112,9 @@ func _safe_spawn_point(world: Node3D, camp: CampEntity) -> Vector3:
 	var fire_pos: Vector3 = camp.global_position
 	var world_3d: World3D = world.get_world_3d()
 	var map: RID = world_3d.navigation_map
+	# Mapa sin sincronizar (primeros frames): junto a la fogata y listo
+	if not NavUtil.map_ready(map):
+		return fire_pos + Vector3(2.0, 0.1, 2.0)
 	for radius: float in [26.0, 20.0, 14.0]:
 		for step: int in 8:
 			var ang: float = TAU * float(step) / 8.0 + radius
