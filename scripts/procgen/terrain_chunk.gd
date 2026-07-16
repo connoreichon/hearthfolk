@@ -117,6 +117,11 @@ func populate(world_gen: WorldGen) -> void:
 			and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA, WorldGen.Biome.RIBERA]
 		):
 			_place_local(PropGen.flower_patch(rng.randi()), x, h, z, rng)
+		elif roll < 0.413 and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA]:
+			# Fauna ambiental: un conejo que salta por el prado (solo visual)
+			var rabbit: Rabbit = Rabbit.new()
+			rabbit.position = Vector3(x - position.x, h + 0.03, z - position.z)
+			add_child(rabbit)
 	EntityRegistry.reserve_below(DYNAMIC_ID_FLOOR)
 
 
@@ -128,7 +133,7 @@ func _plant_grass(
 	var palette: PaletteData = PaletteData.get_default()
 	var transforms: Array[Transform3D] = []
 	var colors: Array[Color] = []
-	for _i: int in 900:
+	for _i: int in 1400:
 		var x: float = origin_x + rng.randf() * CHUNK_SIZE
 		var z: float = origin_z + rng.randf() * CHUNK_SIZE
 		if not world_gen.is_inside(x, z, 2.0):

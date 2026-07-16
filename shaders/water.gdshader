@@ -12,9 +12,11 @@ varying vec3 v_world_pos;
 
 void vertex() {
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float wave = sin(v_world_pos.x * 0.35 + TIME * 1.1)
-		+ cos(v_world_pos.z * 0.28 + TIME * 0.8);
-	VERTEX.y += wave * 0.045;
+	// Agua CALMADA (orden del dueño): los lagos y ríos no son mar — apenas
+	// un rizo lento y corto, nada de marea que sube y baja.
+	float wave = sin(v_world_pos.x * 0.6 + TIME * 0.5)
+		+ cos(v_world_pos.z * 0.5 + TIME * 0.35);
+	VERTEX.y += wave * 0.012;
 }
 
 void fragment() {
@@ -27,9 +29,9 @@ void fragment() {
 	// Espuma: banda fina donde el agua casi toca la orilla, con vaivén
 	float foam_band = smoothstep(0.72, 0.98, shallow + sin(TIME * 1.6 + v_world_pos.x * 0.8) * 0.03);
 	vec3 body = mix(deep_color.rgb, water_color.rgb, shallow * 0.7);
-	// Chispas de sol: olitas especulares baratas
-	float sparkle = pow(max(sin(v_world_pos.x * 2.1 + TIME * 1.4) * cos(v_world_pos.z * 1.7 - TIME), 0.0), 12.0);
-	body += vec3(0.25) * sparkle * 0.35;
+	// Chispas de sol: olitas especulares baratas, discretas
+	float sparkle = pow(max(sin(v_world_pos.x * 2.1 + TIME * 0.7) * cos(v_world_pos.z * 1.7 - TIME * 0.5), 0.0), 14.0);
+	body += vec3(0.22) * sparkle * 0.25;
 	ALBEDO = mix(body, foam_color.rgb, foam_band);
 	ALPHA = mix(mix(deep_color.a, water_color.a, shallow), foam_color.a, foam_band);
 	ROUGHNESS = 0.18;

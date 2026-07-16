@@ -14,6 +14,7 @@ var _new_box: VBoxContainer
 var _load_box: VBoxContainer
 var _options: OptionsPanel
 var _seed_edit: LineEdit
+var _fav_pick: OptionButton
 var _settlers_slider: HSlider
 var _settlers_value: Label
 var _slot_pick: int = 1
@@ -134,6 +135,21 @@ func _build_ui() -> void:
 	dice.text = "Azar"
 	dice.pressed.connect(func() -> void: _seed_edit.text = str(randi() % 100000))
 	seed_row.add_child(dice)
+	# Favoritos de semilla (orden del dueño): cada mapa es distinto, pero el
+	# que te enamore se guarda con estrella y vuelves a él cuando quieras.
+	var fav_row: HBoxContainer = HBoxContainer.new()
+	fav_row.add_theme_constant_override(&"separation", 8)
+	_new_box.add_child(fav_row)
+	var star: Button = Button.new()
+	star.text = "★ Guardar mapa"
+	star.tooltip_text = "Guarda esta semilla en favoritos"
+	star.pressed.connect(_save_favorite)
+	fav_row.add_child(star)
+	_fav_pick = OptionButton.new()
+	_fav_pick.custom_minimum_size = Vector2(170.0, 0.0)
+	_fav_pick.item_selected.connect(_on_favorite_picked)
+	fav_row.add_child(_fav_pick)
+	_refresh_favorites()
 	var settlers_row: HBoxContainer = HBoxContainer.new()
 	settlers_row.add_theme_constant_override(&"separation", 8)
 	_new_box.add_child(settlers_row)
@@ -240,6 +256,51 @@ func _pick_slot(slot: int) -> void:
 
 func _on_settlers_changed(value: float) -> void:
 	_settlers_value.text = str(int(value))
+
+
+## --- Favoritos de semilla (user://seed_favorites.json) ---
+
+
+func _favorites() -> Array:
+	if not FileAccess.file_exists("user://seed_favorites.json"):
+		return []
+	var file: FileAccess = FileAccess.open("user://seed_favorites.json", FileAccess.READ)
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	return parsed if parsed is Array else []
+
+
+func _save_favorite() -> void:
+	var seed_text: String = _seed_edit.text.strip_edges()
+	if seed_text.is_empty():
+		return
+	var favs: Array = _favorites()
+	if seed_text in favs:
+		return
+	favs.append(seed_text)
+	# Como mucho 12 favoritos: los más nuevos desplazan a los más viejos
+	while favs.size() > 12:
+		favs.pop_front()
+	var file: FileAccess = FileAccess.open("user://seed_favorites.json", FileAccess.WRITE)
+	file.store_string(JSON.stringify(favs))
+	_refresh_favorites()
+	AudioDirector.play_ui(&"ui_confirm")
+
+
+func _refresh_favorites() -> void:
+	_fav_pick.clear()
+	_fav_pick.add_item("★ Favoritos…")
+	_fav_pick.set_item_disabled(0, true)
+	for fav: Variant in _favorites():
+		_fav_pick.add_item("Mapa %s" % str(fav))
+	_fav_pick.visible = _fav_pick.item_count > 1
+
+
+func _on_favorite_picked(index: int) -> void:
+	if index <= 0:
+		return
+	var favs: Array = _favorites()
+	if index - 1 < favs.size():
+		_seed_edit.text = str(favs[index - 1])
 
 
 func _prepare_new_game_state() -> void:

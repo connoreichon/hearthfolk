@@ -29,6 +29,8 @@ static func bush(seed_value: int) -> Node3D:
 	var root: Node3D = Node3D.new()
 	root.name = "Bush"
 	var blob_count: int = rng.randi_range(2, 3)
+	var berry_bush: bool = rng.randf() < 0.4
+	var berry_color: Color = Color("#B4432F") if rng.randf() < 0.6 else Color("#6A5B9E")
 	for blob_i: int in blob_count:
 		var radius: float = rng.randf_range(0.3, 0.55)
 		var mesh: ArrayMesh = MeshLib.low_sphere(radius, 4, 7, rng.randf_range(0.6, 0.75))
@@ -38,9 +40,21 @@ static func bush(seed_value: int) -> Node3D:
 		blob.position = Vector3(
 			rng.randf_range(-0.3, 0.3), radius * 0.45, rng.randf_range(-0.3, 0.3)
 		)
-		var color: Color = palette.grass.lerp(palette.grass_light, rng.randf())
+		var color: Color = palette.grass.darkened(0.08).lerp(palette.grass_light, rng.randf() * 0.6)
 		blob.material_override = _wind_material(color, 0.04, 0.8)
 		root.add_child(blob)
+		# Arbusto de BAYAS (pasada de color): puntitos rojos o azulados
+		if berry_bush:
+			for _b: int in rng.randi_range(2, 4):
+				var berry: MeshInstance3D = MeshLib.mesh_instance(
+					MeshLib.low_sphere(0.035, 3, 5, 1.0), berry_color, "Berry"
+				)
+				var ang: float = rng.randf() * TAU
+				berry.position = (
+					blob.position
+					+ Vector3(cos(ang) * radius * 0.8, radius * 0.3, sin(ang) * radius * 0.8)
+				)
+				root.add_child(berry)
 	return root
 
 

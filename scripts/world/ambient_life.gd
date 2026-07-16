@@ -6,6 +6,7 @@ extends Node3D
 
 var _fireflies: GPUParticles3D
 var _leaves: GPUParticles3D
+var _butterflies: GPUParticles3D
 var _rig: Node3D
 
 
@@ -14,6 +15,8 @@ func _ready() -> void:
 	add_child(_fireflies)
 	_leaves = _make_leaves()
 	add_child(_leaves)
+	_butterflies = _make_butterflies()
+	add_child(_butterflies)
 
 
 func _process(_delta: float) -> void:
@@ -26,11 +29,15 @@ func _process(_delta: float) -> void:
 	var focus: Vector3 = _rig.global_position
 	_fireflies.global_position = focus + Vector3(0.0, 0.6, 0.0)
 	_leaves.global_position = focus + Vector3(0.0, 9.0, 0.0)
-	# Luciérnagas solo de anochecer/noche; hojas solo en otoño y de día
+	_butterflies.global_position = focus + Vector3(0.0, 0.9, 0.0)
+	# Luciérnagas solo de anochecer/noche; hojas solo en otoño y de día;
+	# mariposas de día en primavera/verano
 	var night: bool = SimClock.get_phase() >= SimClock.Phase.DUSK
 	_fireflies.emitting = night
 	var autumn: bool = SimClock.get_season() == SimClock.Season.AUTUMN
 	_leaves.emitting = autumn and not night
+	var warm: bool = SimClock.get_season() <= SimClock.Season.SUMMER
+	_butterflies.emitting = warm and not night
 
 
 func _make_fireflies() -> GPUParticles3D:
@@ -71,6 +78,47 @@ func _make_fireflies() -> GPUParticles3D:
 	mat.emission_enabled = true
 	mat.emission = Color("#F4EC7E")
 	mat.emission_energy_multiplier = 3.0
+	quad.material = mat
+	particles.draw_pass_1 = quad
+	particles.emitting = false
+	return particles
+
+
+func _make_butterflies() -> GPUParticles3D:
+	var particles: GPUParticles3D = GPUParticles3D.new()
+	particles.name = "Butterflies"
+	particles.amount = 26
+	particles.lifetime = 8.0
+	particles.preprocess = 4.0
+	particles.visibility_aabb = AABB(Vector3(-30, -2, -30), Vector3(60, 8, 60))
+	var proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
+	proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	proc.emission_box_extents = Vector3(26.0, 1.2, 26.0)
+	proc.direction = Vector3(0.0, 0.3, 0.0)
+	proc.spread = 180.0
+	proc.gravity = Vector3.ZERO
+	proc.initial_velocity_min = 0.3
+	proc.initial_velocity_max = 0.8
+	proc.turbulence_enabled = true
+	proc.turbulence_noise_strength = 0.6
+	proc.turbulence_noise_scale = 2.5
+	proc.scale_min = 0.6
+	proc.scale_max = 1.1
+	# Colores cálidos variados por partícula
+	var ramp: Gradient = Gradient.new()
+	ramp.set_color(0, Color("#E8B54A"))
+	ramp.set_color(1, Color("#D97BA6"))
+	ramp.add_point(0.5, Color("#EDE6DA"))
+	var ramp_tex: GradientTexture1D = GradientTexture1D.new()
+	ramp_tex.gradient = ramp
+	proc.color_initial_ramp = ramp_tex
+	particles.process_material = proc
+	var quad: QuadMesh = QuadMesh.new()
+	quad.size = Vector2(0.12, 0.1)
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
 	particles.draw_pass_1 = quad
 	particles.emitting = false
