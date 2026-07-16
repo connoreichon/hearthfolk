@@ -24,6 +24,7 @@ var felled: bool = false
 var _visual: Node3D
 var _axe_marker: Node3D
 var _tooltip: Label3D
+var _ring: MeshInstance3D
 
 
 static func create(seed_value: int, is_young: bool) -> TreeEntity:
@@ -277,17 +278,42 @@ func _one_shot_particles(at: Vector3, color: Color, count: int, life: float) -> 
 	cleanup.tween_callback(particles.queue_free)
 
 
+## Feedback de hover/marcado: ANILLO en el suelo (el contorno por
+## material_overlay pintaba de oro las tarjetas-hoja de los árboles nuevos).
+## Recibe el material de contorno solo para leer su color; null = ocultar.
 func _apply_overlay(mat: Material) -> void:
-	for child: Node in _visual.get_children():
-		if child is MeshInstance3D:
-			(child as MeshInstance3D).material_overlay = mat
+	if mat == null:
+		if _ring != null:
+			_ring.visible = false
+		return
+	if _ring == null:
+		_ring = MeshInstance3D.new()
+		_ring.name = "SelectRing"
+		var torus: TorusMesh = TorusMesh.new()
+		torus.inner_radius = 1.15
+		torus.outer_radius = 1.38
+		_ring.mesh = torus
+		_ring.scale = Vector3(1.0, 0.22, 1.0)
+		_ring.position = Vector3(0.0, 0.09, 0.0)
+		_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_ring)
+	var color: Color = Color(1, 1, 1)
+	if mat is ShaderMaterial:
+		var c: Variant = (mat as ShaderMaterial).get_shader_parameter(&"outline_color")
+		if c is Color:
+			color = c
+	var ring_mat: StandardMaterial3D = StandardMaterial3D.new()
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.albedo_color = color
+	_ring.material_override = ring_mat
+	_ring.visible = true
 
 
 func _build_axe_marker() -> Node3D:
 	var palette: PaletteData = PaletteData.get_default()
 	var marker: Node3D = Node3D.new()
 	marker.name = "AxeMarker"
-	marker.position = Vector3(0.0, 4.1, 0.0)
+	marker.position = Vector3(0.0, 7.1, 0.0)
 	var handle: MeshInstance3D = MeshLib.mesh_instance(
 		MeshLib.cylinder(0.035, 0.03, 0.5, 6), palette.wood_light, "Handle"
 	)
@@ -299,8 +325,8 @@ func _build_axe_marker() -> Node3D:
 	head.position = Vector3(0.09, 0.16, 0.0)
 	marker.add_child(head)
 	var bob: Tween = marker.create_tween().set_loops()
-	bob.tween_property(marker, "position:y", 4.35, 0.9).set_trans(Tween.TRANS_SINE)
-	bob.tween_property(marker, "position:y", 4.1, 0.9).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(marker, "position:y", 7.35, 0.9).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(marker, "position:y", 7.1, 0.9).set_trans(Tween.TRANS_SINE)
 	var spin: Tween = marker.create_tween().set_loops()
 	spin.tween_property(marker, "rotation:y", TAU, 4.0).from(0.0)
 	return marker
