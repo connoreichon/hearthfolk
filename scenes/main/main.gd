@@ -125,14 +125,7 @@ func _build_pause_menu() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_pause_layer.add_child(dim)
 	var panel: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(palette.ui_panel, 0.96)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 24.0
-	style.content_margin_right = 24.0
-	style.content_margin_top = 18.0
-	style.content_margin_bottom = 18.0
-	panel.add_theme_stylebox_override(&"panel", style)
+	panel.add_theme_stylebox_override(&"panel", UiCraft.panel_warm())
 	panel.anchor_left = 0.5
 	panel.anchor_top = 0.5
 	panel.anchor_right = 0.5
@@ -150,7 +143,7 @@ func _build_pause_menu() -> void:
 	box.add_child(title)
 	for entry: Array in [
 		["Continuar", _toggle_pause_menu],
-		["Guardar partida", func() -> void: SaveManager.save_game()],
+		["Guardar partida", _save_from_pause],
 		["Opciones", _toggle_pause_options],
 		["Salir al menú", _exit_to_menu],
 	]:
@@ -159,6 +152,7 @@ func _build_pause_menu() -> void:
 		button.custom_minimum_size = Vector2(260.0, 42.0)
 		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(entry[1])
+		UiCraft.style_button(button)
 		box.add_child(button)
 	_pause_options = OptionsPanel.new()
 	_pause_options.visible = false
@@ -185,6 +179,13 @@ func _toggle_pause_menu() -> void:
 
 func _toggle_pause_options() -> void:
 	_pause_options.visible = not _pause_options.visible
+
+
+## En plena siembra no se guarda (se perderían los colonos sin asentar) —
+## mismo bloqueo que el atajo de teclado.
+func _save_from_pause() -> void:
+	if not GameState.placement_pending:
+		SaveManager.save_game()
 
 
 ## Mismo desmontaje determinista que el menú usa al entrar en partida:

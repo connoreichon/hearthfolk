@@ -1,7 +1,10 @@
 class_name Hud
 extends CanvasLayer
-## HUD (§12): barra superior (día·hora·población·recursos·velocidad),
-## barra inferior de herramientas, panel lateral de selección y toasts.
+## HUD (§12 · repaso 004): barra superior (día·hora·población·recursos·
+## velocidad), panel lateral de selección y toasts. La barra inferior de
+## herramientas MURIÓ (orden del dueño: el pueblo se gobierna solo; ese
+## hueco lo ocuparán los poderes de dios). ToolManager sigue vivo por
+## debajo para la selección con clic, los tests y el debug.
 
 const STATE_TEXT: Dictionary = {
 	&"Idle": "Tomando un respiro",
@@ -25,7 +28,6 @@ var tool_manager: ToolManager
 var _palette: PaletteData
 var _top_label: Label
 var _speed_buttons: Dictionary = {}
-var _tool_buttons: Dictionary = {}
 var _panel: PanelContainer
 var _panel_title: Label
 var _panel_body: Label
@@ -42,14 +44,12 @@ func _ready() -> void:
 	layer = 40
 	_palette = PaletteData.get_default()
 	_build_top_bar()
-	_build_bottom_bar()
 	_build_side_panel()
 	_build_toast_box()
 	EventBus.toast.connect(_on_toast)
 	EventBus.selection_changed.connect(_on_selection_changed)
 	# M1: numeritos flotantes al entregar recursos — el flujo SE VE
 	EventBus.resource_delivered.connect(_on_resource_delivered)
-	EventBus.tool_changed.connect(_on_tool_changed)
 	# Método con nombre, no lambda: las lambdas conectadas a señales de un
 	# autoload NO se desconectan al morir el nodo (use-after-free en release).
 	SimClock.speed_changed.connect(_on_speed_changed_signal)
@@ -65,22 +65,10 @@ func _ready() -> void:
 	get_parent().add_child.call_deferred(_dest_line)
 
 
-func _panel_style(bg_alpha: float = 0.92) -> StyleBoxFlat:
-	# Paneles con oficio (pulido UI): borde de brasa, esquinas amables y
-	# sombra suave — dejan de ser cajas negras planas.
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(_palette.ui_panel, bg_alpha)
-	style.set_corner_radius_all(9)
-	style.border_color = Color(_palette.accent, 0.4)
-	style.set_border_width_all(1)
-	style.border_blend = true
-	style.shadow_color = Color(0.05, 0.05, 0.06, 0.35)
-	style.shadow_size = 6
-	style.content_margin_left = 14.0
-	style.content_margin_right = 14.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
-	return style
+func _panel_style(_bg_alpha: float = 0.92) -> StyleBox:
+	# Identidad de la casa (Build 004): tablilla de madera tallada con
+	# remaches — el mismo oficio en todo el juego (UiCraft).
+	return UiCraft.panel()
 
 
 func _build_top_bar() -> void:
@@ -103,61 +91,28 @@ func _build_top_bar() -> void:
 		button.text = entry[0]
 		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(SimClock.set_speed.bind(int(entry[1])))
+		UiCraft.style_button(button)
 		row.add_child(button)
 		_speed_buttons[int(entry[1])] = button
 	var milestones_button: Button = Button.new()
 	milestones_button.text = "Hitos"
 	milestones_button.focus_mode = Control.FOCUS_NONE
 	milestones_button.pressed.connect(_toggle_milestones)
+	UiCraft.style_button(milestones_button)
 	row.add_child(milestones_button)
 	var settlements_button: Button = Button.new()
 	settlements_button.text = "Aldeas"
 	settlements_button.focus_mode = Control.FOCUS_NONE
 	settlements_button.pressed.connect(_toggle_settlements)
+	UiCraft.style_button(settlements_button)
 	row.add_child(settlements_button)
 	var overview_button: Button = Button.new()
 	overview_button.text = "Águila"
 	overview_button.tooltip_text = "Vista de águila: el valle entero (M)"
 	overview_button.focus_mode = Control.FOCUS_NONE
 	overview_button.pressed.connect(_toggle_overview)
+	UiCraft.style_button(overview_button)
 	row.add_child(overview_button)
-
-
-func _build_bottom_bar() -> void:
-	var bar: PanelContainer = PanelContainer.new()
-	bar.name = "BottomBar"
-	bar.add_theme_stylebox_override(&"panel", _panel_style())
-	bar.anchor_left = 0.5
-	bar.anchor_right = 0.5
-	bar.anchor_top = 1.0
-	bar.anchor_bottom = 1.0
-	bar.offset_top = -52.0
-	bar.offset_bottom = -10.0
-	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	add_child(bar)
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 8)
-	bar.add_child(row)
-	var tools: Array = [
-		[&"none", "Selección", "Clic: seleccionar (Esc)"],
-		[&"chop", "Marcar tala", "Marca árboles para talar (T)"],
-		[&"zone", "Zona residencial", "Dibuja una zona para una cabaña (R)"],
-		[&"farm", "Huerto", "Dibuja un huerto para cultivar comida (H)"],
-		[&"demolish", "Demoler", "Cancela obras y zonas (C)"],
-		[&"info", "Información", "Clic: inspeccionar (I)"],
-	]
-	for entry: Array in tools:
-		var button: Button = Button.new()
-		button.text = entry[1]
-		button.tooltip_text = entry[2]
-		button.focus_mode = Control.FOCUS_NONE
-		button.toggle_mode = true
-		var tool: StringName = entry[0]
-		button.pressed.connect(func() -> void: tool_manager.set_tool(tool))
-		row.add_child(button)
-		_tool_buttons[tool] = button
-	_on_tool_changed(&"none")
 
 
 func _build_side_panel() -> void:
@@ -283,6 +238,7 @@ func _toggle_settlements() -> void:
 		go.focus_mode = Control.FOCUS_NONE
 		go.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		go.pressed.connect(_focus_camp.bind(camp.global_position))
+		UiCraft.style_button(go)
 		row.add_child(go)
 
 
@@ -346,11 +302,6 @@ func _on_resource_delivered(type: StringName, amount: int, target_id: int) -> vo
 		"+%d %s" % [amount, String(names.get(type, String(type)))],
 		color
 	)
-
-
-func _on_tool_changed(tool: StringName) -> void:
-	for key: StringName in _tool_buttons:
-		(_tool_buttons[key] as Button).set_pressed_no_signal(key == tool)
 
 
 func _on_speed_changed_signal(_speed: int) -> void:

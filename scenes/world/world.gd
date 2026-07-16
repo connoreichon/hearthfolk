@@ -213,8 +213,20 @@ func _setup_world_gen() -> void:
 ## Funda el campamento de una banda: activa el suelo bajo sus pies
 ## (chunks), DESPEJA EL CLARO (la banda tala su campamento al asentarse)
 ## y planta hoguera + almacén pegados al terreno.
-func found_camp(center: Vector3, band: int) -> CampEntity:
+## Trae el anillo completo de chunks (96 m) alrededor de un punto — lo usa
+## el cierre de la siembra para repartir el trabajo gordo en frames.
+func ensure_camp_surroundings(center: Vector3) -> void:
 	_chunks.ensure_active_around(center)
+
+
+func found_camp(center: Vector3, band: int) -> CampEntity:
+	# Durante la siembra el clic debe ser INSTANTÁNEO: solo el chunk de la
+	# hoguera. El anillo completo (96 m) lo trae _finish() repartido en
+	# frames, antes del único horneado del navmesh.
+	if GameState.placement_pending:
+		_chunks.ensure_active_around(center, 0.0)
+	else:
+		_chunks.ensure_active_around(center)
 	for node: Node in get_tree().get_nodes_in_group(&"trees"):
 		var tree: Node3D = node as Node3D
 		if tree != null and tree.global_position.distance_to(center) < 7.0:

@@ -6,9 +6,19 @@ extends RefCounted
 ## las colisiones solo cachean lo que la física necesita. Determinista por
 ## semilla: mismo seed → mismo mundo, punto a punto.
 
-enum Biome { PRADERA, BOSQUE, RIBERA, COLINAS, CLARO }
+enum Biome { PRADERA, BOSQUE, RIBERA, COLINAS, CLARO, NIEVE, SABANA }
 
 const WATER_LEVEL: float = -0.55
+
+## Densidad relativa de árboles por bioma (multiplicador para los props).
+const TREE_DENSITY: Dictionary = {
+	Biome.BOSQUE: 1.9,
+	Biome.RIBERA: 0.7,
+	Biome.COLINAS: 0.45,
+	Biome.CLARO: 0.1,
+	Biome.NIEVE: 0.55,
+	Biome.SABANA: 0.12,
+}
 ## Lado por defecto del mapa gigante: 1024 m (16×16 chunks de 64 m).
 const DEFAULT_HALF: float = 512.0
 
@@ -23,6 +33,7 @@ var _warp_noise: FastNoiseLite
 var _clearing_noise: FastNoiseLite
 var _sea_noise: FastNoiseLite
 var _mountain_noise: FastNoiseLite
+var _climate_noise: FastNoiseLite
 ## Qué bordes del mapa son MAR (+X, −X, +Z, −Z): elegidos por semilla —
 ## cada mundo tiene su costa, siempre distinta (estilo WorldBox procedural).
 var _sea_edges: Array[bool] = [false, false, false, false]
@@ -75,6 +86,14 @@ func _init(seed_value: int, half: float = DEFAULT_HALF) -> void:
 	_mountain_noise.seed = seed_value + 818
 	_mountain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_mountain_noise.frequency = 0.0011
+	# CLIMA (Build 004, orden del dueño): un solo ruido de MUY baja
+	# frecuencia parte el mundo en regiones — el extremo frío es TUNDRA
+	# NEVADA con montañas, el cálido SABANA seca con oasis. Al ser el mismo
+	# eje, nieve y desierto siempre caen en puntas opuestas del mapa.
+	_climate_noise = FastNoiseLite.new()
+	_climate_noise.seed = seed_value + 404
+	_climate_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_climate_noise.frequency = 0.0013
 
 
 ## Altura del terreno en cualquier punto del mundo gigante: lomas suaves
@@ -96,6 +115,11 @@ func height(x: float, z: float) -> float:
 	var mountain: float = _mountain_noise.get_noise_2d(x, z)
 	if mountain > 0.32:
 		h += smoothstep(0.32, 0.85, mountain) * 13.0
+	# TUNDRA NEVADA con carácter: en la región fría las colinas crecen a
+	# montaña (el norte helado es tierra alta y quebrada, no pradera blanca).
+	var snow: float = snow_weight(x, z)
+	if snow > 0.0:
+		h += snow * maxf(hill, 0.0) * 7.0
 	# Río: canal donde el ruido cruza cero. La tala manda sobre el relieve:
 	# en el corazón del cauce (mask ≥ 0.55) el lecho SIEMPRE se hunde bajo
 	# el agua, aunque cruce colinas — el río corta valles, no flota.
@@ -142,10 +166,43 @@ func is_water(x: float, z: float) -> bool:
 	return river_mask(x, z) > 0.55
 
 
+## Región fría 0..1 (tundra nevada). Se ATENÚA junto al mar — la costa es
+## templada: la nieve vive tierra adentro, lejos del agua (orden del dueño).
+func snow_weight(x: float, z: float) -> float:
+	var cold: float = smoothstep(0.28, 0.6, _climate_noise.get_noise_2d(x, z))
+	return cold * (1.0 - sea_mask(x, z))
+
+
+## Región árida 0..1 (sabana y desierto): el extremo cálido del clima.
+func arid_weight(x: float, z: float) -> float:
+	return smoothstep(0.28, 0.6, -_climate_noise.get_noise_2d(x, z))
+
+
+## Tinte de clima para el vértice (canal A del COLOR): 0 = nieve plena,
+## 0.5 = templado, 1 = árido pleno. El shader del terreno lo pinta.
+func climate_tint(x: float, z: float) -> float:
+	return clampf(0.5 + arid_weight(x, z) * 0.5 - snow_weight(x, z) * 0.5, 0.0, 1.0)
+
+
+## Clima extremo del punto (NIEVE/SABANA) o -1 si es templado.
+func _climate_biome(x: float, z: float) -> int:
+	if snow_weight(x, z) > 0.55:
+		return Biome.NIEVE
+	if arid_weight(x, z) > 0.55:
+		return Biome.SABANA
+	return -1
+
+
 ## Bioma del punto (fronteras suaves por ruido deformado; ART_DIRECTION_003).
 func biome(x: float, z: float) -> int:
 	if river_mask(x, z) > 0.25:
 		return Biome.RIBERA
+	# Los climas extremos mandan sobre los biomas templados: tundra nevada
+	# y sabana. El agua en zona árida sigue siendo RIBERA — esos son los
+	# oasis, donde se apiña la vida.
+	var extreme: int = _climate_biome(x, z)
+	if extreme >= 0:
+		return extreme
 	if _hill_noise.get_noise_2d(x, z) > 0.32:
 		return Biome.COLINAS
 	var wx: float = x + _warp_noise.get_noise_2d(x, z) * 45.0
@@ -173,17 +230,7 @@ func highland_weight(x: float, z: float) -> float:
 
 ## Densidad relativa de árboles del bioma (multiplicador para los props).
 func tree_density(which: int) -> float:
-	match which:
-		Biome.BOSQUE:
-			return 1.9
-		Biome.RIBERA:
-			return 0.7
-		Biome.COLINAS:
-			return 0.45
-		Biome.CLARO:
-			return 0.1
-		_:
-			return 1.0
+	return float(TREE_DENSITY.get(which, 1.0))
 
 
 func is_inside(x: float, z: float, margin: float = 0.0) -> bool:

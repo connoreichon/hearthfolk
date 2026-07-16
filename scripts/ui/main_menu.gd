@@ -134,6 +134,7 @@ func _build_ui() -> void:
 	var dice: Button = Button.new()
 	dice.text = "Azar"
 	dice.pressed.connect(func() -> void: _seed_edit.text = str(randi() % 100000))
+	UiCraft.style_button(dice)
 	seed_row.add_child(dice)
 	# Favoritos de semilla (orden del dueño): cada mapa es distinto, pero el
 	# que te enamore se guarda con estrella y vuelves a él cuando quieras.
@@ -144,6 +145,7 @@ func _build_ui() -> void:
 	star.text = "★ Guardar mapa"
 	star.tooltip_text = "Guarda esta semilla en favoritos"
 	star.pressed.connect(_save_favorite)
+	UiCraft.style_button(star)
 	fav_row.add_child(star)
 	_fav_pick = OptionButton.new()
 	_fav_pick.custom_minimum_size = Vector2(170.0, 0.0)
@@ -195,14 +197,7 @@ func _build_ui() -> void:
 
 func _menu_box(layer: CanvasLayer) -> VBoxContainer:
 	var panel: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(_palette.ui_panel, 0.88)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 18.0
-	style.content_margin_right = 18.0
-	style.content_margin_top = 14.0
-	style.content_margin_bottom = 14.0
-	panel.add_theme_stylebox_override(&"panel", style)
+	panel.add_theme_stylebox_override(&"panel", UiCraft.panel())
 	panel.position = Vector2(70.0, 230.0)
 	layer.add_child(panel)
 	var box: VBoxContainer = VBoxContainer.new()
@@ -218,6 +213,7 @@ func _add_button(box: VBoxContainer, text: String, action: Callable) -> Button:
 	button.custom_minimum_size = Vector2(240.0, 40.0)
 	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(action)
+	UiCraft.style_button(button)
 	box.add_child(button)
 	return button
 

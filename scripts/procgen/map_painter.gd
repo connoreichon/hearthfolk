@@ -20,6 +20,10 @@ static func paint(world_gen: WorldGen, size: int = 512) -> Image:
 	var hills: Color = palette.dirt_light.lerp(palette.grass, 0.45)
 	var rock: Color = palette.stone
 	var snow: Color = Color("#E9EDEF")
+	var tundra: Color = Color("#DDE4E8")
+	var savanna: Color = Color("#CBB068")
+	var desert: Color = Color("#D9C083")
+	var oasis: Color = Color("#7FA353")
 	for py: int in size:
 		var wz: float = -half + (float(py) + 0.5) * step
 		# La luz rasante compara con la altura del PÍXEL SIGUIENTE de la
@@ -42,6 +46,16 @@ static func paint(world_gen: WorldGen, size: int = 512) -> Image:
 			else:
 				color = meadow.lerp(forest, world_gen.forest_weight(wx, wz))
 				color = color.lerp(hills, world_gen.highland_weight(wx, wz) * 0.55)
+				# Climas (Build 004): tundra al frío, sabana/desierto al calor
+				# — y junto al agua de la sabana, el verde vivo de los OASIS.
+				var cold: float = world_gen.snow_weight(wx, wz)
+				if cold > 0.0:
+					color = color.lerp(tundra, cold * 0.92)
+				var arid: float = world_gen.arid_weight(wx, wz)
+				if arid > 0.0:
+					var dry: Color = savanna.lerp(desert, clampf((h - 0.6) / 2.2, 0.0, 1.0))
+					var lush: float = clampf(world_gen.river_mask(wx, wz) / 0.22, 0.0, 1.0)
+					color = color.lerp(dry.lerp(oasis, lush), arid * 0.9)
 			# Relieve de un vistazo: luz rasante barata (pendiente hacia el este)
 			var slope: float = clampf((h - h_next) * 0.16, -0.14, 0.14)
 			color = color.lightened(slope) if slope > 0.0 else color.darkened(-slope)

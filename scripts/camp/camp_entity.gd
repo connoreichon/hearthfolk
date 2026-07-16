@@ -13,6 +13,16 @@ const TERRITORY_RADIUS: float = 30.0
 const WOOD_TARGET: int = 24
 ## Receta de la primera casa (nivel 1); mejora sola a cabaña y casa de piedra.
 const HOME_RECIPE: String = "res://data/buildings/choza.tres"
+## Tinte de ropa por BIOMA (orden del dueño): aldeas del mismo bioma visten
+## parecido; biomas lejanos, distinto — se distinguen de un vistazo.
+const CLOTH_TINTS: Dictionary = {
+	WorldGen.Biome.BOSQUE: Color("#5F7D4F"),
+	WorldGen.Biome.RIBERA: Color("#5E7D8C"),
+	WorldGen.Biome.COLINAS: Color("#8B8378"),
+	WorldGen.Biome.CLARO: Color("#B08E6E"),
+	WorldGen.Biome.NIEVE: Color("#9FB2C4"),
+	WorldGen.Biome.SABANA: Color("#D9B25E"),
+}
 
 var entity_id: int = 0
 var band_id: int = 0
@@ -258,21 +268,9 @@ func rank_name() -> String:
 	return "Campamento"
 
 
-## Tinte de ropa por BIOMA (orden del dueño): aldeas del mismo bioma visten
-## parecido; biomas lejanos, distinto — se distinguen de un vistazo.
-## (El sistema completo de culturas con recursos por bioma llega en S5/004.)
+## Tinte de ropa de la aldea, por su bioma madre (culturas plenas en S5/004).
 func cloth_tint() -> Color:
-	match home_biome:
-		WorldGen.Biome.BOSQUE:
-			return Color("#5F7D4F")
-		WorldGen.Biome.RIBERA:
-			return Color("#5E7D8C")
-		WorldGen.Biome.COLINAS:
-			return Color("#8B8378")
-		WorldGen.Biome.CLARO:
-			return Color("#B08E6E")
-		_:
-			return Color("#C8A96B")
+	return CLOTH_TINTS.get(home_biome, Color("#C8A96B"))
 
 
 ## Guardarropa que viste la aldea (orden del dueño «empiezan casi sin

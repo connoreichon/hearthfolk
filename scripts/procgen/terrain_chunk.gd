@@ -33,7 +33,8 @@ static func create(world_gen: WorldGen, chunk_coord: Vector2i) -> TerrainChunk:
 	var side: int = RESOLUTION + 1
 	var heights: PackedFloat32Array = PackedFloat32Array()
 	heights.resize(side * side)
-	# Tintes de bioma por vértice: R libre (caminos S3), G bosque, B colina.
+	# Tintes de bioma por vértice: R libre (caminos S3), G bosque, B colina,
+	# A clima (0 nieve · 0.5 templado · 1 árido — Build 004).
 	var tints: PackedColorArray = PackedColorArray()
 	tints.resize(side * side)
 	var step: float = CHUNK_SIZE / float(RESOLUTION)
@@ -45,7 +46,10 @@ static func create(world_gen: WorldGen, chunk_coord: Vector2i) -> TerrainChunk:
 			var wz: float = origin_z + float(iz) * step
 			heights[iz * side + ix] = world_gen.height(wx, wz)
 			tints[iz * side + ix] = Color(
-				0.0, world_gen.forest_weight(wx, wz), world_gen.highland_weight(wx, wz), 1.0
+				0.0,
+				world_gen.forest_weight(wx, wz),
+				world_gen.highland_weight(wx, wz),
+				world_gen.climate_tint(wx, wz)
 			)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
@@ -101,8 +105,16 @@ func populate(world_gen: WorldGen) -> void:
 		var which: int = world_gen.biome(x, z)
 		var roll: float = rng.randf()
 		var density: float = world_gen.tree_density(which)
+		# SABANA: sus pocos árboles se apiñan junto al agua — los OASIS.
+		if which == WorldGen.Biome.SABANA and world_gen.river_mask(x, z) < 0.05:
+			density = 0.0
 		if roll < 0.24 * density and tree_index < TREE_ID_STRIDE - 1:
-			var tree: TreeEntity = TreeEntity.create(rng.randi(), rng.randf() < 0.25)
+			var tree_seed: int = rng.randi()
+			# TUNDRA: bosque de coníferas — el seed se sesga a pino y ese
+			# sesgo persiste en el guardado (el seed ES el estado).
+			if which == WorldGen.Biome.NIEVE:
+				tree_seed = TreeGen.seed_for_pines(tree_seed)
+			var tree: TreeEntity = TreeEntity.create(tree_seed, rng.randf() < 0.25)
 			tree.entity_id = TREE_ID_BASE + linear * TREE_ID_STRIDE + tree_index
 			tree_index += 1
 			EntityRegistry.register_with_id(tree, &"tree", tree.entity_id)
@@ -113,7 +125,10 @@ func populate(world_gen: WorldGen) -> void:
 		elif roll < 0.27:
 			var rock: MeshInstance3D = PropGen.rock(rng.randi(), false)
 			_place_local(rock, x, h - 0.06, z, rng)
-		elif roll < 0.32 and which != WorldGen.Biome.COLINAS:
+		elif (
+			roll < 0.32
+			and which not in [WorldGen.Biome.COLINAS, WorldGen.Biome.NIEVE, WorldGen.Biome.SABANA]
+		):
 			_place_local(PropGen.bush(rng.randi()), x, h, z, rng)
 		elif roll < 0.335 and which == WorldGen.Biome.BOSQUE:
 			# Corros de setas: vida de suelo de bosque (solo decorativo)
@@ -155,13 +170,19 @@ func _plant_grass(
 				density = 0.35
 			WorldGen.Biome.RIBERA:
 				density = 0.7
+			WorldGen.Biome.NIEVE:
+				density = 0.12
+			WorldGen.Biome.SABANA:
+				density = 0.4
 		if rng.randf() > density:
 			continue
 		var h: float = world_gen.height(x, z)
 		if h < WorldGen.WATER_LEVEL + 0.2:
 			continue
 		var basis: Basis = Basis(Vector3.UP, rng.randf() * TAU)
-		basis = basis.scaled(Vector3.ONE * rng.randf_range(0.55, 1.05))
+		# Altura de tobillo/rodilla: la mata wispy a escala natural tapaba
+		# a los aldeanos hasta la cintura.
+		basis = basis.scaled(Vector3.ONE * rng.randf_range(0.38, 0.72))
 		transforms.append(Transform3D(basis, Vector3(x - position.x, h - 0.01, z - position.z)))
 		# El COLOR de vértice de la mata (gris 0.72-1.0) oscurece un poco al
 		# multiplicar: aclarado suave para casar con el verde del suelo.
@@ -169,6 +190,13 @@ func _plant_grass(
 		# lineal); la paleta es sRGB → sin convertir, los verdes se lavan a
 		# pastel (bug histórico de las matas pálidas). srgb_to_linear() lo cura.
 		var tuft: Color = palette.grass.darkened(0.06).lerp(palette.grass_light, rng.randf() * 0.4)
+		# El clima tiñe la mata: paja seca en la sabana, verde apagado en la
+		# tundra (la hierba cuenta el bioma tanto como el suelo).
+		var tint: float = world_gen.climate_tint(x, z)
+		if tint > 0.5:
+			tuft = tuft.lerp(Color("#C2A95C"), (tint - 0.5) * 2.0 * 0.85)
+		elif tint < 0.5:
+			tuft = tuft.lerp(Color("#7E8B76"), (0.5 - tint) * 2.0 * 0.7)
 		colors.append(tuft.srgb_to_linear())
 	if transforms.is_empty():
 		return
@@ -191,9 +219,9 @@ func _plant_grass(
 static func _tuft_mesh() -> Mesh:
 	if _grass_mesh != null:
 		return _grass_mesh
-	# Mata de hierba MODELADA (glb, volumen gris horneado): el verde lo pone
-	# el color por instancia del MultiMesh (COLOR = instancia × vértice).
-	_grass_mesh = PropGen.prop_mesh("grass_tuft")
+	# Mata del MegaKit (tarjetas con textura PINTADA); el shader de hierba
+	# recorta el alfa y tiñe con el color de instancia (clima/bioma).
+	_grass_mesh = PropGen.mk_mesh("Grass_Wispy_Tall")
 	return _grass_mesh
 
 
@@ -202,6 +230,11 @@ static func _grass_mat() -> ShaderMaterial:
 		return _grass_material
 	_grass_material = ShaderMaterial.new()
 	_grass_material.shader = load("res://shaders/grass.gdshader")
+	# La textura pintada viene en el material importado de la propia malla
+	var src: BaseMaterial3D = _tuft_mesh().surface_get_material(0) as BaseMaterial3D
+	if src != null and src.albedo_texture != null:
+		_grass_material.set_shader_parameter(&"albedo_tex", src.albedo_texture)
+		_grass_material.set_shader_parameter(&"tex_mix", 1.0)
 	return _grass_material
 
 

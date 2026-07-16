@@ -50,6 +50,22 @@ static func build_visual(seed_value: int, young: bool = false) -> Node3D:
 	return root
 
 
+## Devuelve un seed cercano al dado cuyo roll caiga en la franja pedida
+## (70-94 = pinos). El seed ES lo que persiste el guardado, así que el
+## sesgo de bioma (tundra = pinos) sobrevive a guardar/cargar sin añadir
+## campos nuevos. Determinista; ~4 sondas de media.
+static func seed_for_pines(base: int) -> int:
+	var probe: RandomNumberGenerator = RandomNumberGenerator.new()
+	var candidate: int = base
+	for _i: int in 64:
+		probe.seed = candidate
+		var roll: int = probe.randi_range(0, 99)
+		if roll >= 70 and roll < 95:
+			return candidate
+		candidate += 1
+	return base
+
+
 static func _scene(model_name: String) -> PackedScene:
 	if not _scenes.has(model_name):
 		_scenes[model_name] = load(TREES_DIR + model_name + ".gltf")

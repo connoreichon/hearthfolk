@@ -46,8 +46,12 @@ func test_autoplace_seeds_three_bands() -> void:
 	assert_true(placer != null, "el BandPlacer toma el control en partida nueva")
 
 	placer.autoplace_default()
-	for _f: int in 3:
+	# El cierre reparte los chunks en frames (clic fluido): esperar a que
+	# el reloj arranque Y el placer (queue_free diferido) se haya retirado.
+	for _f: int in 40:
 		await _tree_scene.process_frame
+		if SimClock.speed == SimClock.Speed.NORMAL and _game.get_node_or_null("BandPlacer") == null:
+			break
 
 	assert_eq(_tree_scene.get_nodes_in_group(&"camps").size(), 3, "3 campamentos fundados")
 	var by_band: Dictionary = {}
@@ -77,6 +81,8 @@ func test_bands_too_close_are_rejected() -> void:
 		"la validez lejana depende del terreno, no debe petar"
 	)
 	placer.drop_band(spot + Vector3(24.0, 0.0, 0.0), 6)
-	for _f: int in 3:
+	for _f: int in 40:
 		await _tree_scene.process_frame
+		if not GameState.placement_pending:
+			break
 	assert_false(GameState.placement_pending, "10 de 10 repartidos: siembra cerrada")

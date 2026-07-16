@@ -18,6 +18,8 @@ const BIOME_NAMES: Dictionary = {
 	WorldGen.Biome.RIBERA: "Ribera de Juncos",
 	WorldGen.Biome.COLINAS: "Colinas de Piedra",
 	WorldGen.Biome.CLARO: "Claro Florido",
+	WorldGen.Biome.NIEVE: "Tundra Helada",
+	WorldGen.Biome.SABANA: "Sabana Dorada",
 }
 
 var remaining: int = 10
@@ -28,6 +30,7 @@ var _world: WorldRoot
 var _tools: ToolManager
 var _hud: CanvasLayer
 var _rig: CameraRig
+var _layer: CanvasLayer
 var _map_view: MapView
 var _group_label: Label
 var _remaining_label: Label
@@ -64,21 +67,13 @@ func _build_ui() -> void:
 	var layer: CanvasLayer = CanvasLayer.new()
 	layer.layer = 55
 	add_child(layer)
+	_layer = layer
 
 	# ---- EL MAPA DEL VALLE (el corazón de la siembra) ----
 	var vp_size: Vector2 = _world.get_viewport().get_visible_rect().size
 	var map_side: float = minf(vp_size.y * 0.64, vp_size.x * 0.52)
 	var map_panel: PanelContainer = PanelContainer.new()
-	var map_style: StyleBoxFlat = StyleBoxFlat.new()
-	map_style.bg_color = Color(palette.ui_panel, 0.94)
-	map_style.border_color = palette.accent
-	map_style.set_border_width_all(2)
-	map_style.set_corner_radius_all(12)
-	map_style.content_margin_left = 12.0
-	map_style.content_margin_right = 12.0
-	map_style.content_margin_top = 8.0
-	map_style.content_margin_bottom = 12.0
-	map_panel.add_theme_stylebox_override(&"panel", map_style)
+	map_panel.add_theme_stylebox_override(&"panel", UiCraft.panel_warm())
 	map_panel.anchor_left = 0.5
 	map_panel.anchor_right = 0.5
 	map_panel.anchor_top = 0.0
@@ -105,16 +100,7 @@ func _build_ui() -> void:
 
 	# ---- Panel inferior: grupo, restantes e instrucciones ----
 	var panel: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(palette.ui_panel, 0.94)
-	style.border_color = palette.accent
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(12)
-	style.content_margin_left = 26.0
-	style.content_margin_right = 26.0
-	style.content_margin_top = 14.0
-	style.content_margin_bottom = 14.0
-	panel.add_theme_stylebox_override(&"panel", style)
+	panel.add_theme_stylebox_override(&"panel", UiCraft.panel())
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
 	panel.anchor_top = 1.0
@@ -151,6 +137,7 @@ func _build_ui() -> void:
 	minus.custom_minimum_size = Vector2(44.0, 36.0)
 	minus.focus_mode = Control.FOCUS_NONE
 	minus.pressed.connect(_change_group.bind(-1))
+	UiCraft.style_button(minus)
 	controls.add_child(minus)
 	_group_label = Label.new()
 	_group_label.add_theme_color_override(&"font_color", palette.ui_text)
@@ -161,6 +148,7 @@ func _build_ui() -> void:
 	plus.custom_minimum_size = Vector2(44.0, 36.0)
 	plus.focus_mode = Control.FOCUS_NONE
 	plus.pressed.connect(_change_group.bind(1))
+	UiCraft.style_button(plus)
 	controls.add_child(plus)
 	_remaining_label = Label.new()
 	_remaining_label.add_theme_color_override(&"font_color", palette.accent)
@@ -238,6 +226,7 @@ func on_map_click(px: Vector2, everyone: bool) -> void:
 		return
 	var count: int = remaining if everyone else group_size
 	_map_view.markers.append(px)
+	_map_view.start_pulse(px)
 	AudioDirector.play_ui(&"ui_confirm")
 	drop_band(point, count)
 	if remaining > 0 and is_instance_valid(_map_view):
@@ -342,6 +331,22 @@ func _find_valid_near(anchor: Vector3, ring_step: float = 3.0, rings: int = 8) -
 
 func _finish() -> void:
 	GameState.placement_pending = false
+	if _map_view != null:
+		_map_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _cursor_label != null:
+		_cursor_label.visible = false
+	_show_veil()
+	_finish_async()
+
+
+## El trabajo gordo (chunks de cada aldea + navmesh) llega repartido en
+## frames tras un velo — el último clic no congela el juego.
+func _finish_async() -> void:
+	var tree: SceneTree = get_tree()
+	await tree.process_frame
+	for node: Node in tree.get_nodes_in_group(&"camps"):
+		_world.ensure_camp_surroundings((node as Node3D).global_position)
+		await tree.process_frame
 	_world._bake_navmesh()
 	# La partida arranca DE MAÑANA: la siembra se congela a mediodía por
 	# legibilidad, pero el primer día del pueblo se juega entero.
@@ -361,6 +366,23 @@ func _finish() -> void:
 	queue_free()
 
 
+## Velo breve mientras nacen los alrededores de cada aldea.
+func _show_veil() -> void:
+	var palette: PaletteData = PaletteData.get_default()
+	var veil: CenterContainer = CenterContainer.new()
+	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var panel: PanelContainer = PanelContainer.new()
+	panel.add_theme_stylebox_override(&"panel", UiCraft.panel_warm())
+	var label: Label = Label.new()
+	label.text = "Tu gente busca su hogar…"
+	label.add_theme_color_override(&"font_color", palette.ui_text)
+	label.add_theme_font_size_override(&"font_size", 20)
+	panel.add_child(label)
+	veil.add_child(panel)
+	if _layer != null:
+		_layer.add_child(veil)
+
+
 ## Vista del mapa: textura del valle + marcadores de bandas + puntería.
 class MapView:
 	extends Control
@@ -371,11 +393,23 @@ class MapView:
 	var cursor_valid: bool = false
 	## Píxeles del mapa donde ya arde una hoguera (una por banda soltada).
 	var markers: Array[Vector2] = []
+	## Pulso de fundación: onda que se expande desde la última hoguera.
+	var pulse_t: float = 2.0
+	var pulse_at: Vector2 = Vector2.ZERO
 
 	func _init(owner_placer: BandPlacer, texture: Texture2D) -> void:
 		placer = owner_placer
 		map_texture = texture
 		mouse_filter = Control.MOUSE_FILTER_STOP
+
+	func _process(delta: float) -> void:
+		if pulse_t < 1.0:
+			pulse_t = minf(pulse_t + delta * 1.6, 1.0)
+			queue_redraw()
+
+	func start_pulse(at: Vector2) -> void:
+		pulse_at = at
+		pulse_t = 0.0
 
 	func _draw() -> void:
 		draw_texture_rect(map_texture, Rect2(Vector2.ZERO, size), false)
@@ -384,6 +418,14 @@ class MapView:
 			draw_circle(marker, 7.0, Color("#2A2119"))
 			draw_circle(marker, 5.0, Color("#E8703A"))
 			draw_circle(marker + Vector2(0.0, -1.2), 2.0, Color("#FFD38A"))
+		if pulse_t < 1.0:
+			# La fundación SE SIENTE: anillo de brasa que se disipa
+			var ring: float = 8.0 + pulse_t * 34.0
+			var fade: float = 1.0 - pulse_t
+			draw_arc(pulse_at, ring, 0.0, TAU, 48, Color(0.91, 0.44, 0.23, fade * 0.9), 3.0, true)
+			draw_arc(
+				pulse_at, ring * 0.62, 0.0, TAU, 40, Color(1.0, 0.83, 0.54, fade * 0.5), 2.0, true
+			)
 		if cursor_px.x > -100.0:
 			var palette: PaletteData = PaletteData.get_default()
 			var color: Color = palette.grass_light if cursor_valid else palette.roof

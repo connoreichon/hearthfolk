@@ -10,6 +10,8 @@ const BIOME_COLORS: Dictionary = {
 	WorldGen.Biome.RIBERA: Color("#6E93A3"),
 	WorldGen.Biome.COLINAS: Color("#8E8B84"),
 	WorldGen.Biome.CLARO: Color("#9B85B5"),
+	WorldGen.Biome.NIEVE: Color("#B8C6D2"),
+	WorldGen.Biome.SABANA: Color("#C9A85C"),
 }
 const EMBER: Color = Color("#E8703A")
 

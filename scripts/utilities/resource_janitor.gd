@@ -21,3 +21,4 @@ static func release_static_caches() -> void:
 	PaletteData._instance = null
 	SimConfig._instance = null
 	CameraConfig._instance = null
+	UiCraft.release_caches()

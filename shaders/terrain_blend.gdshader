@@ -16,12 +16,14 @@ global uniform float snow_amount;
 
 varying float v_forest;   // COLOR.g = bosque (0 pradera .. 1 fronda)
 varying float v_highland; // COLOR.b = colinas / tierras altas
+varying float v_climate;  // COLOR.a = clima (0 nieve · 0.5 templado · 1 árido)
 varying vec3 v_world_pos;
 varying vec3 v_normal_w;
 
 void vertex() {
 	v_forest = COLOR.g;
 	v_highland = COLOR.b;
+	v_climate = COLOR.a;
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_normal_w = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
@@ -47,9 +49,19 @@ void fragment() {
 	// las tierras altas lo secan hacia tostado. El valle se lee de un vistazo
 	// —praderas, bosques umbríos, colinas— también desde la vista de águila.
 	vec3 forest_green = grass * vec3(0.50, 0.70, 0.40);
-	grass = mix(grass, forest_green, clamp(v_forest, 0.0, 1.0) * 0.92);
+	// En la sabana la fronda no tiñe (sus árboles son motas, no manto).
+	float arid_w = clamp((v_climate - 0.5) * 2.0, 0.0, 1.0);
+	float cold_w = clamp((0.5 - v_climate) * 2.0, 0.0, 1.0);
+	grass = mix(grass, forest_green, clamp(v_forest, 0.0, 1.0) * 0.92 * (1.0 - arid_w));
 	vec3 highland_dry = mix(grass, vec3(0.58, 0.54, 0.36), 0.7);
 	grass = mix(grass, highland_dry, clamp(v_highland, 0.0, 1.0) * 0.62);
+	// CLIMA (Build 004): tundra nevada y sabana seca con dunas de arena.
+	vec3 tundra = mix(vec3(0.84, 0.87, 0.90), vec3(0.90, 0.92, 0.95), n_fine);
+	grass = mix(grass, tundra, cold_w * (0.78 + n_broad * 0.18));
+	vec3 dry_grass = vec3(0.74, 0.64, 0.38) * (0.92 + n_micro * 0.16);
+	vec3 dune_sand = vec3(0.81, 0.71, 0.48) * (0.94 + n_fine * 0.12);
+	vec3 savanna = mix(dry_grass, dune_sand, smoothstep(0.45, 0.85, n_broad));
+	grass = mix(grass, savanna, arid_w * 0.9);
 	vec3 base = mix(grass, dirt, dirt_amount);
 	// Roca asomando en pendientes fuertes (gris frío con veta de ruido)
 	vec3 rock = mix(vec3(0.48, 0.49, 0.48), vec3(0.56, 0.55, 0.52), n_fine);
