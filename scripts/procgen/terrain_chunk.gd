@@ -110,9 +110,12 @@ func populate(world_gen: WorldGen) -> void:
 		elif roll < 0.27:
 			var rock: MeshInstance3D = PropGen.rock(rng.randi(), false)
 			_place_local(rock, x, h - 0.06, z, rng)
-		elif roll < 0.31 and which != WorldGen.Biome.COLINAS:
+		elif roll < 0.32 and which != WorldGen.Biome.COLINAS:
 			_place_local(PropGen.bush(rng.randi()), x, h, z, rng)
-		elif roll < 0.36 and (which == WorldGen.Biome.CLARO or which == WorldGen.Biome.PRADERA):
+		elif (
+			roll < 0.40
+			and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA, WorldGen.Biome.RIBERA]
+		):
 			_place_local(PropGen.flower_patch(rng.randi()), x, h, z, rng)
 	EntityRegistry.reserve_below(DYNAMIC_ID_FLOOR)
 
@@ -147,7 +150,8 @@ func _plant_grass(
 		var basis: Basis = Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3.ONE * rng.randf_range(0.7, 1.25))
 		transforms.append(Transform3D(basis, Vector3(x - position.x, h - 0.01, z - position.z)))
-		colors.append(palette.grass.lerp(palette.grass_light, rng.randf()))
+		# Verde más jugoso: sesgo hacia la base (grass_light lava las matas).
+		colors.append(palette.grass.darkened(0.04).lerp(palette.grass_light, rng.randf() * 0.55))
 	if transforms.is_empty():
 		return
 	var multi: MultiMesh = MultiMesh.new()
