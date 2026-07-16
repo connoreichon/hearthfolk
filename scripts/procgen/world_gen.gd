@@ -22,6 +22,7 @@ var _biome_noise: FastNoiseLite
 var _warp_noise: FastNoiseLite
 var _clearing_noise: FastNoiseLite
 var _sea_noise: FastNoiseLite
+var _mountain_noise: FastNoiseLite
 ## Qué bordes del mapa son MAR (+X, −X, +Z, −Z): elegidos por semilla —
 ## cada mundo tiene su costa, siempre distinta (estilo WorldBox procedural).
 var _sea_edges: Array[bool] = [false, false, false, false]
@@ -64,10 +65,16 @@ func _init(seed_value: int, half: float = DEFAULT_HALF) -> void:
 	sea_rng.seed = seed_value + 707
 	var any_sea: bool = false
 	for i: int in 4:
-		_sea_edges[i] = sea_rng.randf() < 0.4
+		_sea_edges[i] = sea_rng.randf() < 0.5
 		any_sea = any_sea or _sea_edges[i]
 	if not any_sea:
 		_sea_edges[sea_rng.randi_range(0, 3)] = true
+	# MONTAÑAS: macizos raros de gran amplitud — el relieve con drama que
+	# pedía el dueño. Nieve en las cimas y roca en las laderas (shader).
+	_mountain_noise = FastNoiseLite.new()
+	_mountain_noise.seed = seed_value + 818
+	_mountain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_mountain_noise.frequency = 0.0011
 
 
 ## Altura del terreno en cualquier punto del mundo gigante: lomas suaves
@@ -84,6 +91,11 @@ func height(x: float, z: float) -> float:
 	var hill: float = _hill_noise.get_noise_2d(x, z)
 	if hill > 0.15:
 		h += smoothstep(0.15, 0.75, hill) * 5.5
+	# MONTAÑAS: macizos raros que ROMPEN el horizonte (nieve arriba, roca en
+	# la ladera). Sus núcleos son murallas naturales — no se cruzan a pie.
+	var mountain: float = _mountain_noise.get_noise_2d(x, z)
+	if mountain > 0.32:
+		h += smoothstep(0.32, 0.85, mountain) * 13.0
 	# Río: canal donde el ruido cruza cero. La tala manda sobre el relieve:
 	# en el corazón del cauce (mask ≥ 0.55) el lecho SIEMPRE se hunde bajo
 	# el agua, aunque cruce colinas — el río corta valles, no flota.
@@ -93,7 +105,7 @@ func height(x: float, z: float) -> float:
 	# la pinta la banda húmeda del shader).
 	var sea: float = sea_mask(x, z)
 	h = lerpf(h, WATER_LEVEL - 1.1, smoothstep(0.3, 0.85, sea))
-	return clampf(h, -1.8, 8.5)
+	return clampf(h, -1.8, 18.0)
 
 
 ## Cercanía al agua 0..1 (1 = centro del cauce O mar adentro). El río es la
@@ -113,7 +125,7 @@ func river_mask(x: float, z: float) -> float:
 ## Mar 0..1 (1 = mar adentro): bordes elegidos por semilla con costa
 ## ondulada por ruido — SIEMPRE procedural, cada mapa con litoral propio.
 func sea_mask(x: float, z: float) -> float:
-	var reach: float = 82.0 + _sea_noise.get_noise_2d(x, z) * 38.0
+	var reach: float = 105.0 + _sea_noise.get_noise_2d(x, z) * 48.0
 	var best: float = 0.0
 	if _sea_edges[0]:
 		best = maxf(best, (x - (map_half - reach)) / 30.0)

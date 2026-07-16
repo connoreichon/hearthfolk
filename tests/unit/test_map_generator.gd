@@ -35,7 +35,7 @@ func test_world_gen_is_deterministic_and_bounded() -> void:
 	]:
 		var h: float = gen_a.height(probe.x, probe.y)
 		assert_almost_eq(h, gen_b.height(probe.x, probe.y), 0.0001, "altura fiel en %s" % probe)
-		assert_true(h >= -1.8 and h <= 8.5, "altura acotada en %s" % probe)
+		assert_true(h >= -1.8 and h <= 18.0, "altura acotada en %s" % probe)
 		assert_eq(gen_a.biome(probe.x, probe.y), gen_b.biome(probe.x, probe.y), "mismo bioma")
 		if absf(h - gen_c.height(probe.x, probe.y)) > 0.01:
 			any_diff = true

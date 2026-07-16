@@ -61,13 +61,19 @@ static func aptitude(data: CitizenData, profession: StringName) -> float:
 
 ## Velocidad de trabajo por familia (§7): clamp(0.6, mezcla × rasgos, 1.6).
 ## Familia vacía = 1.0 (retrocompatible); &"walk" solo usa rasgos.
+## SIN HERRAMIENTAS (orden del dueño) el trabajo manual cuesta un 25 % más:
+## talar a mano pelada es lo que tiene — hasta que se tallan su hacha.
 static func work_factor(data: CitizenData, family: StringName) -> float:
 	if family == &"":
 		return 1.0
 	if family == &"walk":
 		return TraitCatalog.work_mod(data.traits, &"walk")
-	var factor: float = _attr_blend(data, family) * TraitCatalog.work_mod(data.traits, family)
-	return clampf(factor, 0.6, 1.6)
+	var factor: float = clampf(
+		_attr_blend(data, family) * TraitCatalog.work_mod(data.traits, family), 0.6, 1.6
+	)
+	if not data.has_tools:
+		factor *= 0.75
+	return factor
 
 
 ## Elección de oficio por utilidad (§5): necesidad × aptitud, con el

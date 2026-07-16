@@ -258,6 +258,23 @@ func rank_name() -> String:
 	return "Campamento"
 
 
+## Tinte de ropa por BIOMA (orden del dueño): aldeas del mismo bioma visten
+## parecido; biomas lejanos, distinto — se distinguen de un vistazo.
+## (El sistema completo de culturas con recursos por bioma llega en S5/004.)
+func cloth_tint() -> Color:
+	match home_biome:
+		WorldGen.Biome.BOSQUE:
+			return Color("#5F7D4F")
+		WorldGen.Biome.RIBERA:
+			return Color("#5E7D8C")
+		WorldGen.Biome.COLINAS:
+			return Color("#8B8378")
+		WorldGen.Biome.CLARO:
+			return Color("#B08E6E")
+		_:
+			return Color("#C8A96B")
+
+
 ## Guardarropa que viste la aldea (orden del dueño «empiezan casi sin
 ## ropa»): 0 taparrabos (campamento) · 1 túnica (≥1 casa) · 2 ropa entera
 ## (≥4 casas, rango Pueblo). La ropa PROGRESA con el asentamiento.

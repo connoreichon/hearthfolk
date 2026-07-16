@@ -83,4 +83,7 @@ static func data_from_save(d: Dictionary) -> CitizenData:
 	for id: Variant in d.get("traits", []):
 		data.traits.append(StringName(String(id)))
 	data.profession = StringName(String(d.get("profession", "")))
+	# Guardados de antes de la progresión de herramientas: ya trabajaban,
+	# así que llegan con sus herramientas hechas.
+	data.has_tools = bool(d.get("tools", true))
 	return data

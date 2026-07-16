@@ -18,6 +18,11 @@ func tick(_dt: float) -> void:
 	if SimClock.is_night():
 		citizen.state_machine.change(&"ReturnToSettlement")
 		return
+	# Sin herramientas no se trabaja a gusto: PRIMERO tallarse las suyas
+	# junto a la hoguera (orden del dueño: empiezan sin nada).
+	if not citizen.data.has_tools:
+		citizen.state_machine.change(&"Craft")
+		return
 	var task: TaskBoard.Task = TaskBoard.best_task_for(
 		citizen.entity_id,
 		citizen.global_position,

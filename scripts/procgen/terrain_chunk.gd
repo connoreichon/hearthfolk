@@ -91,6 +91,9 @@ func populate(world_gen: WorldGen) -> void:
 		# Nada brota sumergido (lagos e islas de la banda del cauce incluidos)
 		if h < WorldGen.WATER_LEVEL + 0.15:
 			continue
+		# Línea de árboles: en la montaña alta solo roca y nieve
+		if h > 8.0:
+			continue
 		var slope_x: float = world_gen.height(x + 1.0, z) - h
 		var slope_z: float = world_gen.height(x, z + 1.0) - h
 		if slope_x * slope_x + slope_z * slope_z > 0.16:

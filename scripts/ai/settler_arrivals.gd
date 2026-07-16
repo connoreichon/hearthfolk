@@ -47,6 +47,8 @@ func _spawn_settler() -> void:
 	if home == null:
 		return
 	var data: CitizenData = SettlerGen.generate(GameState.rng)
+	# El caminante llega con sus propias herramientas (viene de mundo)
+	data.has_tools = true
 	var citizen: Citizen = CITIZEN_SCENE.instantiate()
 	citizen.data = data
 	(worlds[0] as Node3D).add_child(citizen)

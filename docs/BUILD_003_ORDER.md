@@ -315,6 +315,23 @@ al principio decide cuánto tarda ese destino.
   recetas crece con el rango. Los aldeanos SIEMPRE tienen algo mejor que
   construir a medida que la ciudad sube de nivel.
 
+## Tecnología: de manos peladas a metales (orden del dueño 2026-07-16)
+
+- **HECHO (v1)**: los colonos nacen SIN herramientas (trabajo manual ×0.75)
+  y se TALLAN sus primeras herramientas rudimentarias junto a la hoguera
+  (StateCraft, tiempo — material suelto del entorno); al terminar, su
+  herramienta de oficio aparece a la espalda y recuperan velocidad. Los
+  recién llegados traen las suyas; los guardados viejos también.
+- **SIGUIENTE (Build 004)**: MINAS — vetas de piedra/mineral por bioma como
+  entidades cosechables (patrón TreeEntity), oficio minero, picos; DESCUBRIR
+  METALES (cobre → hierro) que aceleran más el trabajo y abren armas/
+  herramientas mejores. RECURSOS POR BIOMA: cada bioma da materiales
+  distintos (madera dura del bosque, juncos y arcilla de ribera, piedra y
+  mineral de colinas/montaña, tintes del claro) → armas, ropa y edificios
+  DISTINTOS por bioma. Ciudades de biomas lejanos se ven diferentes;
+  ciudades del mismo bioma visten parecido (v1 YA: tinte de ropa por bioma
+  en cloth_tint()). Enchufa con culturas (S5) y biomas extremos (004).
+
 ## Camas y BUEN DISEÑO de todo (orden del dueño 2026-07-16)
 
 - **Camas/petates SIEMPRE presentes**: quien duerma al raso junto a la hoguera

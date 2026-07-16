@@ -6,6 +6,8 @@ extends HFTestCase
 func _plain_data() -> CitizenData:
 	var data: CitizenData = CitizenData.new()
 	data.attrs = {&"str": 6, &"dex": 6, &"per": 6, &"gre": 6, &"dil": 6}
+	# Baseline CON herramientas (la progresión de crafteo se testea aparte)
+	data.has_tools = true
 	return data
 
 
@@ -27,9 +29,24 @@ func test_work_factor_clamps_and_defaults() -> void:
 	assert_almost_eq(Professions.work_factor(data, &""), 1.0, 0.001, "sin familia: neutro")
 	data.attrs = {&"str": 1, &"dex": 1, &"per": 1, &"gre": 1, &"dil": 1}
 	data.traits = [&"flojera_de_brazos"]
-	assert_almost_eq(Professions.work_factor(data, &"chop"), 0.6, 0.001, "suelo 0.6")
+	assert_almost_eq(Professions.work_factor(data, &"chop"), 0.6, 0.001, "suelo 0.6 con útiles")
 	data.traits = [&"zancada_larga"]
 	assert_almost_eq(Professions.work_factor(data, &"walk"), 1.12, 0.001, "andar: solo rasgos")
+
+
+func test_no_tools_slows_manual_work() -> void:
+	var data: CitizenData = _plain_data()
+	var with_tools: float = Professions.work_factor(data, &"chop")
+	data.has_tools = false
+	assert_almost_eq(
+		Professions.work_factor(data, &"chop"),
+		clampf(with_tools * 0.75, 0.45, 1.6),
+		0.001,
+		"sin herramientas: talar a mano pelada cuesta un 25 %% más"
+	)
+	assert_almost_eq(
+		Professions.work_factor(data, &"walk"), 1.0, 0.001, "andar no depende de herramientas"
+	)
 
 
 func test_demand_rules_multiple_lumberjacks() -> void:

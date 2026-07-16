@@ -168,12 +168,18 @@ func hands_node() -> Marker3D:
 ## EMPIEZAN casi sin ropa y se visten conforme su aldea crece.
 ## 0 = taparrabos de pieles (torso y piernas desnudos) · 1 = túnica sencilla
 ## (piernas desnudas) · 2 = ropa entera con cinturón. Idempotente.
-func set_wardrobe(tier: int) -> void:
+func set_wardrobe(tier: int, biome_tint: Color = Color(0, 0, 0, 0)) -> void:
 	if _data == null or tier == _wardrobe_tier:
 		return
 	_wardrobe_tier = tier
 	var skin: Color = _data.skin_color
 	var pelt: Color = Color("#7A5A3C")
+	# Ropa teñida por el BIOMA del hogar (aldeas del mismo bioma visten
+	# parecido, biomas lejanos distinto — orden del dueño). El color
+	# personal aporta variedad dentro del mismo paño.
+	var shirt: Color = _data.shirt_color
+	if biome_tint.a > 0.0:
+		shirt = _data.shirt_color.lerp(biome_tint, 0.55)
 	match tier:
 		0:
 			_chest.material_override = MeshLib.matte(skin)
@@ -183,19 +189,19 @@ func set_wardrobe(tier: int) -> void:
 			_loincloth.visible = true
 			_belt.visible = false
 		1:
-			_chest.material_override = MeshLib.matte(_data.shirt_color)
-			_waist.material_override = MeshLib.matte(_data.shirt_color.darkened(0.15))
+			_chest.material_override = MeshLib.matte(shirt)
+			_waist.material_override = MeshLib.matte(shirt.darkened(0.15))
 			for mesh: MeshInstance3D in _arm_meshes:
-				mesh.material_override = MeshLib.matte(_data.shirt_color)
+				mesh.material_override = MeshLib.matte(shirt)
 			for mesh: MeshInstance3D in _leg_meshes:
 				mesh.material_override = MeshLib.matte(skin)
 			_loincloth.visible = false
 			_belt.visible = false
 		_:
-			_chest.material_override = MeshLib.matte(_data.shirt_color)
+			_chest.material_override = MeshLib.matte(shirt)
 			_waist.material_override = MeshLib.matte(_data.pants_color)
 			for mesh: MeshInstance3D in _arm_meshes:
-				mesh.material_override = MeshLib.matte(_data.shirt_color)
+				mesh.material_override = MeshLib.matte(shirt)
 			for mesh: MeshInstance3D in _leg_meshes:
 				mesh.material_override = MeshLib.matte(_data.pants_color)
 			_loincloth.visible = false
@@ -212,6 +218,10 @@ func set_profession(profession: StringName) -> void:
 	if _tool_prop != null and is_instance_valid(_tool_prop):
 		_tool_prop.queue_free()
 		_tool_prop = null
+	# Sin herramientas talladas no hay nada que colgarse a la espalda
+	# (progresión del dueño: primero se las craftean junto a la hoguera).
+	if _data != null and not _data.has_tools:
+		return
 	var prop: Node3D = ProfessionProp.build(profession)
 	if prop == null:
 		return
@@ -225,6 +235,12 @@ func set_profession(profession: StringName) -> void:
 		prop.rotation = Vector3(deg_to_rad(-10.0), 0.0, deg_to_rad(24.0))
 	_back_mount.add_child(prop)
 	_tool_prop = prop
+
+
+## El colono acaba de tallar sus herramientas: cuelga la de su oficio.
+func refresh_tool() -> void:
+	_tool_profession = &" "
+	set_profession(_data.profession if _data != null else &"")
 
 
 func _process(delta: float) -> void:

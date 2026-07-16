@@ -16,3 +16,7 @@ extends Resource
 @export var attrs: Dictionary = {}
 @export var traits: Array[StringName] = []
 @export var profession: StringName = &""
+## Progresión de herramientas (orden del dueño): nacen SIN nada y se
+## tallan sus primeras herramientas rudimentarias junto a la hoguera.
+## Sin herramientas el trabajo cuesta más. (Minas y metales: Build 004.)
+@export var has_tools: bool = false

@@ -64,13 +64,20 @@ func _ready() -> void:
 
 
 func _panel_style(bg_alpha: float = 0.92) -> StyleBoxFlat:
+	# Paneles con oficio (pulido UI): borde de brasa, esquinas amables y
+	# sombra suave — dejan de ser cajas negras planas.
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Color(_palette.ui_panel, bg_alpha)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
+	style.set_corner_radius_all(9)
+	style.border_color = Color(_palette.accent, 0.4)
+	style.set_border_width_all(1)
+	style.border_blend = true
+	style.shadow_color = Color(0.05, 0.05, 0.06, 0.35)
+	style.shadow_size = 6
+	style.content_margin_left = 14.0
+	style.content_margin_right = 14.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
 	return style
 
 

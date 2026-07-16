@@ -54,6 +54,10 @@ void fragment() {
 	// Roca asomando en pendientes fuertes (gris frío con veta de ruido)
 	vec3 rock = mix(vec3(0.48, 0.49, 0.48), vec3(0.56, 0.55, 0.52), n_fine);
 	base = mix(base, rock, smoothstep(0.3, 0.52, slope));
+	// MONTAÑA: roca por altura (ladera alta) y NIEVE PERMANENTE en la cima
+	base = mix(base, rock, smoothstep(6.5, 9.5, v_world_pos.y) * 0.85);
+	float peak_snow = smoothstep(10.0, 13.5, v_world_pos.y);
+	base = mix(base, vec3(0.90, 0.92, 0.95), peak_snow * (0.75 + n_fine * 0.25));
 	// Orilla húmeda: banda oscura junto al nivel del agua (-0.55)
 	float wet = smoothstep(0.45, -0.05, v_world_pos.y - (-0.55));
 	base = mix(base, base * 0.62, wet * 0.8);

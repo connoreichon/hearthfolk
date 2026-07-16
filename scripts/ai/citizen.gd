@@ -88,6 +88,7 @@ func _ready() -> void:
 	state_machine.add(StateSupply.new())
 	state_machine.add(StateBuild.new())
 	state_machine.add(StateFarm.new())
+	state_machine.add(StateCraft.new())
 	state_machine.add(StateRecoverFromStuck.new())
 	state_machine.change(&"Idle")
 
@@ -132,7 +133,10 @@ func _on_sim_tick(dt: float) -> void:
 	if _wardrobe_timer <= 0.0:
 		_wardrobe_timer = 12.0
 		var camp: CampEntity = home_camp()
-		visual.set_wardrobe(camp.wardrobe_tier() if camp != null else 0)
+		if camp != null:
+			visual.set_wardrobe(camp.wardrobe_tier(), camp.cloth_tint())
+		else:
+			visual.set_wardrobe(0)
 
 
 func _decay_needs(dt: float) -> void:
@@ -692,6 +696,7 @@ func save_data() -> Dictionary:
 		"attrs": _attrs_for_save(),
 		"traits": _traits_for_save(),
 		"profession": String(data.profession),
+		"tools": data.has_tools,
 	}
 
 
