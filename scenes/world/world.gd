@@ -43,7 +43,19 @@ func _ready() -> void:
 	if GameState.placement_pending:
 		# Siembra de bandas: el BandPlacer fundará campamentos y colonos;
 		# el navmesh se hornea UNA vez al terminar la colocación.
-		pass
+		# HOTFIX (regresión de V1): la siembra se juega SIEMPRE a plena luz
+		# — mediodía limpio (t=0.40) y reloj congelado, entre por donde
+		# entre (menú, sonda o test). El ciclo (y su hora dorada) arranca
+		# al confirmar el reparto.
+		SimClock.reset(1, 0.40)
+		SimClock.set_speed(SimClock.Speed.PAUSED)
+		# La causa real de la pantalla a oscuras: la vista de águila
+		# (≈460 m) queda entera FUERA del alcance de sombras del sol de V1
+		# (PSSM, 240 m) y la falda del horizonte, aplastada en el mapa de
+		# sombras, entierra el valle en una sombra falsa. Sin sombra
+		# direccional mientras se siembra; vuelve al confirmar el reparto.
+		_sun.shadow_enabled = false
+		EventBus.placement_finished.connect(_restore_sun_shadow, CONNECT_ONE_SHOT)
 	else:
 		# Modo automático (tests, soaks, guardados viejos): un campamento
 		# central de la banda 0, esquivando ríos y cuestas del mundo gigante.
@@ -500,6 +512,13 @@ func _setup_light_and_environment() -> void:
 	env.fog_sky_affect = 0.1
 	world_env.environment = env
 	add_child(world_env)
+
+
+## HOTFIX siembra: al confirmar el reparto, la cámara baja al valle y las
+## sombras del sol vuelven (durante la siembra estaban fuera — ver _ready).
+func _restore_sun_shadow() -> void:
+	if _sun != null:
+		_sun.shadow_enabled = true
 
 
 func _bake_navmesh() -> void:

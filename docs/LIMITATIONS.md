@@ -9,6 +9,15 @@
   número de tests ni afecta al juego. Plan: rastrear instance_id en M5.
 - **Vista de águila**: la falda de horizonte (disco r=1100) se percibe en
   ángulos rasantes desde el borde. Plan: fundido con niebla en M2.
+- **Sombra falsa del águila con sol alto**: desde ≈460 m TODO el suelo cae
+  fuera del alcance PSSM del sol (240 m) y la falda de horizonte, aplastada
+  en el mapa de sombras, puede oscurecer el valle entero. En la SIEMBRA ya
+  está resuelto (hotfix: sombra direccional apagada durante la fase); en la
+  vista de águila del juego en marcha puede seguir pasando con el sol alto.
+  Plan: M2/V5 (falda sin proyectar sombra o max_distance dinámico).
+- **Agua poco legible desde el águila en mapas SEA**: el color/alpha del
+  shader del agua se funde con la pradera visto desde ≈460 m (sin costas
+  nítidas en la siembra). Plan: V2/V3 (contraste de agua a distancia).
 - **Sombra blob**: quad plano que no sigue la pendiente. Plan: M2 (decal o
   raycast de 3 puntos, como pide la orden 004).
 - **Música**: aún omitida; buses listos. Plan: M6 (generativa por capas).

@@ -2,6 +2,20 @@
 
 # BUILD 004 — «Camino al Mercado» (en curso)
 
+## HOTFIX — Pantalla de siembra a plena luz (2026-07-16)
+- La pantalla de reparto de bandas se veía casi negra tras V1 (luminancia
+  media 56/255). Causa real encontrada por bisección visual: NO era la hora
+  del día — la vista de águila (≈460 m) queda entera FUERA del alcance de
+  sombras del sol de V1 (PSSM, 240 m) y la falda del horizonte, aplastada en
+  el mapa de sombras, enterraba el valle en una sombra falsa.
+- Arreglo en `world.gd` (rama de siembra, sin tocar el `BandPlacer`):
+  mediodía limpio congelado (`SimClock.reset(1, 0.40)` + PAUSED) y sombra
+  direccional APAGADA solo mientras se siembra; ambas cosas vuelven al
+  confirmar el reparto (`placement_finished`). La hora dorada del juego en
+  marcha queda intacta.
+- Verificado: captura regenerada con `dev_probe_placement.gd` — luminancia
+  media 151/255 (objetivo ≥150); etiqueta de bioma/validez legible.
+
 ## V1 — Luz y atmósfera «Hora dorada eterna» (2026-07-16)
 - Dirección de arte fijada en `docs/ART_DIRECTION_VISUAL.md`: valle de
   juguete bañado en la última luz de la tarde, la hoguera como corazón.
