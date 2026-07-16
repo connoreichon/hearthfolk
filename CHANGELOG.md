@@ -2,6 +2,25 @@
 
 # BUILD 004 — «Camino al Mercado» (en curso)
 
+## Repaso grande — biomas, UI de madera, siembra fluida (2026-07-17)
+- **BIOMAS NUEVOS**: TUNDRA NEVADA tierra adentro (lejos del mar, colinas
+  crecidas a montaña, bosque de coníferas, hierba helada escasa) y SABANA
+  seca en el extremo opuesto del mapa (dunas de arena, hierba pajiza) con
+  OASIS — sus pocos árboles y flores se apiñan junto al agua. Clima por
+  vértice (canal A) en chunks, terreno lejano y shader; mapa 2D de
+  siembra, nombres de aldea, emblemas y ropa por bioma.
+- **UI CON IDENTIDAD (UiCraft)**: paneles de madera tallada con vetas,
+  bisel, remaches de bronce y filo de brasa — generados en CPU, cero
+  assets externos. En todo el juego: HUD, toasts, panel lateral,
+  hitos/aldeas, siembra, velo, menú principal y pausa. FUERA la barra
+  inferior de herramientas (el pueblo se gobierna solo; ese hueco será
+  de los poderes de dios).
+- **SIEMBRA FLUIDA**: el clic de asentar ya no congela (solo el chunk de
+  la hoguera al instante; el anillo de 96 m llega al confirmar, en
+  frames, tras el velo «Tu gente busca su hogar…»); navmesh una sola vez
+  al final; pulso de brasa en el mapa al fundar; guardar en pausa
+  respeta la siembra en curso.
+
 ## HOTFIX 2 — Cámara jugable + siembra sobre mapa 2D (2026-07-16)
 - **La cámara del juego estaba ROTA desde M1** (partida injugable: «solo
   agua y algo de color»): el micro-shake pisaba `camera.position`, que
