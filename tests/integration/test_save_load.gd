@@ -98,11 +98,15 @@ func test_save_load_save_round_trip() -> void:
 			JSON.stringify(first.get(key)),
 			"campo «%s» idéntico" % key
 		)
-	# La cámara deriva ligeramente (lerp del pivot al terreno): tolerancia
+	# La cámara deriva (lerp del pivot al terreno, vivo incluso en pausa):
+	# X/Z apenas se mueven; la Y PERSIGUE la altura del relieve bajo el
+	# pivot y con montañas puede recorrer >1 m en los frames del test.
+	# No es estado semántico: tolerancia ancha SOLO en Y.
 	var cam_a: Array = first["camera"]["pos"]
 	var cam_b: Array = second["camera"]["pos"]
-	for axis: int in 3:
-		assert_almost_eq(float(cam_b[axis]), float(cam_a[axis]), 0.05, "cámara eje %d" % axis)
+	assert_almost_eq(float(cam_b[0]), float(cam_a[0]), 0.05, "cámara eje X")
+	assert_almost_eq(float(cam_b[1]), float(cam_a[1]), 2.5, "cámara eje Y (persigue terreno)")
+	assert_almost_eq(float(cam_b[2]), float(cam_a[2]), 0.05, "cámara eje Z")
 	var ents_a: Array = first["entities"]
 	var ents_b: Array = second["entities"]
 	assert_eq(ents_b.size(), ents_a.size(), "mismo número de entidades")

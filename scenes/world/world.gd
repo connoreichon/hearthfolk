@@ -79,6 +79,8 @@ func _ready() -> void:
 	EventBus.construction_cancelled.connect(_on_construction_changed)
 	# Una mejora de casa cambia el footprint: rehornear también
 	EventBus.building_upgraded.connect(_on_building_upgraded)
+	# M1 (game feel): la caída de un árbol LEVANTA POLVO y astillas
+	EventBus.tree_felled.connect(_on_tree_felled_fx)
 
 
 func _on_construction_changed(_building_id: int) -> void:
@@ -87,6 +89,75 @@ func _on_construction_changed(_building_id: int) -> void:
 
 func _on_building_upgraded(_building_id: int, _tier: int) -> void:
 	_bake_navmesh()
+
+
+## M1: astillas que saltan + anillo de polvo rasante donde cae el árbol.
+func _on_tree_felled_fx(_tree_id: int, at: Vector3, _wood: int) -> void:
+	if not is_inside_tree():
+		return
+	var palette: PaletteData = PaletteData.get_default()
+	# Astillas: trocitos de madera con parábola corta
+	var chips: GPUParticles3D = GPUParticles3D.new()
+	chips.amount = 12
+	chips.lifetime = 0.7
+	chips.one_shot = true
+	chips.explosiveness = 1.0
+	var chip_proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
+	chip_proc.direction = Vector3(0.0, 1.0, 0.0)
+	chip_proc.spread = 55.0
+	chip_proc.initial_velocity_min = 1.8
+	chip_proc.initial_velocity_max = 3.6
+	chip_proc.gravity = Vector3(0.0, -11.0, 0.0)
+	chip_proc.scale_min = 0.05
+	chip_proc.scale_max = 0.12
+	chip_proc.color = palette.wood_light
+	chips.process_material = chip_proc
+	var chip_mesh: BoxMesh = BoxMesh.new()
+	chip_mesh.size = Vector3(0.09, 0.03, 0.03)
+	chip_mesh.material = MeshLib.matte(palette.wood_light)
+	chips.draw_pass_1 = chip_mesh
+	add_child(chips)
+	chips.global_position = at + Vector3(0.0, 0.7, 0.0)
+	chips.emitting = true
+	# Polvo: anillo rasante que se expande y disipa
+	var dust: GPUParticles3D = GPUParticles3D.new()
+	dust.amount = 16
+	dust.lifetime = 0.9
+	dust.one_shot = true
+	dust.explosiveness = 1.0
+	var dust_proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
+	dust_proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	dust_proc.emission_ring_axis = Vector3.UP
+	dust_proc.emission_ring_radius = 0.5
+	dust_proc.emission_ring_inner_radius = 0.3
+	dust_proc.emission_ring_height = 0.05
+	dust_proc.direction = Vector3(1.0, 0.06, 0.0)
+	dust_proc.spread = 180.0
+	dust_proc.flatness = 1.0
+	dust_proc.initial_velocity_min = 1.2
+	dust_proc.initial_velocity_max = 2.2
+	dust_proc.gravity = Vector3.ZERO
+	dust_proc.damping_min = 2.0
+	dust_proc.damping_max = 3.0
+	dust_proc.scale_min = 0.5
+	dust_proc.scale_max = 1.0
+	dust.process_material = dust_proc
+	var dust_mesh: QuadMesh = QuadMesh.new()
+	dust_mesh.size = Vector2(0.5, 0.5)
+	var dust_mat: StandardMaterial3D = StandardMaterial3D.new()
+	dust_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dust_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	dust_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dust_mat.albedo_color = Color(palette.dirt_light, 0.4)
+	dust_mesh.material = dust_mat
+	dust.draw_pass_1 = dust_mesh
+	add_child(dust)
+	dust.global_position = at + Vector3(0.0, 0.25, 0.0)
+	dust.emitting = true
+	var cleanup: Tween = chips.create_tween()
+	cleanup.tween_interval(1.6)
+	cleanup.tween_callback(chips.queue_free)
+	cleanup.tween_callback(dust.queue_free)
 
 
 ## Primer sitio de campamento razonable cerca del centro: dentro del mapa,

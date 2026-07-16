@@ -47,6 +47,8 @@ func _ready() -> void:
 	_build_toast_box()
 	EventBus.toast.connect(_on_toast)
 	EventBus.selection_changed.connect(_on_selection_changed)
+	# M1: numeritos flotantes al entregar recursos — el flujo SE VE
+	EventBus.resource_delivered.connect(_on_resource_delivered)
 	EventBus.tool_changed.connect(_on_tool_changed)
 	# Método con nombre, no lambda: las lambdas conectadas a señales de un
 	# autoload NO se desconectan al morir el nodo (use-after-free en release).
@@ -327,6 +329,23 @@ func _on_toast(message: String, kind: StringName) -> void:
 
 func _on_selection_changed(entity_id: int) -> void:
 	_selected_id = entity_id
+
+
+## M1: «+2 madera» flotante sobre el destino de cada entrega.
+func _on_resource_delivered(type: StringName, amount: int, target_id: int) -> void:
+	if not is_inside_tree() or amount <= 0:
+		return
+	var target: Node = EntityRegistry.get_node_by_id(target_id)
+	if not target is Node3D or not (target as Node3D).is_inside_tree():
+		return
+	var names: Dictionary = {&"wood": "madera", &"food": "comida"}
+	var color: Color = _palette.accent if type == &"wood" else _palette.grass_light
+	FloatingText.spawn(
+		target,
+		(target as Node3D).global_position,
+		"+%d %s" % [amount, String(names.get(type, String(type)))],
+		color
+	)
 
 
 func _on_tool_changed(tool: StringName) -> void:

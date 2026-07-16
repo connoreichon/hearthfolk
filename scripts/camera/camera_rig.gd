@@ -18,6 +18,9 @@ var _pan_left: bool = false  # arrastre con botón IZQUIERDO (modo Selección)
 var _rotating: bool = false  # arrastre con botón DERECHO = rotar
 var _tilt_offset: float = 0.0  # picado manual añadido (rueda + arrastre der.)
 var _focus_tween: Tween
+## Micro-shake (M1): amplitud actual, decae exponencialmente en ~0.25 s.
+var _shake: float = 0.0
+var _shake_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 @onready var arm: SpringArm3D = $Arm
 @onready var camera: Camera3D = $Arm/Camera
@@ -26,6 +29,9 @@ var _focus_tween: Tween
 func _ready() -> void:
 	add_to_group(&"camera_rig")
 	_cfg = CameraConfig.get_default()
+	# Game feel (M1): golpes del mundo que se SIENTEN en la cámara
+	EventBus.tree_felled.connect(_on_tree_felled)
+	EventBus.construction_completed.connect(_on_building_done)
 	arm.spring_length = _target_zoom
 	# Sin colisión: si una colina se cruza entre pivot y cámara, el brazo se
 	# encogía y estampaba la cámara contra la ladera (pantalla marrón). La
@@ -79,6 +85,31 @@ func _process(delta: float) -> void:
 	var zoom_f: float = clampf(inverse_lerp(_cfg.zoom_min, far_zoom, arm.spring_length), 0.0, 1.0)
 	var base_tilt: float = lerpf(_cfg.tilt_near_deg, far_tilt, zoom_f)
 	arm.rotation_degrees.x = -clampf(base_tilt + _tilt_offset, 20.0, 89.0)
+	# Micro-shake (M1): tiembla la CÁMARA (no el pivot) y decae en ~0.25 s
+	if _shake > 0.001:
+		camera.position = Vector3(
+			_shake_rng.randf_range(-_shake, _shake), _shake_rng.randf_range(-_shake, _shake), 0.0
+		)
+		_shake *= exp(-14.0 * delta)
+	elif camera.position != Vector3.ZERO:
+		camera.position = Vector3.ZERO
+
+
+## Sacudida con tope (≤0.15 m por orden de la 004) atenuada por distancia.
+func shake_from(world_point: Vector3, base: float) -> void:
+	var distance: float = global_position.distance_to(world_point)
+	var falloff: float = clampf(1.0 - distance / 90.0, 0.0, 1.0)
+	_shake = minf(_shake + base * falloff, 0.15)
+
+
+func _on_tree_felled(_tree_id: int, position_felled: Vector3, _wood: int) -> void:
+	shake_from(position_felled, 0.11)
+
+
+func _on_building_done(building_id: int) -> void:
+	var node: Node = EntityRegistry.get_node_by_id(building_id)
+	if node is Node3D:
+		shake_from((node as Node3D).global_position, 0.08)
 
 
 func _unhandled_input(event: InputEvent) -> void:

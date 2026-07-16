@@ -14,6 +14,8 @@ var _fire_player: AudioStreamPlayer3D
 var _music_player: AudioStreamPlayer
 var _music_fade: Tween
 var _music_season: int = -1
+var _lowpass: AudioEffectLowPassFilter
+var _work_pulse_timer: Timer
 var _bird_timer: float = 6.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -36,6 +38,44 @@ func _ready() -> void:
 		func(_id: int, _phase: int) -> void: play_ui(&"ui_confirm")
 	)
 	EventBus.game_saved.connect(func(_slot: int) -> void: play_ui(&"ui_confirm"))
+	# M1 (game feel sonoro): el mundo se APAGA suave al pausar (low-pass en
+	# Master, no corte seco), y el ambiente respira con la actividad.
+	_lowpass = AudioEffectLowPassFilter.new()
+	_lowpass.cutoff_hz = 20500.0
+	AudioServer.add_bus_effect(0, _lowpass)
+	SimClock.speed_changed.connect(_on_speed_changed)
+	_work_pulse_timer = Timer.new()
+	_work_pulse_timer.wait_time = 1.0
+	_work_pulse_timer.timeout.connect(_update_reactive_mix)
+	add_child(_work_pulse_timer)
+	_work_pulse_timer.start()
+
+
+## Pausa: filtro que «hunde» el mundo bajo el agua; reanudar lo despeja.
+func _on_speed_changed(new_speed: int) -> void:
+	var target: float = 700.0 if new_speed == SimClock.Speed.PAUSED else 20500.0
+	var sweep: Tween = create_tween()
+	sweep.tween_property(_lowpass, "cutoff_hz", target, 0.35)
+
+
+## Mezcla reactiva (1 Hz): el ambiente diurno crece con cuánta gente
+## trabaja, y el fuego suena más presente de noche.
+func _update_reactive_mix() -> void:
+	if not is_inside_tree():
+		return
+	var working: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		var state: StringName = StringName(
+			(node.get("state_machine") as Object).call("current_name")
+		)
+		if state in [&"Harvest", &"Build", &"Supply", &"Farm", &"CarryResource"]:
+			working += 1
+	if _ambience_day != null:
+		var busy: float = clampf(float(working) / 6.0, 0.0, 1.0)
+		_ambience_day.volume_db = lerpf(-16.0, -10.0, busy)
+	if _fire_player != null:
+		var night: bool = SimClock.get_phase() >= SimClock.Phase.DUSK
+		_fire_player.volume_db = -6.0 if night else -14.0
 
 
 func _load_streams() -> void:
