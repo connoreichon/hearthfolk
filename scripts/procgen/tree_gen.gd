@@ -39,6 +39,7 @@ static func build_visual(seed_value: int, young: bool = false) -> Node3D:
 	_collect_meshes(model, meshes)
 	for mi: MeshInstance3D in meshes:
 		var xform: Transform3D = mi.global_transform if mi.is_inside_tree() else mi.transform
+		mi.owner = null  # el owner del gltf ya no aplica al reparentar
 		mi.get_parent().remove_child(mi)
 		root.add_child(mi)
 		mi.transform = xform

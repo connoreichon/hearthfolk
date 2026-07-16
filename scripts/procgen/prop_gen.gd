@@ -5,15 +5,21 @@ class_name PropGen
 ## Carro y pozo siguen siendo procedurales (ya leen bien).
 
 const PROPS_DIR: String = "res://assets/models/props/"
+const MK_DIR: String = "res://assets/models/props2/"
 const WIND_SHADER: Shader = preload("res://shaders/wind.gdshader")
 
-const ROCKS_SMALL: Array = ["rock_s_a", "rock_s_b", "stone_s"]
-const ROCKS_BIG: Array = ["rock_l_a", "rock_l_b", "rock_tall", "stone_l"]
-const BUSHES: Array = ["bush_s", "bush_m", "bush_d", "bush_l"]
-const FLOWERS: Array = [
-	"flower_purple_a", "flower_purple_c", "flower_red_a", "flower_yellow_a", "flower_yellow_c"
+# Sotobosque del Stylized Nature MegaKit (Quaternius CC0): texturas pintadas
+# a mano, mismos materiales importados que los árboles (nada de albedo plano).
+const MK_ROCKS_SMALL: Array = [
+	"Pebble_Round_1", "Pebble_Round_2", "Pebble_Round_3", "Pebble_Square_1", "Pebble_Square_2"
 ]
-const MUSHROOMS: Array = ["mushroom_red", "mushroom_tan"]
+const MK_ROCKS_BIG: Array = ["Rock_Medium_1", "Rock_Medium_2", "Rock_Medium_3"]
+const MK_BUSHES: Array = ["Bush_Common", "Bush_Common_Flowers"]
+const MK_FLOWERS: Array = [
+	"Flower_3_Group", "Flower_3_Single", "Flower_4_Group", "Flower_4_Single",
+	"Clover_1", "Clover_2", "Fern_1"
+]
+const MK_MUSHROOMS: Array = ["Mushroom_Common", "Mushroom_Laetiporus"]
 
 static var _wind_materials: Dictionary = {}
 static var _mesh_cache: Dictionary = {}
@@ -41,6 +47,27 @@ static func _first_mesh(node: Node) -> Mesh:
 	return null
 
 
+## Malla de un prop del MegaKit (gltf con material pintado en superficie).
+static func mk_mesh(prop: String) -> Mesh:
+	var key: String = "mk:" + prop
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var scene: PackedScene = load(MK_DIR + prop + ".gltf")
+	var inst: Node = scene.instantiate()
+	var mesh: Mesh = _first_mesh(inst)
+	inst.free()
+	_mesh_cache[key] = mesh
+	return mesh
+
+
+## MeshInstance3D de un prop MegaKit: el material pintado va en la malla.
+static func mk_instance(prop: String) -> MeshInstance3D:
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.name = prop.replace("_", "")
+	mi.mesh = mk_mesh(prop)
+	return mi
+
+
 ## MeshInstance3D de un prop: color horneado + viento/estaciones del shader.
 static func prop_instance(
 	prop: String, sway: float, height_ref: float, season: float, snow: float
@@ -55,10 +82,8 @@ static func prop_instance(
 static func rock(seed_value: int, big: bool) -> MeshInstance3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var variants: Array = ROCKS_BIG if big else ROCKS_SMALL
-	var mi: MeshInstance3D = prop_instance(
-		variants[rng.randi_range(0, variants.size() - 1)], 0.0, 1.0, 0.0, 1.0
-	)
+	var variants: Array = MK_ROCKS_BIG if big else MK_ROCKS_SMALL
+	var mi: MeshInstance3D = mk_instance(variants[rng.randi_range(0, variants.size() - 1)])
 	mi.name = "Rock"
 	mi.rotation.y = rng.randf() * TAU
 	var s: float = rng.randf_range(0.8, 1.25)
@@ -73,14 +98,14 @@ static func bush(seed_value: int) -> Node3D:
 	rng.seed = seed_value
 	var root: Node3D = Node3D.new()
 	root.name = "Bush"
-	var mi: MeshInstance3D = prop_instance(
-		BUSHES[rng.randi_range(0, BUSHES.size() - 1)], 0.04, 0.8, 1.0, 1.0
+	var mi: MeshInstance3D = mk_instance(
+		MK_BUSHES[rng.randi_range(0, MK_BUSHES.size() - 1)]
 	)
 	mi.rotation.y = rng.randf() * TAU
 	mi.scale = Vector3.ONE * rng.randf_range(0.85, 1.2)
 	root.add_child(mi)
-	# Arbusto de BAYAS (pasada de color): puntitos rojos o azulados encima
-	if rng.randf() < 0.4:
+	# Arbusto de BAYAS (frutos): puntitos rojos o azulados encima
+	if rng.randf() < 0.55:
 		var berry_color: Color = Color("#B4432F") if rng.randf() < 0.6 else Color("#6A5B9E")
 		var aabb: AABB = mi.mesh.get_aabb()
 		var r: float = maxf(aabb.size.x, aabb.size.z) * 0.5 * mi.scale.x
@@ -105,8 +130,8 @@ static func flower_patch(seed_value: int) -> Node3D:
 	root.name = "Flowers"
 	var flower_count: int = rng.randi_range(3, 6)
 	for flower_i: int in flower_count:
-		var mi: MeshInstance3D = prop_instance(
-			FLOWERS[rng.randi_range(0, FLOWERS.size() - 1)], 0.05, 0.4, 1.0, 1.0
+		var mi: MeshInstance3D = mk_instance(
+			MK_FLOWERS[rng.randi_range(0, MK_FLOWERS.size() - 1)]
 		)
 		mi.name = "Flower%d" % flower_i
 		mi.position = Vector3(rng.randf_range(-0.8, 0.8), 0.0, rng.randf_range(-0.8, 0.8))
@@ -123,8 +148,8 @@ static func mushroom_patch(seed_value: int) -> Node3D:
 	var root: Node3D = Node3D.new()
 	root.name = "Mushrooms"
 	for shroom_i: int in rng.randi_range(1, 3):
-		var mi: MeshInstance3D = prop_instance(
-			MUSHROOMS[rng.randi_range(0, MUSHROOMS.size() - 1)], 0.0, 1.0, 0.0, 1.0
+		var mi: MeshInstance3D = mk_instance(
+			MK_MUSHROOMS[rng.randi_range(0, MK_MUSHROOMS.size() - 1)]
 		)
 		mi.name = "Mushroom%d" % shroom_i
 		mi.position = Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.4, 0.4))
