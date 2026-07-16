@@ -1,93 +1,136 @@
 class_name PropGen
-## Props procedurales: rocas, arbustos, flores, carro, fogata (§5.3).
+## Props con MODELOS 3D estilizados (§5.3): glb CC0 (Kenney) retrabajados a la
+## paleta del juego en Blender. El color viene HORNEADO en el COLOR de vértice
+## (paleta × volumen), así que el material es wind.gdshader con albedo neutro.
+## Carro y pozo siguen siendo procedurales (ya leen bien).
+
+const PROPS_DIR: String = "res://assets/models/props/"
+const WIND_SHADER: Shader = preload("res://shaders/wind.gdshader")
+
+const ROCKS_SMALL: Array = ["rock_s_a", "rock_s_b", "stone_s"]
+const ROCKS_BIG: Array = ["rock_l_a", "rock_l_b", "rock_tall", "stone_l"]
+const BUSHES: Array = ["bush_s", "bush_m", "bush_d", "bush_l"]
+const FLOWERS: Array = [
+	"flower_purple_a", "flower_purple_c", "flower_red_a", "flower_yellow_a", "flower_yellow_c"
+]
+const MUSHROOMS: Array = ["mushroom_red", "mushroom_tan"]
 
 static var _wind_materials: Dictionary = {}
+static var _mesh_cache: Dictionary = {}
+
+
+## Malla compartida de un prop glb (cacheada: mismas mallas → instancing GPU).
+static func prop_mesh(prop: String) -> Mesh:
+	if _mesh_cache.has(prop):
+		return _mesh_cache[prop]
+	var scene: PackedScene = load(PROPS_DIR + prop + ".glb")
+	var inst: Node = scene.instantiate()
+	var mesh: Mesh = _first_mesh(inst)
+	inst.free()
+	_mesh_cache[prop] = mesh
+	return mesh
+
+
+static func _first_mesh(node: Node) -> Mesh:
+	if node is MeshInstance3D:
+		return (node as MeshInstance3D).mesh
+	for child: Node in node.get_children():
+		var found: Mesh = _first_mesh(child)
+		if found != null:
+			return found
+	return null
+
+
+## MeshInstance3D de un prop: color horneado + viento/estaciones del shader.
+static func prop_instance(
+	prop: String, sway: float, height_ref: float, season: float, snow: float
+) -> MeshInstance3D:
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.name = prop.capitalize().replace(" ", "")
+	mi.mesh = prop_mesh(prop)
+	mi.material_override = _baked_material(sway, height_ref, season, snow)
+	return mi
 
 
 static func rock(seed_value: int, big: bool) -> MeshInstance3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var palette: PaletteData = PaletteData.get_default()
-	var radius: float = rng.randf_range(0.55, 0.95) if big else rng.randf_range(0.18, 0.38)
-	var noise: FastNoiseLite = FastNoiseLite.new()
-	noise.seed = seed_value
-	noise.frequency = 1.4
-	var deform: Callable = func(p: Vector3) -> Vector3:
-		var n: float = noise.get_noise_3d(p.x, p.y, p.z)
-		return p * (1.0 + n * 0.35) * Vector3(1.0, rng.randf_range(0.55, 0.75), 1.0)
-	var mesh: ArrayMesh = MeshLib.low_sphere(radius, 5, 7, 1.0, deform)
-	var color: Color = palette.stone.lerp(palette.dirt, rng.randf() * 0.25)
-	var mi: MeshInstance3D = MeshLib.mesh_instance(mesh, color, "Rock")
-	mi.set_meta(&"radius", radius)
+	var variants: Array = ROCKS_BIG if big else ROCKS_SMALL
+	var mi: MeshInstance3D = prop_instance(
+		variants[rng.randi_range(0, variants.size() - 1)], 0.0, 1.0, 0.0, 1.0
+	)
+	mi.name = "Rock"
+	mi.rotation.y = rng.randf() * TAU
+	var s: float = rng.randf_range(0.8, 1.25)
+	mi.scale = Vector3.ONE * s
+	var aabb: AABB = mi.mesh.get_aabb()
+	mi.set_meta(&"radius", maxf(aabb.size.x, aabb.size.z) * 0.5 * s)
 	return mi
 
 
 static func bush(seed_value: int) -> Node3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var palette: PaletteData = PaletteData.get_default()
 	var root: Node3D = Node3D.new()
 	root.name = "Bush"
-	var blob_count: int = rng.randi_range(2, 3)
-	var berry_bush: bool = rng.randf() < 0.4
-	var berry_color: Color = Color("#B4432F") if rng.randf() < 0.6 else Color("#6A5B9E")
-	for blob_i: int in blob_count:
-		var radius: float = rng.randf_range(0.3, 0.55)
-		var mesh: ArrayMesh = MeshLib.low_sphere(radius, 4, 7, rng.randf_range(0.6, 0.75))
-		var blob: MeshInstance3D = MeshInstance3D.new()
-		blob.name = "Blob%d" % blob_i
-		blob.mesh = mesh
-		blob.position = Vector3(
-			rng.randf_range(-0.3, 0.3), radius * 0.45, rng.randf_range(-0.3, 0.3)
-		)
-		var color: Color = palette.grass.darkened(0.08).lerp(palette.grass_light, rng.randf() * 0.6)
-		blob.material_override = _wind_material(color, 0.04, 0.8)
-		root.add_child(blob)
-		# Arbusto de BAYAS (pasada de color): puntitos rojos o azulados
-		if berry_bush:
-			for _b: int in rng.randi_range(2, 4):
-				var berry: MeshInstance3D = MeshLib.mesh_instance(
-					MeshLib.low_sphere(0.035, 3, 5, 1.0), berry_color, "Berry"
-				)
-				var ang: float = rng.randf() * TAU
-				berry.position = (
-					blob.position
-					+ Vector3(cos(ang) * radius * 0.8, radius * 0.3, sin(ang) * radius * 0.8)
-				)
-				root.add_child(berry)
+	var mi: MeshInstance3D = prop_instance(
+		BUSHES[rng.randi_range(0, BUSHES.size() - 1)], 0.04, 0.8, 1.0, 1.0
+	)
+	mi.rotation.y = rng.randf() * TAU
+	mi.scale = Vector3.ONE * rng.randf_range(0.85, 1.2)
+	root.add_child(mi)
+	# Arbusto de BAYAS (pasada de color): puntitos rojos o azulados encima
+	if rng.randf() < 0.4:
+		var berry_color: Color = Color("#B4432F") if rng.randf() < 0.6 else Color("#6A5B9E")
+		var aabb: AABB = mi.mesh.get_aabb()
+		var r: float = maxf(aabb.size.x, aabb.size.z) * 0.5 * mi.scale.x
+		var top: float = aabb.size.y * mi.scale.y
+		for _b: int in rng.randi_range(3, 5):
+			var berry: MeshInstance3D = MeshLib.mesh_instance(
+				MeshLib.low_sphere(0.035, 3, 5, 1.0), berry_color, "Berry"
+			)
+			var ang: float = rng.randf() * TAU
+			var dist: float = rng.randf_range(0.25, 0.7) * r
+			berry.position = Vector3(
+				cos(ang) * dist, top * rng.randf_range(0.65, 0.95), sin(ang) * dist
+			)
+			root.add_child(berry)
 	return root
 
 
 static func flower_patch(seed_value: int) -> Node3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var palette: PaletteData = PaletteData.get_default()
 	var root: Node3D = Node3D.new()
 	root.name = "Flowers"
-	var petal_colors: Array[Color] = [
-		palette.accent,
-		palette.roof.lerp(palette.cart_cloth, 0.4),
-		palette.cart_cloth,
-	]
-	var flower_count: int = rng.randi_range(4, 7)
+	var flower_count: int = rng.randi_range(3, 6)
 	for flower_i: int in flower_count:
-		var flower: Node3D = Node3D.new()
-		flower.name = "Flower%d" % flower_i
-		var stem_height: float = rng.randf_range(0.22, 0.4)
-		var stem: MeshInstance3D = MeshLib.mesh_instance(
-			MeshLib.cylinder(0.015, 0.012, stem_height, 5), palette.grass, "Stem"
+		var mi: MeshInstance3D = prop_instance(
+			FLOWERS[rng.randi_range(0, FLOWERS.size() - 1)], 0.05, 0.4, 1.0, 1.0
 		)
-		stem.material_override = _wind_material(palette.grass, 0.05, 0.4)
-		flower.add_child(stem)
-		var head_color: Color = petal_colors[rng.randi_range(0, petal_colors.size() - 1)]
-		var head: MeshInstance3D = MeshInstance3D.new()
-		head.name = "Head"
-		head.mesh = MeshLib.low_sphere(rng.randf_range(0.05, 0.09), 4, 6, 0.7)
-		head.position = Vector3(0.0, stem_height, 0.0)
-		head.material_override = _wind_material(head_color, 0.05, 0.4)
-		flower.add_child(head)
-		flower.position = Vector3(rng.randf_range(-0.8, 0.8), 0.0, rng.randf_range(-0.8, 0.8))
-		root.add_child(flower)
+		mi.name = "Flower%d" % flower_i
+		mi.position = Vector3(rng.randf_range(-0.8, 0.8), 0.0, rng.randf_range(-0.8, 0.8))
+		mi.rotation.y = rng.randf() * TAU
+		mi.scale = Vector3.ONE * rng.randf_range(0.8, 1.15)
+		root.add_child(mi)
+	return root
+
+
+## Corro de setas del bosque (solo decorativo).
+static func mushroom_patch(seed_value: int) -> Node3D:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var root: Node3D = Node3D.new()
+	root.name = "Mushrooms"
+	for shroom_i: int in rng.randi_range(1, 3):
+		var mi: MeshInstance3D = prop_instance(
+			MUSHROOMS[rng.randi_range(0, MUSHROOMS.size() - 1)], 0.0, 1.0, 0.0, 1.0
+		)
+		mi.name = "Mushroom%d" % shroom_i
+		mi.position = Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.4, 0.4))
+		mi.rotation.y = rng.randf() * TAU
+		mi.scale = Vector3.ONE * rng.randf_range(0.75, 1.1)
+		root.add_child(mi)
 	return root
 
 
@@ -129,27 +172,17 @@ static func cart(seed_value: int) -> Node3D:
 	return root
 
 
-## Montón de suministros de campamento: leños apilados + fardo con lona.
-## Sustituto primitivo del carro como &"storage" de cada banda (Build 003).
+## Montón de suministros: pila de leños (modelo) + fardo con lona.
 static func supply_pile(seed_value: int) -> Node3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var palette: PaletteData = PaletteData.get_default()
 	var root: Node3D = Node3D.new()
 	root.name = "SupplyPile"
-	for row: int in 3:
-		var per_row: int = 3 - row
-		for log_i: int in per_row:
-			var log_mesh: MeshInstance3D = MeshLib.mesh_instance(
-				MeshLib.log_cylinder(0.11, rng.randf_range(0.9, 1.1), 7),
-				palette.wood,
-				"Log%d_%d" % [row, log_i]
-			)
-			log_mesh.rotation_degrees = Vector3(0.0, rng.randf_range(-6.0, 6.0), 90.0)
-			log_mesh.position = Vector3(
-				-0.35, 0.11 + float(row) * 0.19, (float(log_i) - float(per_row - 1) * 0.5) * 0.24
-			)
-			root.add_child(log_mesh)
+	var stack: MeshInstance3D = prop_instance("log_stack", 0.0, 1.0, 0.0, 1.0)
+	stack.position = Vector3(-0.35, 0.0, 0.0)
+	stack.rotation.y = rng.randf_range(-0.15, 0.15)
+	root.add_child(stack)
 	var bundle: MeshInstance3D = MeshLib.mesh_instance(
 		MeshLib.beveled_box(Vector3(0.7, 0.5, 0.8), 0.1), palette.cart_cloth, "Bundle"
 	)
@@ -219,29 +252,22 @@ static func well(seed_value: int) -> Node3D:
 	return root
 
 
-## Fogata: anillo de piedras + leños cruzados + luz (apagada de día).
+## Fogata: anillo de piedras + leños (modelos) + luz (apagada de día).
+## Los nodos FireLight/Flame/Sparks conservan nombre y comportamiento.
 static func campfire(seed_value: int) -> Node3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var palette: PaletteData = PaletteData.get_default()
 	var root: Node3D = Node3D.new()
 	root.name = "Campfire"
-	var stone_count: int = 7
-	for stone_i: int in stone_count:
-		var ang: float = TAU * float(stone_i) / float(stone_count) + rng.randf_range(-0.15, 0.15)
-		var stone: MeshInstance3D = rock(seed_value + 100 + stone_i, false)
-		stone.name = "Stone%d" % stone_i
-		stone.position = Vector3(cos(ang) * 0.62, 0.05, sin(ang) * 0.62)
-		stone.scale = Vector3.ONE * rng.randf_range(0.7, 1.0)
-		root.add_child(stone)
-	for log_i: int in 4:
-		var log_mesh: MeshInstance3D = MeshLib.mesh_instance(
-			MeshLib.log_cylinder(0.07, 0.7, 6), palette.wood, "Log%d" % log_i
-		)
-		var ang: float = TAU * float(log_i) / 4.0 + 0.4
-		log_mesh.position = Vector3(cos(ang) * 0.18, 0.1, sin(ang) * 0.18)
-		log_mesh.rotation_degrees = Vector3(52.0, rad_to_deg(-ang) + 90.0, 0.0)
-		root.add_child(log_mesh)
+	var ring: MeshInstance3D = prop_instance("campfire_ring", 0.0, 1.0, 0.0, 1.0)
+	ring.rotation.y = rng.randf() * TAU
+	root.add_child(ring)
+	var logs: MeshInstance3D = prop_instance("campfire", 0.0, 1.0, 0.0, 0.0)
+	logs.name = "Logs"
+	logs.rotation.y = rng.randf() * TAU
+	logs.position.y = 0.03
+	root.add_child(logs)
 	var light: OmniLight3D = OmniLight3D.new()
 	light.name = "FireLight"
 	light.light_color = palette.warm_light
@@ -297,12 +323,31 @@ static func campfire(seed_value: int) -> Node3D:
 	return root
 
 
+## Material del shader de viento para mallas con color HORNEADO en vértice:
+## albedo neutro (el color ya viene en COLOR = paleta × volumen).
+static func _baked_material(
+	sway: float, height_ref: float, season: float, snow: float
+) -> ShaderMaterial:
+	var key: String = "baked_%f_%f_%f_%f" % [sway, height_ref, season, snow]
+	if _wind_materials.has(key):
+		return _wind_materials[key]
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = WIND_SHADER
+	mat.set_shader_parameter(&"albedo", Color(1.0, 1.0, 1.0))
+	mat.set_shader_parameter(&"sway_strength", sway)
+	mat.set_shader_parameter(&"height_ref", height_ref)
+	mat.set_shader_parameter(&"season_mix", season)
+	mat.set_shader_parameter(&"snow_mix", snow)
+	_wind_materials[key] = mat
+	return mat
+
+
 static func _wind_material(color: Color, strength: float, height_ref: float) -> ShaderMaterial:
 	var key: String = "%s_%f_%f" % [color.to_html(), strength, height_ref]
 	if _wind_materials.has(key):
 		return _wind_materials[key]
 	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load("res://shaders/wind.gdshader")
+	mat.shader = WIND_SHADER
 	mat.set_shader_parameter(&"albedo", color)
 	mat.set_shader_parameter(&"sway_strength", strength)
 	mat.set_shader_parameter(&"height_ref", height_ref)

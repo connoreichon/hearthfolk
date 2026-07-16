@@ -64,15 +64,14 @@ func _build_visual() -> Node3D:
 			root.add_child(fruit)
 		return root
 	for log_i: int in amount:
-		var wood_log: MeshInstance3D = MeshLib.mesh_instance(
-			MeshLib.log_cylinder(0.09, 0.72, 7),
-			palette.wood.lerp(palette.wood_light, rng.randf() * 0.6),
-			"Log%d" % log_i
+		# Leño modelado (glb) con corte claro en las puntas
+		var wood_log: MeshInstance3D = PropGen.prop_instance("log_a", 0.0, 1.0, 0.0, 1.0)
+		wood_log.name = "Log%d" % log_i
+		wood_log.scale = Vector3.ONE * rng.randf_range(0.6, 0.72)
+		wood_log.rotation_degrees = Vector3(0.0, rng.randf_range(-20.0, 20.0), 0.0)
+		wood_log.position = Vector3(
+			float(log_i) * 0.2 - 0.1, float(log_i) * 0.16, rng.randf_range(0.2, 0.4)
 		)
-		wood_log.rotation_degrees = Vector3(
-			90.0 + rng.randf_range(-6.0, 6.0), rng.randf_range(-14.0, 14.0), 0.0
-		)
-		wood_log.position = Vector3(float(log_i) * 0.2 - 0.1, 0.09 + float(log_i) * 0.02, 0.36)
 		root.add_child(wood_log)
 	return root
 

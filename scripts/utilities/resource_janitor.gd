@@ -8,7 +8,10 @@ class_name ResourceJanitor
 static func release_static_caches() -> void:
 	MeshLib._materials.clear()
 	TreeGen._canopy_materials.clear()
+	TreeGen._scenes.clear()
+	TreeGen._trunk_mat = null
 	PropGen._wind_materials.clear()
+	PropGen._mesh_cache.clear()
 	TerrainChunk._grass_mesh = null
 	TerrainChunk._grass_material = null
 	MapGenerator._shared_material = null

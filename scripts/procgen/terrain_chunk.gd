@@ -13,7 +13,7 @@ const TREE_ID_STRIDE: int = 2048
 ## Los IDs dinámicos (colonos, obras, campamentos) viven por encima.
 const DYNAMIC_ID_FLOOR: int = 20_000_000
 
-static var _grass_mesh: ArrayMesh
+static var _grass_mesh: Mesh
 static var _grass_material: ShaderMaterial
 
 var coord: Vector2i = Vector2i.ZERO
@@ -115,6 +115,9 @@ func populate(world_gen: WorldGen) -> void:
 			_place_local(rock, x, h - 0.06, z, rng)
 		elif roll < 0.32 and which != WorldGen.Biome.COLINAS:
 			_place_local(PropGen.bush(rng.randi()), x, h, z, rng)
+		elif roll < 0.335 and which == WorldGen.Biome.BOSQUE:
+			# Corros de setas: vida de suelo de bosque (solo decorativo)
+			_place_local(PropGen.mushroom_patch(rng.randi()), x, h, z, rng)
 		elif (
 			roll < 0.40
 			and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA, WorldGen.Biome.RIBERA]
@@ -136,7 +139,9 @@ func _plant_grass(
 	var palette: PaletteData = PaletteData.get_default()
 	var transforms: Array[Transform3D] = []
 	var colors: Array[Color] = []
-	for _i: int in 1400:
+	# 1000 intentos (antes 1400): la mata modelada tiene más triángulos que el
+	# quad cruzado; menos instancias con mejor silueta ganan en ambos frentes.
+	for _i: int in 1000:
 		var x: float = origin_x + rng.randf() * CHUNK_SIZE
 		var z: float = origin_z + rng.randf() * CHUNK_SIZE
 		if not world_gen.is_inside(x, z, 2.0):
@@ -156,10 +161,15 @@ func _plant_grass(
 		if h < WorldGen.WATER_LEVEL + 0.2:
 			continue
 		var basis: Basis = Basis(Vector3.UP, rng.randf() * TAU)
-		basis = basis.scaled(Vector3.ONE * rng.randf_range(0.7, 1.25))
+		basis = basis.scaled(Vector3.ONE * rng.randf_range(0.55, 1.05))
 		transforms.append(Transform3D(basis, Vector3(x - position.x, h - 0.01, z - position.z)))
-		# Verde más jugoso: sesgo hacia la base (grass_light lava las matas).
-		colors.append(palette.grass.darkened(0.04).lerp(palette.grass_light, rng.randf() * 0.55))
+		# El COLOR de vértice de la mata (gris 0.72-1.0) oscurece un poco al
+		# multiplicar: aclarado suave para casar con el verde del suelo.
+		# OJO: set_instance_color pasa el color CRUDO al shader (espacio
+		# lineal); la paleta es sRGB → sin convertir, los verdes se lavan a
+		# pastel (bug histórico de las matas pálidas). srgb_to_linear() lo cura.
+		var tuft: Color = palette.grass.darkened(0.06).lerp(palette.grass_light, rng.randf() * 0.4)
+		colors.append(tuft.srgb_to_linear())
 	if transforms.is_empty():
 		return
 	var multi: MultiMesh = MultiMesh.new()
@@ -178,37 +188,12 @@ func _plant_grass(
 	add_child(instance)
 
 
-static func _tuft_mesh() -> ArrayMesh:
+static func _tuft_mesh() -> Mesh:
 	if _grass_mesh != null:
 		return _grass_mesh
-	var verts: PackedVector3Array = PackedVector3Array()
-	var normals: PackedVector3Array = PackedVector3Array()
-	var indices: PackedInt32Array = PackedInt32Array()
-	# Dos quads cruzados, afilados hacia arriba (mata de hierba de cuento)
-	for quad: int in 2:
-		var dir: Vector3 = Vector3(1, 0, 0) if quad == 0 else Vector3(0, 0, 1)
-		var base_i: int = verts.size()
-		(
-			verts
-			. append_array(
-				[
-					-dir * 0.11,
-					dir * 0.11,
-					dir * 0.035 + Vector3(0, 0.45, 0),
-					-dir * 0.035 + Vector3(0, 0.45, 0),
-				]
-			)
-		)
-		for _v: int in 4:
-			normals.append(Vector3.UP)
-		indices.append_array([base_i, base_i + 1, base_i + 2, base_i, base_i + 2, base_i + 3])
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_INDEX] = indices
-	_grass_mesh = ArrayMesh.new()
-	_grass_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	# Mata de hierba MODELADA (glb, volumen gris horneado): el verde lo pone
+	# el color por instancia del MultiMesh (COLOR = instancia × vértice).
+	_grass_mesh = PropGen.prop_mesh("grass_tuft")
 	return _grass_mesh
 
 

@@ -13,22 +13,13 @@ static func create(seed_value: int) -> StumpEntity:
 	stump.add_to_group(&"persistent")
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var palette: PaletteData = PaletteData.get_default()
-	var trunk: MeshInstance3D = MeshLib.mesh_instance(
-		MeshLib.cylinder(0.22, 0.2, 0.28, 8, 1, 0.08, rng), palette.wood, "Base"
-	)
-	stump.add_child(trunk)
-	# Anillos: tapa superior más clara
-	var rings: MeshInstance3D = MeshLib.mesh_instance(
-		MeshLib.cylinder(0.16, 0.155, 0.02, 8), palette.wood_light, "Rings"
-	)
-	rings.position = Vector3(0.0, 0.275, 0.0)
-	stump.add_child(rings)
-	var core: MeshInstance3D = MeshLib.mesh_instance(
-		MeshLib.cylinder(0.08, 0.075, 0.022, 8), palette.wood, "Core"
-	)
-	core.position = Vector3(0.0, 0.277, 0.0)
-	stump.add_child(core)
+	# Tocón modelado (glb) con corte de madera clara y raíces
+	var variant: String = "stump_a" if rng.randf() < 0.5 else "stump_b"
+	var base: MeshInstance3D = PropGen.prop_instance(variant, 0.0, 1.0, 0.0, 1.0)
+	base.name = "Base"
+	base.rotation.y = rng.randf() * TAU
+	base.scale = Vector3.ONE * rng.randf_range(0.85, 1.1)
+	stump.add_child(base)
 	return stump
 
 
