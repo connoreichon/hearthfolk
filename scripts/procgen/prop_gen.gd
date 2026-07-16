@@ -165,6 +165,60 @@ static func supply_pile(seed_value: int) -> Node3D:
 	return root
 
 
+## Pozo de la plaza (vida de pueblo): brocal de piedra, dos postes con
+## tejadillo a dos aguas y cubo colgando. Nace cuando la aldea sube a Pueblo.
+static func well(seed_value: int) -> Node3D:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var palette: PaletteData = PaletteData.get_default()
+	var root: Node3D = Node3D.new()
+	root.name = "Well"
+	# Brocal: anillo de piedra con boca oscura
+	var ring: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.55, 0.5, 0.55, 10, 1, 0.06, rng), palette.stone, "Ring"
+	)
+	ring.position.y = 0.27
+	root.add_child(ring)
+	var mouth: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.38, 0.38, 0.06, 10), Color("#20252B"), "Mouth"
+	)
+	mouth.position.y = 0.56
+	root.add_child(mouth)
+	# Postes y caballete
+	for side: float in [-1.0, 1.0]:
+		var post: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.beveled_box(Vector3(0.1, 1.25, 0.1), 0.02), palette.wood, "Post"
+		)
+		post.position = Vector3(side * 0.52, 0.9, 0.0)
+		root.add_child(post)
+	var beam: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.045, 0.045, 1.15, 7), palette.wood_light, "Beam"
+	)
+	beam.rotation.z = PI * 0.5
+	beam.position = Vector3(0.0, 1.42, 0.0)
+	root.add_child(beam)
+	# Tejadillo a dos aguas
+	for roof_side: float in [-1.0, 1.0]:
+		var panel: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.plank(Vector3(1.5, 0.06, 0.62)), palette.roof, "RoofPanel"
+		)
+		panel.rotation.x = roof_side * deg_to_rad(38.0)
+		panel.position = Vector3(0.0, 1.72, roof_side * 0.26)
+		root.add_child(panel)
+	# Cubo colgando de una soga
+	var rope: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.015, 0.015, 0.45, 5), palette.cart_cloth, "Rope"
+	)
+	rope.position = Vector3(0.0, 1.18, 0.0)
+	root.add_child(rope)
+	var bucket: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.1, 0.13, 0.16, 8, 1, 0.0, null, true, false), palette.wood, "Bucket"
+	)
+	bucket.position = Vector3(0.0, 0.9, 0.0)
+	root.add_child(bucket)
+	return root
+
+
 ## Fogata: anillo de piedras + leños cruzados + luz (apagada de día).
 static func campfire(seed_value: int) -> Node3D:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()

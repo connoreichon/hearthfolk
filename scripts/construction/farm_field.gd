@@ -67,6 +67,42 @@ func _exit_tree() -> void:
 	EntityRegistry.unregister(entity_id)
 
 
+## Cerca de madera perimetral (vida de pueblo): postes y listones bajos —
+## el huerto se LEE como propiedad cuidada, no como tierra suelta. Solo
+## visual: sin colisión (los agricultores entran por cualquier lado).
+func _build_fence(palette: PaletteData) -> void:
+	var fence: Node3D = Node3D.new()
+	fence.name = "Fence"
+	add_child(fence)
+	var hx: float = rect.size.x * 0.5 + 0.25
+	var hz: float = rect.size.y * 0.5 + 0.25
+	var sides: Array = [
+		[Vector3(-hx, 0.0, -hz), Vector3(hx, 0.0, -hz)],
+		[Vector3(hx, 0.0, -hz), Vector3(hx, 0.0, hz)],
+		[Vector3(hx, 0.0, hz), Vector3(-hx, 0.0, hz)],
+		[Vector3(-hx, 0.0, hz), Vector3(-hx, 0.0, -hz)],
+	]
+	for side: Array in sides:
+		var from: Vector3 = side[0]
+		var to: Vector3 = side[1]
+		var length: float = from.distance_to(to)
+		var posts: int = maxi(2, int(round(length / 1.5)) + 1)
+		for i: int in posts:
+			var t: float = float(i) / float(posts - 1)
+			var post: MeshInstance3D = MeshLib.mesh_instance(
+				MeshLib.beveled_box(Vector3(0.07, 0.5, 0.07), 0.015), palette.wood, "Post"
+			)
+			post.position = from.lerp(to, t) + Vector3(0.0, 0.25, 0.0)
+			fence.add_child(post)
+		var rail: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.plank(Vector3(length, 0.06, 0.05)), palette.wood_light, "Rail"
+		)
+		rail.position = from.lerp(to, 0.5) + Vector3(0.0, 0.38, 0.0)
+		var dir: Vector3 = to - from
+		rail.rotation.y = atan2(dir.x, dir.z) + PI * 0.5
+		fence.add_child(rail)
+
+
 func plot_count() -> int:
 	return _cols * _rows
 
@@ -170,6 +206,7 @@ func _manage_tasks(winter: bool) -> void:
 
 func _build_visuals() -> void:
 	var palette: PaletteData = PaletteData.get_default()
+	_build_fence(palette)
 	for i: int in plot_count():
 		@warning_ignore("integer_division")
 		var row: int = i / _cols

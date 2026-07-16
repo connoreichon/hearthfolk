@@ -29,8 +29,14 @@ void vertex() {
 void fragment() {
 	float n_broad = texture(noise_tex, v_world_pos.xz * 0.02).r;
 	float n_fine = texture(noise_tex, v_world_pos.xz * 0.12).r;
+	// Microdetalle de cerca: moteado fino que rompe el color plano del suelo
+	float n_micro = texture(noise_tex, v_world_pos.xz * 0.55).r;
 	vec3 grass = mix(grass_color.rgb, grass_light_color.rgb, n_broad * 0.75 + n_fine * 0.25);
+	grass *= 1.0 + (n_micro - 0.5) * 0.10;
+	// Calvas de tierra dispersas: parches sutiles donde el ruido fino pica
+	float bare_patch = smoothstep(0.78, 0.92, n_fine * 0.6 + n_micro * 0.4) * 0.35;
 	vec3 dirt = mix(dirt_color.rgb, dirt_light_color.rgb, n_fine);
+	grass = mix(grass, dirt, bare_patch);
 	float slope = 1.0 - v_normal_w.y;
 	// Senda emergente: tierra pisada donde el tráfico acumulado sube (S3).
 	// Umbral progresivo: tráfico ligero = hierba pisada tenue, mucho = tierra.

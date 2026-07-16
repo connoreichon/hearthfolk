@@ -26,14 +26,24 @@ var _arm_l: Node3D
 var _arm_r: Node3D
 var _head: Node3D
 var _chest: MeshInstance3D
+var _waist: MeshInstance3D
+var _leg_meshes: Array[MeshInstance3D] = []
+var _arm_meshes: Array[MeshInstance3D] = []
+var _loincloth: MeshInstance3D
+var _belt: MeshInstance3D
 var _hands_marker: Marker3D
 var _back_mount: Marker3D
 var _tool_prop: Node3D
 var _tool_profession: StringName = &""
+var _data: CitizenData
+## Guardarropa por progreso (orden del dueño «empiezan casi sin ropa»):
+## −1 sin aplicar · 0 taparrabos (pieles mínimas) · 1 túnica · 2 ropa entera.
+var _wardrobe_tier: int = -1
 
 
 func setup(data: CitizenData, look_seed: int) -> void:
 	name = "Visual"
+	_data = data
 	_look_rng.seed = look_seed
 	scale = Vector3.ONE * data.height_scale
 
@@ -46,37 +56,54 @@ func setup(data: CitizenData, look_seed: int) -> void:
 	_leg_r = _limb_pivot("LegR", Vector3(0.09, 0.0, 0.0))
 	_hips.add_child(_leg_l)
 	_hips.add_child(_leg_r)
+	_leg_meshes.clear()
 	for leg: Node3D in [_leg_l, _leg_r]:
 		var leg_mesh: MeshInstance3D = MeshLib.mesh_instance(
 			MeshLib.beveled_box(Vector3(0.14, 0.58, 0.17), 0.035), data.pants_color, "Mesh"
 		)
 		leg_mesh.position = Vector3(0.0, -0.29, 0.0)
 		leg.add_child(leg_mesh)
+		_leg_meshes.append(leg_mesh)
 
 	_torso = Node3D.new()
 	_torso.name = "Torso"
 	_hips.add_child(_torso)
-	var waist: MeshInstance3D = MeshLib.mesh_instance(
+	_waist = MeshLib.mesh_instance(
 		MeshLib.beveled_box(Vector3(0.3, 0.22, 0.19), 0.035), data.pants_color, "Waist"
 	)
-	waist.position = Vector3(0.0, 0.1, 0.0)
-	_torso.add_child(waist)
+	_waist.position = Vector3(0.0, 0.1, 0.0)
+	_torso.add_child(_waist)
 	_chest = MeshLib.mesh_instance(
 		MeshLib.beveled_box(Vector3(0.36, 0.34, 0.21), 0.045), data.shirt_color, "Chest"
 	)
 	_chest.position = Vector3(0.0, 0.35, 0.0)
 	_torso.add_child(_chest)
+	# Taparrabos de pieles (guardarropa 0) y cinturón (guardarropa 2)
+	_loincloth = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.32, 0.2, 0.22), 0.04), Color("#7A5A3C"), "Loincloth"
+	)
+	_loincloth.position = Vector3(0.0, 0.02, 0.0)
+	_loincloth.visible = false
+	_torso.add_child(_loincloth)
+	_belt = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.37, 0.06, 0.22), 0.02), Color("#4A382A"), "Belt"
+	)
+	_belt.position = Vector3(0.0, 0.2, 0.0)
+	_belt.visible = false
+	_torso.add_child(_belt)
 
 	_arm_l = _limb_pivot("ArmL", Vector3(-0.235, 0.46, 0.0))
 	_arm_r = _limb_pivot("ArmR", Vector3(0.235, 0.46, 0.0))
 	_torso.add_child(_arm_l)
 	_torso.add_child(_arm_r)
+	_arm_meshes.clear()
 	for arm: Node3D in [_arm_l, _arm_r]:
 		var arm_mesh: MeshInstance3D = MeshLib.mesh_instance(
 			MeshLib.beveled_box(Vector3(0.1, 0.44, 0.12), 0.03), data.shirt_color, "Mesh"
 		)
 		arm_mesh.position = Vector3(0.0, -0.2, 0.0)
 		arm.add_child(arm_mesh)
+		_arm_meshes.append(arm_mesh)
 		var hand: MeshInstance3D = MeshLib.mesh_instance(
 			MeshLib.beveled_box(Vector3(0.085, 0.085, 0.085), 0.02), data.skin_color, "Hand"
 		)
@@ -108,6 +135,13 @@ func setup(data: CitizenData, look_seed: int) -> void:
 	)
 	fringe.position = Vector3(0.0, 0.26, 0.13)
 	_head.add_child(fringe)
+	# Ojos: dos puntitos oscuros — la cara deja de ser una bola muda
+	for side: float in [-1.0, 1.0]:
+		var eye: MeshInstance3D = MeshLib.mesh_instance(
+			MeshLib.beveled_box(Vector3(0.032, 0.04, 0.02), 0.008), Color("#2A211B"), "Eye"
+		)
+		eye.position = Vector3(side * 0.055, 0.16, 0.135)
+		_head.add_child(eye)
 
 	_hands_marker = Marker3D.new()
 	_hands_marker.name = "Hands"
@@ -128,6 +162,44 @@ func set_motion(horizontal_speed: float) -> void:
 
 func hands_node() -> Marker3D:
 	return _hands_marker
+
+
+## Guardarropa por progreso del asentamiento (orden del dueño): los colonos
+## EMPIEZAN casi sin ropa y se visten conforme su aldea crece.
+## 0 = taparrabos de pieles (torso y piernas desnudos) · 1 = túnica sencilla
+## (piernas desnudas) · 2 = ropa entera con cinturón. Idempotente.
+func set_wardrobe(tier: int) -> void:
+	if _data == null or tier == _wardrobe_tier:
+		return
+	_wardrobe_tier = tier
+	var skin: Color = _data.skin_color
+	var pelt: Color = Color("#7A5A3C")
+	match tier:
+		0:
+			_chest.material_override = MeshLib.matte(skin)
+			_waist.material_override = MeshLib.matte(pelt)
+			for mesh: MeshInstance3D in _arm_meshes + _leg_meshes:
+				mesh.material_override = MeshLib.matte(skin)
+			_loincloth.visible = true
+			_belt.visible = false
+		1:
+			_chest.material_override = MeshLib.matte(_data.shirt_color)
+			_waist.material_override = MeshLib.matte(_data.shirt_color.darkened(0.15))
+			for mesh: MeshInstance3D in _arm_meshes:
+				mesh.material_override = MeshLib.matte(_data.shirt_color)
+			for mesh: MeshInstance3D in _leg_meshes:
+				mesh.material_override = MeshLib.matte(skin)
+			_loincloth.visible = false
+			_belt.visible = false
+		_:
+			_chest.material_override = MeshLib.matte(_data.shirt_color)
+			_waist.material_override = MeshLib.matte(_data.pants_color)
+			for mesh: MeshInstance3D in _arm_meshes:
+				mesh.material_override = MeshLib.matte(_data.shirt_color)
+			for mesh: MeshInstance3D in _leg_meshes:
+				mesh.material_override = MeshLib.matte(_data.pants_color)
+			_loincloth.visible = false
+			_belt.visible = true
 
 
 ## Coloca (o retira) la herramienta del oficio a la espalda. Idempotente:

@@ -20,6 +20,8 @@ var camp_seed: int = 0
 ## Nombre propio del asentamiento (topónimo automático) y su bioma madre.
 var settlement_name: String = ""
 var home_biome: int = WorldGen.Biome.PRADERA
+## El pozo de la plaza (vida de pueblo): uno por aldea, al subir a Pueblo.
+var has_well: bool = false
 
 var _plan_timer: float = 0.0
 ## Pasadas seguidas (1 cada 15 s de sim) con la despensa en crisis: el
@@ -256,6 +258,24 @@ func rank_name() -> String:
 	return "Campamento"
 
 
+## Guardarropa que viste la aldea (orden del dueño «empiezan casi sin
+## ropa»): 0 taparrabos (campamento) · 1 túnica (≥1 casa) · 2 ropa entera
+## (≥4 casas, rango Pueblo). La ropa PROGRESA con el asentamiento.
+func wardrobe_tier() -> int:
+	var houses: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"buildings"):
+		var building: ConstructionSite = node as ConstructionSite
+		if building == null or building.recipe.sleep_slots <= 0:
+			continue
+		if building.global_position.distance_to(global_position) <= TERRITORY_RADIUS:
+			houses += 1
+	if houses >= 4:
+		return 2
+	if houses >= 1:
+		return 1
+	return 0
+
+
 ## Habitantes de la banda de este asentamiento.
 func population() -> int:
 	var count: int = 0
@@ -276,6 +296,7 @@ func save_data() -> Dictionary:
 		"seed": camp_seed,
 		"name": settlement_name,
 		"biome": home_biome,
+		"well": has_well,
 		"pos": [global_position.x, global_position.y, global_position.z],
 	}
 
@@ -288,6 +309,9 @@ func load_data(d: Dictionary) -> void:
 	global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 	if settlement_name.is_empty():
 		assign_identity(home_biome)
+	has_well = bool(d.get("well", false))
+	if has_well:
+		_raise_well()
 
 
 func _ready() -> void:
@@ -361,6 +385,42 @@ func _plan_infrastructure() -> void:
 	_plan_shed()
 	_plan_home()
 	_plan_upgrades()
+	_plan_well()
+
+
+## Vida de pueblo: al subir a Pueblo (≥4 casas), la aldea levanta SU POZO
+## en la plaza — hito visible de que ya no es un campamento.
+func _plan_well() -> void:
+	if has_well or wardrobe_tier() < 2:
+		return
+	if GameState.get_resource(&"wood") < 8:
+		return
+	if not GameState.take_resource(&"wood", 6):
+		return
+	has_well = true
+	_raise_well()
+	EventBus.toast.emit("%s levanta su pozo en la plaza" % settlement_name, &"success")
+
+
+func _raise_well() -> void:
+	var terrain: TerrainData = GameState.terrain
+	var world_gen: WorldGen = GameState.world_gen
+	for i: int in 8:
+		var ang: float = TAU * float(i) / 8.0 + 0.9
+		var x: float = global_position.x + cos(ang) * 5.5
+		var z: float = global_position.z + sin(ang) * 5.5
+		if world_gen != null and world_gen.river_mask(x, z) > 0.08:
+			continue
+		if terrain != null and terrain.get_slope_deg(x, z) > 12.0:
+			continue
+		var well: Node3D = PropGen.well(camp_seed + 33)
+		well.position = Vector3(
+			x - global_position.x,
+			(terrain.get_height(x, z) if terrain != null else 0.0) - global_position.y,
+			z - global_position.z
+		)
+		add_child(well)
+		return
 
 
 ## S7 — Los aldeanos levantan una CHOZA cuando alguien no tiene cama en casa

@@ -29,6 +29,8 @@ var sleeping_indoors: bool = false
 var _carry_visual: Node3D
 ## Multiplicador de marcha por rasgos (zancada larga / pies planos).
 var _walk_factor: float = 1.0
+## Chequeo lento del guardarropa (primer chequeo casi inmediato al nacer).
+var _wardrobe_timer: float = 0.3
 
 var _moving: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
@@ -124,6 +126,13 @@ func _on_sim_tick(dt: float) -> void:
 	_check_interrupts()
 	state_machine.tick(dt)
 	_check_stuck(dt)
+	# Guardarropa por progreso (S8 adelantado): la ropa viste lo que la
+	# aldea ha crecido. Chequeo lento, cambio idempotente.
+	_wardrobe_timer -= dt
+	if _wardrobe_timer <= 0.0:
+		_wardrobe_timer = 12.0
+		var camp: CampEntity = home_camp()
+		visual.set_wardrobe(camp.wardrobe_tier() if camp != null else 0)
 
 
 func _decay_needs(dt: float) -> void:
