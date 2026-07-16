@@ -410,7 +410,9 @@ func _setup_light_and_environment() -> void:
 	sun.light_energy = 1.15
 	sun.light_color = Color("#FFF4E0")
 	sun.shadow_enabled = true
-	sun.shadow_blur = 1.2
+	sun.shadow_blur = 1.35
+	sun.shadow_bias = 0.028
+	sun.shadow_normal_bias = 1.6
 	# Penumbra suave real (el sol tiene tamaño): sombras nítidas cerca y
 	# blandas lejos, no un borde duro de cartón.
 	sun.light_angular_distance = 1.2
@@ -469,12 +471,27 @@ func _setup_light_and_environment() -> void:
 	env.adjustment_brightness = 1.02
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.28
+	# V1 (salto visual): los objetos se POSAN en el suelo — AO más presente
+	# y SSIL suave para rebote de color (la hierba tiñe la base de la casa).
 	env.ssao_enabled = true
-	env.ssao_intensity = 1.6
-	env.ssao_radius = 1.5
+	env.ssao_intensity = 2.2
+	env.ssao_radius = 2.0
+	env.ssao_power = 1.8
+	env.ssil_enabled = true
+	env.ssil_intensity = 0.9
+	env.ssil_radius = 4.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.35
 	env.glow_hdr_threshold = 1.15
+	# God rays baratos (V1): niebla volumétrica MUY tenue que DayNight
+	# enciende solo en amanecer y hora dorada — la luz «entra» entre copas.
+	env.volumetric_fog_enabled = false
+	env.volumetric_fog_density = 0.0
+	env.volumetric_fog_albedo = Color("#E8C9A0")
+	env.volumetric_fog_emission_energy = 0.0
+	env.volumetric_fog_anisotropy = 0.65
+	env.volumetric_fog_length = 96.0
+	env.volumetric_fog_sky_affect = 0.0
 	# Niebla de distancia SUAVE: perspectiva aérea para el mapa gigante, pero
 	# floja para no lavar la vista de águila (densidad baja + poco en el cielo).
 	env.fog_enabled = true

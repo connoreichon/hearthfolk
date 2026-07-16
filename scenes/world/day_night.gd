@@ -19,6 +19,9 @@ var _day_sky_top: Color = Color("#6E9BC4")
 var _day_horizon: Color = Color("#C9D6C2")
 var _night_sky_top: Color = Color("#141C2B")
 var _night_horizon: Color = Color("#28364B")
+## V1: la niebla de distancia también vive el ciclo (dorada→azul noche).
+var _day_fog: Color = Color("#BFD0C4")
+var _night_fog: Color = Color("#26324A")
 
 
 func _ready() -> void:
@@ -53,6 +56,17 @@ func _process(delta: float) -> void:
 			_base_fog = environment.fog_density
 		var dawn_mist: float = clampf(1.0 - absf(t - 0.1) / 0.12, 0.0, 1.0)
 		environment.fog_density = _base_fog * (1.0 + dawn_mist * 3.2)
+		# V1 — la niebla ENFRÍA de noche (azul) y se dora al atardecer
+		environment.fog_light_color = _day_fog.lerp(_night_fog, night_f)
+		# V1 — god rays por franjas: amanecer y HORA DORADA (la firma).
+		# Volumétrica tenue que se enciende/apaga con suavidad.
+		var golden: float = clampf(1.0 - absf(t - 0.62) / 0.09, 0.0, 1.0)
+		var rays: float = maxf(dawn_mist * 0.7, golden)
+		var target_density: float = rays * 0.022
+		var current: float = environment.volumetric_fog_density
+		var blended: float = lerpf(current, target_density, 1.0 - exp(-2.5 * delta))
+		environment.volumetric_fog_density = blended
+		environment.volumetric_fog_enabled = blended > 0.0015
 
 	_update_fire(delta)
 

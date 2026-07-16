@@ -2,6 +2,21 @@
 
 # BUILD 004 — «Camino al Mercado» (en curso)
 
+## V1 — Luz y atmósfera «Hora dorada eterna» (2026-07-16)
+- Dirección de arte fijada en `docs/ART_DIRECTION_VISUAL.md`: valle de
+  juguete bañado en la última luz de la tarde, la hoguera como corazón.
+- Curva de día con intención (`daylight_gradient/energy.tres`): amanecer
+  ROSADO brumoso, mediodía limpio, HORA DORADA ámbar intensa (energía
+  1.15 con color oro = contraluz), atardecer naranja rasante, noche azul.
+- God rays baratos: niebla volumétrica tenue (density 0.022, anisotropía
+  0.65) que DayNight enciende SOLO en amanecer y hora dorada, con fundido.
+- La niebla de distancia vive el ciclo: verdosa de día → AZUL de noche.
+- SSAO 2.2/r2.0/p1.8 + SSIL 0.9/r4.0: los objetos se POSAN en el suelo y
+  la hierba rebota color en las bases. Sombras: blur 1.35, bias afinado.
+- Sonda `dev_probe_visual.gd`: 6 vistas fijas (amanecer/dorada/mediodía/
+  noche/águila/retrato) a 1920×1080 con la misma semilla — capturas
+  antes/después en `docs/screenshots/visual/`.
+
 ## M0 — Arreglos previos (2026-07-16)
 - `NavUtil.map_ready()` + guards en TODAS las queries de navegación
   tempranas (rest_spot, move_to_near, desatascos, llegadas, recover):
