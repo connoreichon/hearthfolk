@@ -49,13 +49,6 @@ func _ready() -> void:
 		# al confirmar el reparto.
 		SimClock.reset(1, 0.40)
 		SimClock.set_speed(SimClock.Speed.PAUSED)
-		# La causa real de la pantalla a oscuras: la vista de águila
-		# (≈460 m) queda entera FUERA del alcance de sombras del sol de V1
-		# (PSSM, 240 m) y la falda del horizonte, aplastada en el mapa de
-		# sombras, entierra el valle en una sombra falsa. Sin sombra
-		# direccional mientras se siembra; vuelve al confirmar el reparto.
-		_sun.shadow_enabled = false
-		EventBus.placement_finished.connect(_restore_sun_shadow, CONNECT_ONE_SHOT)
 	else:
 		# Modo automático (tests, soaks, guardados viejos): un campamento
 		# central de la banda 0, esquivando ríos y cuestas del mundo gigante.
@@ -455,6 +448,11 @@ func _setup_light_and_environment() -> void:
 	disc.material = skirt_mat
 	skirt.mesh = disc
 	skirt.position = Vector3(0.0, -1.0, 0.0)
+	# JAMÁS proyectar sombra: con el sol alto, este disco gigante se aplasta
+	# («pancake») en el mapa de sombras PSSM y entierra el valle ENTERO en
+	# una sombra falsa (pantalla azul/negra). Un plano bajo el mundo no
+	# necesita dar sombra a nada.
+	skirt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(skirt)
 
 	var world_env: WorldEnvironment = WorldEnvironment.new()
@@ -512,13 +510,6 @@ func _setup_light_and_environment() -> void:
 	env.fog_sky_affect = 0.1
 	world_env.environment = env
 	add_child(world_env)
-
-
-## HOTFIX siembra: al confirmar el reparto, la cámara baja al valle y las
-## sombras del sol vuelven (durante la siembra estaban fuera — ver _ready).
-func _restore_sun_shadow() -> void:
-	if _sun != null:
-		_sun.shadow_enabled = true
 
 
 func _bake_navmesh() -> void:

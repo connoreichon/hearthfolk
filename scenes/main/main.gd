@@ -190,7 +190,17 @@ func _toggle_pause_options() -> void:
 ## Mismo desmontaje determinista que el menú usa al entrar en partida:
 ## nunca liberar un mundo simulado dentro de change_scene (release crash).
 func _exit_to_menu() -> void:
-	SaveManager.save_game()
+	# Abandonar en plena siembra: no hay nada que guardar aún (guardaría un
+	# mundo a medias y perdería a los colonos sin asentar), y el placer debe
+	# morir ANTES que el mundo — su mapa seguiría aceptando clics contra un
+	# WorldRoot liberado (use-after-free en release).
+	if GameState.placement_pending:
+		var placer: Node = get_node_or_null("BandPlacer")
+		if placer != null:
+			placer.queue_free()
+		GameState.placement_pending = false
+	else:
+		SaveManager.save_game()
 	SimClock.set_speed(SimClock.Speed.PAUSED)
 	var world: Node = get_node_or_null("World")
 	if world != null:
@@ -219,7 +229,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"sim_speed_3"):
 		SimClock.set_speed(SimClock.Speed.ULTRA)
 	elif event.is_action_pressed(&"save_game"):
-		SaveManager.save_game()
+		# En plena siembra no se guarda: el save no persiste el reparto a
+		# medias y los colonos sin asentar se perderían al cargar.
+		if not GameState.placement_pending:
+			SaveManager.save_game()
 	elif event.is_action_pressed(&"load_game"):
 		SaveManager.load_game()
 

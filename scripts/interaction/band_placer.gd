@@ -1,8 +1,10 @@
 class_name BandPlacer
 extends Node
-## Siembra de bandas (S0, Build 003): al empezar partida desde el menú, el
-## jugador reparte a sus colonos en grupos por el mapa. Validación mínima —
-## tierra dentro del mapa, sin agua, pendiente razonable, lejos de otros
+## Siembra de bandas (S0, Build 003 · rediseño Build 004): al empezar
+## partida, el jugador reparte a sus colonos SOBRE UN MAPA 2D del valle
+## (pintado en CPU desde WorldGen — siempre legible, da igual GPU o
+## sombras). Clic en tierra firme = fundar una banda. Validación mínima —
+## dentro del mapa, sin agua, pendiente razonable, lejos de otros
 ## campamentos — y CERO chequeos de acceso: cada banda se las apaña donde
 ## su gente decida plantar la hoguera.
 
@@ -25,15 +27,11 @@ var _band_counter: int = 0
 var _world: WorldRoot
 var _tools: ToolManager
 var _hud: CanvasLayer
-var _camera: Camera3D
 var _rig: CameraRig
-var _ghost: MeshInstance3D
-var _ghost_mat: StandardMaterial3D
+var _map_view: MapView
 var _group_label: Label
 var _remaining_label: Label
 var _cursor_label: Label
-var _valid: bool = false
-var _point: Vector3 = Vector3.INF
 var _last_camp_pos: Vector3 = Vector3.ZERO
 
 
@@ -49,9 +47,7 @@ func _ready() -> void:
 	var rigs: Array[Node] = get_tree().get_nodes_in_group(&"camera_rig")
 	if not rigs.is_empty():
 		_rig = rigs[0] as CameraRig
-		_camera = _rig.camera
-		# VISTA DE ÁGUILA: el mapa entero de un vistazo — cualquier punta
-		# está a un clic, sin viajes de cámara. La rueda hace zoom libre.
+		# VISTA DE ÁGUILA de fondo: ambiente del valle real tras el mapa.
 		_rig.set_overview(true)
 	# Mientras se siembra, las herramientas y el HUD esperan su turno.
 	if _tools != null:
@@ -59,22 +55,8 @@ func _ready() -> void:
 		_tools.set_process_unhandled_input(false)
 	if _hud != null:
 		_hud.visible = false
-	_build_ghost()
 	_build_ui()
 	_refresh_labels()
-
-
-func _build_ghost() -> void:
-	var palette: PaletteData = PaletteData.get_default()
-	_ghost = MeshInstance3D.new()
-	_ghost.name = "BandGhost"
-	_ghost_mat = StandardMaterial3D.new()
-	_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_ghost_mat.albedo_color = Color(palette.grass_light, 0.4)
-	_ghost.material_override = _ghost_mat
-	_ghost.visible = false
-	add_child(_ghost)
 
 
 func _build_ui() -> void:
@@ -82,6 +64,46 @@ func _build_ui() -> void:
 	var layer: CanvasLayer = CanvasLayer.new()
 	layer.layer = 55
 	add_child(layer)
+
+	# ---- EL MAPA DEL VALLE (el corazón de la siembra) ----
+	var vp_size: Vector2 = _world.get_viewport().get_visible_rect().size
+	var map_side: float = minf(vp_size.y * 0.64, vp_size.x * 0.52)
+	var map_panel: PanelContainer = PanelContainer.new()
+	var map_style: StyleBoxFlat = StyleBoxFlat.new()
+	map_style.bg_color = Color(palette.ui_panel, 0.94)
+	map_style.border_color = palette.accent
+	map_style.set_border_width_all(2)
+	map_style.set_corner_radius_all(12)
+	map_style.content_margin_left = 12.0
+	map_style.content_margin_right = 12.0
+	map_style.content_margin_top = 8.0
+	map_style.content_margin_bottom = 12.0
+	map_panel.add_theme_stylebox_override(&"panel", map_style)
+	map_panel.anchor_left = 0.5
+	map_panel.anchor_right = 0.5
+	map_panel.anchor_top = 0.0
+	map_panel.anchor_bottom = 0.0
+	map_panel.offset_top = vp_size.y * 0.045
+	map_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	map_panel.grow_vertical = Control.GROW_DIRECTION_END
+	layer.add_child(map_panel)
+	var map_box: VBoxContainer = VBoxContainer.new()
+	map_box.add_theme_constant_override(&"separation", 6)
+	map_panel.add_child(map_box)
+	var map_title: Label = Label.new()
+	map_title.text = "El valle — mapa %d" % GameState.world_seed
+	map_title.add_theme_color_override(&"font_color", Color(palette.ui_text, 0.85))
+	map_title.add_theme_font_size_override(&"font_size", 15)
+	map_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	map_box.add_child(map_title)
+	# En headless (tests/soaks) nadie mira el mapa: pintarlo mini y seguir.
+	var map_px: int = 64 if DisplayServer.get_name() == "headless" else 512
+	var image: Image = MapPainter.paint(GameState.world_gen, map_px)
+	_map_view = MapView.new(self, ImageTexture.create_from_image(image))
+	_map_view.custom_minimum_size = Vector2(map_side, map_side)
+	map_box.add_child(_map_view)
+
+	# ---- Panel inferior: grupo, restantes e instrucciones ----
 	var panel: PanelContainer = PanelContainer.new()
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Color(palette.ui_panel, 0.94)
@@ -97,7 +119,7 @@ func _build_ui() -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
-	panel.offset_top = -170.0
+	panel.offset_top = -158.0
 	panel.offset_bottom = -18.0
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -113,7 +135,7 @@ func _build_ui() -> void:
 	box.add_child(title)
 	var hint: Label = Label.new()
 	hint.text = (
-		"Clic: asentar un grupo · Rueda: zoom · Mayús+clic: todos juntos\n"
+		"Clic en el mapa: asentar un grupo · Mayús+clic: todos juntos\n"
 		+ "La distancia entre aldeas escribirá su historia: vecinas… o mundos aparte"
 	)
 	hint.add_theme_color_override(&"font_color", Color(palette.ui_text, 0.8))
@@ -144,9 +166,12 @@ func _build_ui() -> void:
 	_remaining_label.add_theme_color_override(&"font_color", palette.accent)
 	_remaining_label.add_theme_font_size_override(&"font_size", 18)
 	controls.add_child(_remaining_label)
-	# Etiqueta que sigue al cursor: bioma y validez del punto
+	# Etiqueta que sigue al cursor: bioma y validez del punto. Contorno
+	# oscuro: sin él, el verde sobre la pradera del mapa era invisible.
 	_cursor_label = Label.new()
 	_cursor_label.add_theme_font_size_override(&"font_size", 14)
+	_cursor_label.add_theme_constant_override(&"outline_size", 5)
+	_cursor_label.add_theme_color_override(&"font_outline_color", palette.ui_panel)
 	_cursor_label.visible = false
 	layer.add_child(_cursor_label)
 
@@ -154,6 +179,8 @@ func _build_ui() -> void:
 func _change_group(delta: int) -> void:
 	group_size = clampi(group_size + delta, 1, remaining)
 	_refresh_labels()
+	if _map_view != null:
+		_map_view.queue_redraw()
 
 
 func _refresh_labels() -> void:
@@ -164,75 +191,59 @@ func _refresh_labels() -> void:
 	_remaining_label.text = "Por asentar: %d" % remaining
 
 
-func _process(_delta: float) -> void:
-	if _camera == null:
-		return
-	var mouse: Vector2 = get_viewport().get_mouse_position()
-	var origin: Vector3 = _camera.project_ray_origin(mouse)
-	var direction: Vector3 = _camera.project_ray_normal(mouse)
-	# Intersección ANALÍTICA con WorldGen: durante la siembra el suelo
-	# físico aún no existe (los chunks nacen con los campamentos).
-	var hit: Vector3 = _terrain_ray_point(origin, direction)
-	if hit == Vector3.INF:
-		_ghost.visible = false
-		_point = Vector3.INF
-		_valid = false
-		return
-	_point = hit
-	var reason: String = _validity_reason(_point)
-	_valid = reason.is_empty()
+## Píxel del mapa → punto del mundo (el mapa cubre map_half×2 centrado en 0).
+func map_to_world(px: Vector2, view_size: Vector2) -> Vector3:
+	var half: float = GameState.world_gen.map_half
+	var wx: float = (px.x / view_size.x * 2.0 - 1.0) * half
+	var wz: float = (px.y / view_size.y * 2.0 - 1.0) * half
+	return Vector3(wx, GameState.world_gen.height(wx, wz), wz)
+
+
+## El ratón pasea por el mapa: anillo de puntería + etiqueta de bioma.
+func on_map_hover(px: Vector2) -> void:
+	var point: Vector3 = map_to_world(px, _map_view.size)
+	var reason: String = _validity_reason(point)
+	var valid: bool = reason.is_empty()
+	_map_view.cursor_px = px
+	_map_view.cursor_valid = valid
+	_map_view.queue_redraw()
 	var palette: PaletteData = PaletteData.get_default()
-	var disc: CylinderMesh = CylinderMesh.new()
-	# En vista de águila el anillo escala con la distancia para verse
-	var view_scale: float = maxf(1.0, _camera.global_position.y * 0.035)
-	var radius: float = (1.2 + 0.35 * float(group_size)) * view_scale
-	disc.top_radius = radius
-	disc.bottom_radius = radius
-	disc.height = 0.06 * view_scale
-	disc.radial_segments = 24
-	_ghost.mesh = disc
-	_ghost.position = _point + Vector3(0.0, 0.15, 0.0)
-	_ghost_mat.albedo_color = (
-		Color(palette.grass_light, 0.4) if _valid else Color(palette.roof, 0.45)
-	)
-	_ghost.visible = true
 	var biome_name: String = String(
-		BIOME_NAMES.get(GameState.world_gen.biome(_point.x, _point.z), "")
+		BIOME_NAMES.get(GameState.world_gen.biome(point.x, point.z), "")
 	)
 	_cursor_label.text = (
-		"%s — clic para asentar" % biome_name if _valid else "%s — %s" % [biome_name, reason]
+		"%s — clic para asentar" % biome_name if valid else "%s — %s" % [biome_name, reason]
 	)
 	_cursor_label.add_theme_color_override(
-		&"font_color", palette.grass_light if _valid else palette.roof
+		&"font_color", palette.grass_light if valid else palette.roof
 	)
-	_cursor_label.position = get_viewport().get_mouse_position() + Vector2(18.0, 14.0)
+	# Junto al cursor, sin salirse por el borde derecho de la ventana
+	var pos: Vector2 = _map_view.get_global_mouse_position() + Vector2(18.0, 14.0)
+	var vp: Vector2 = _world.get_viewport().get_visible_rect().size
+	pos.x = minf(pos.x, vp.x - _cursor_label.get_minimum_size().x - 8.0)
+	_cursor_label.position = pos
 	_cursor_label.visible = true
 
 
-## Marcha del rayo de cámara contra la altura de WorldGen (paso 4 m +
-## bisección): el punto del terreno bajo el cursor sin necesidad de física.
-func _terrain_ray_point(origin: Vector3, direction: Vector3) -> Vector3:
-	var world_gen: WorldGen = GameState.world_gen
-	var prev_t: float = 0.0
-	var t: float = 0.0
-	for _i: int in 240:
-		t += 4.0
-		var p: Vector3 = origin + direction * t
-		if p.y <= world_gen.height(p.x, p.z):
-			var lo: float = prev_t
-			var hi: float = t
-			for _j: int in 14:
-				var mid: float = (lo + hi) * 0.5
-				var m: Vector3 = origin + direction * mid
-				if m.y <= world_gen.height(m.x, m.z):
-					hi = mid
-				else:
-					lo = mid
-			var point: Vector3 = origin + direction * hi
-			point.y = world_gen.height(point.x, point.z)
-			return point
-		prev_t = t
-	return Vector3.INF
+## Clic en el mapa: si el punto vale, ahí nace una banda.
+func on_map_click(px: Vector2, everyone: bool) -> void:
+	# Guard de re-entrada: con input acumulado, un segundo clic del mismo
+	# flush llegaría tras _finish() (queue_free es diferido) y sembraría
+	# colonos de más sobre pending_settlers.
+	if remaining <= 0:
+		return
+	var point: Vector3 = map_to_world(px, _map_view.size)
+	if not _is_valid(point):
+		AudioDirector.play_ui(&"ui_error")
+		return
+	var count: int = remaining if everyone else group_size
+	_map_view.markers.append(px)
+	AudioDirector.play_ui(&"ui_confirm")
+	drop_band(point, count)
+	if remaining > 0 and is_instance_valid(_map_view):
+		# El punto recién fundado ya no vale (a <12 m de sí mismo): refrescar
+		# anillo y etiqueta sin esperar a que el ratón se mueva.
+		on_map_hover(px)
 
 
 func _is_valid(point: Vector3) -> bool:
@@ -260,17 +271,6 @@ func _validity_reason(point: Vector3) -> String:
 		if d < MIN_CAMP_DISTANCE:
 			return "demasiado cerca de otra aldea"
 	return ""
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	# La rueda pasa de largo: es del zoom de cámara (vista de águila).
-	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
-	if mouse_button == null or not mouse_button.pressed:
-		return
-	if mouse_button.button_index == MOUSE_BUTTON_LEFT and _valid:
-		var count: int = remaining if mouse_button.shift_pressed else group_size
-		drop_band(_point, count)
-		get_viewport().set_input_as_handled()
 
 
 ## Suelta una banda de `count` colonos alrededor de un punto válido.
@@ -343,16 +343,70 @@ func _find_valid_near(anchor: Vector3, ring_step: float = 3.0, rings: int = 8) -
 func _finish() -> void:
 	GameState.placement_pending = false
 	_world._bake_navmesh()
+	# La partida arranca DE MAÑANA: la siembra se congela a mediodía por
+	# legibilidad, pero el primer día del pueblo se juega entero.
+	SimClock.reset(1, 0.25)
 	SimClock.set_speed(SimClock.Speed.NORMAL)
 	if _tools != null:
 		_tools.set_process_input(true)
 		_tools.set_process_unhandled_input(true)
 	if _hud != null:
 		_hud.visible = true
-	# Remate: la cámara baja en picado del águila a la última aldea fundada
+	# Remate: la cámara aparece YA plantada sobre la última aldea fundada,
+	# a zoom de juego — nada de tweens desde el águila que acaban en el agua.
 	if _rig != null:
-		_rig.set_overview(false)
-		_rig.focus_on(_last_camp_pos)
+		_rig.snap_to(_last_camp_pos)
 	EventBus.placement_finished.emit()
 	EventBus.toast.emit("Tu gente está en camino: enciende sus historias", &"success")
 	queue_free()
+
+
+## Vista del mapa: textura del valle + marcadores de bandas + puntería.
+class MapView:
+	extends Control
+
+	var placer: BandPlacer
+	var map_texture: Texture2D
+	var cursor_px: Vector2 = Vector2(-1000.0, -1000.0)
+	var cursor_valid: bool = false
+	## Píxeles del mapa donde ya arde una hoguera (una por banda soltada).
+	var markers: Array[Vector2] = []
+
+	func _init(owner_placer: BandPlacer, texture: Texture2D) -> void:
+		placer = owner_placer
+		map_texture = texture
+		mouse_filter = Control.MOUSE_FILTER_STOP
+
+	func _draw() -> void:
+		draw_texture_rect(map_texture, Rect2(Vector2.ZERO, size), false)
+		for marker: Vector2 in markers:
+			# Hoguera recién prendida: brasa sagrada sobre el pergamino
+			draw_circle(marker, 7.0, Color("#2A2119"))
+			draw_circle(marker, 5.0, Color("#E8703A"))
+			draw_circle(marker + Vector2(0.0, -1.2), 2.0, Color("#FFD38A"))
+		if cursor_px.x > -100.0:
+			var palette: PaletteData = PaletteData.get_default()
+			var color: Color = palette.grass_light if cursor_valid else palette.roof
+			var radius: float = 7.0 + 1.6 * float(placer.group_size)
+			draw_arc(cursor_px, radius, 0.0, TAU, 40, color, 2.5, true)
+			draw_circle(cursor_px, 2.2, color)
+
+	func _gui_input(event: InputEvent) -> void:
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		if motion != null:
+			placer.on_map_hover(motion.position)
+			return
+		var click: InputEventMouseButton = event as InputEventMouseButton
+		if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+			placer.on_map_click(click.position, click.shift_pressed)
+			accept_event()
+
+	func _mouse_exit_reset() -> void:
+		cursor_px = Vector2(-1000.0, -1000.0)
+		queue_redraw()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_MOUSE_EXIT:
+			_mouse_exit_reset()
+			if is_instance_valid(placer) and placer._cursor_label != null:
+				placer._cursor_label.visible = false

@@ -321,6 +321,8 @@ func _start_new_game() -> void:
 
 
 func _load_slot(slot: int) -> void:
+	# Cargar jamás hereda una siembra pendiente de otra partida abandonada
+	GameState.placement_pending = false
 	GameState.pending_load_slot = slot
 	_change_to_game()
 

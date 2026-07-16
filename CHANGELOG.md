@@ -2,7 +2,33 @@
 
 # BUILD 004 — «Camino al Mercado» (en curso)
 
-## HOTFIX — Pantalla de siembra a plena luz (2026-07-16)
+## HOTFIX 2 — Cámara jugable + siembra sobre mapa 2D (2026-07-16)
+- **La cámara del juego estaba ROTA desde M1** (partida injugable: «solo
+  agua y algo de color»): el micro-shake pisaba `camera.position`, que
+  PERTENECE al SpringArm (la escribe cada frame), y la cámara quedaba
+  pegada al pivot, dentro del suelo. El shake vive ahora en
+  `h_offset/v_offset` — cazado con bisección A/B de cámaras en la misma
+  pose. Regla nueva: nada de escribir `position` de un hijo de SpringArm.
+- **La siembra de bandas se juega sobre un MAPA 2D del valle**
+  (`MapPainter`, CPU puro desde WorldGen): agua, playas, praderas,
+  bosques, colinas y nieve siempre legibles, en cualquier GPU. Clic para
+  asentar (Mayús = todos juntos), anillo de puntería verde/rojo, hogueras
+  marcadas en el mapa, etiqueta de bioma/validez con contorno legible.
+  Fuera el raycast 3D y el anillo fantasma.
+- La falda de horizonte ya NO proyecta sombra: con el sol alto se
+  aplastaba en el mapa de sombras PSSM y enterraba el valle entero en
+  sombra falsa (la pantalla oscura original). Fuera también el apaño de
+  apagar la sombra direccional durante la siembra.
+- Al confirmar el reparto: día 1 a las 06:00 (la partida arranca de
+  mañana) y la cámara aparece plantada sobre la última aldea
+  (`snap_to`, sin tween heredado del águila).
+- Del review adversarial (workflow multi-agente): guard de re-entrada del
+  clic tras la última banda; salir al menú en plena siembra ya no guarda
+  un mundo a medias ni deja al placer vivo con el mundo liberado
+  (use-after-free en release) ni `placement_pending` rancio; cargar
+  partida jamás hereda una siembra pendiente; no se puede guardar en
+  plena siembra; pintado del mapa a mitad de coste (altura arrastrada
+  por fila) y mini (64 px) en headless.
 - La pantalla de reparto de bandas se veía casi negra tras V1 (luminancia
   media 56/255). Causa real encontrada por bisección visual: NO era la hora
   del día — la vista de águila (≈460 m) queda entera FUERA del alcance de

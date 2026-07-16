@@ -85,14 +85,17 @@ func _process(delta: float) -> void:
 	var zoom_f: float = clampf(inverse_lerp(_cfg.zoom_min, far_zoom, arm.spring_length), 0.0, 1.0)
 	var base_tilt: float = lerpf(_cfg.tilt_near_deg, far_tilt, zoom_f)
 	arm.rotation_degrees.x = -clampf(base_tilt + _tilt_offset, 20.0, 89.0)
-	# Micro-shake (M1): tiembla la CÁMARA (no el pivot) y decae en ~0.25 s
+	# Micro-shake (M1): tiembla la CÁMARA (no el pivot) y decae en ~0.25 s.
+	# En h_offset/v_offset — camera.position PERTENECE al SpringArm (lo
+	# escribe cada frame); pisárselo dejaba la cámara PEGADA al pivot,
+	# dentro del suelo (pantalla de agua/borrones, partida injugable).
 	if _shake > 0.001:
-		camera.position = Vector3(
-			_shake_rng.randf_range(-_shake, _shake), _shake_rng.randf_range(-_shake, _shake), 0.0
-		)
+		camera.h_offset = _shake_rng.randf_range(-_shake, _shake)
+		camera.v_offset = _shake_rng.randf_range(-_shake, _shake)
 		_shake *= exp(-14.0 * delta)
-	elif camera.position != Vector3.ZERO:
-		camera.position = Vector3.ZERO
+	elif camera.h_offset != 0.0 or camera.v_offset != 0.0:
+		camera.h_offset = 0.0
+		camera.v_offset = 0.0
 
 
 ## Sacudida con tope (≤0.15 m por orden de la 004) atenuada por distancia.
@@ -183,6 +186,21 @@ func set_state(d: Dictionary) -> void:
 	rotation.y = float(d.get("yaw", 0.0))
 	set_zoom(float(d.get("zoom", 40.0)))
 	arm.spring_length = _target_zoom
+
+
+## Aterrizaje limpio tras la siembra: pivot EXACTO sobre el punto, a ras
+## de su terreno, zoom de juego y picado por defecto. Sin tween ni estado
+## heredado del águila (el tween 520→40 m aterrizaba donde pillaba: agua).
+func snap_to(point: Vector3, zoom: float = 40.0) -> void:
+	_kill_focus_tween()
+	overview = false
+	_tilt_offset = 0.0
+	_target_zoom = clampf(zoom, _cfg.zoom_min, _cfg.zoom_max)
+	arm.spring_length = _target_zoom
+	var ground: float = point.y
+	if GameState.terrain != null:
+		ground = GameState.terrain.get_height(point.x, point.z)
+	position = Vector3(point.x, ground, point.z)
 
 
 ## Centra suavemente el pivot en un punto (tween 0.4 s, ease out).
