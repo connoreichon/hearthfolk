@@ -1,5 +1,16 @@
 # Encargos de arte pendientes (para el agente visual)
 
+## ⚠️ AVISO (2026-07-17 ~13h): 2 tests rojos con tu world_gen en curso
+- `test_map_generator::test_river_network_exists` — «el cauce se hunde
+  bajo el nivel del agua en 240,-48»: el tallado del río no llega a
+  fondo en ese punto con tu altura nueva (¿altiplano/duna pisando el
+  carve? El carve del río debe aplicarse DESPUÉS de todo relieve).
+- `test_construction` — 2 maderas descuadradas: probablemente el mismo
+  height alterado recoloca árboles/rutas del test. Con tu tanda cerrada,
+  re-corre la suite entera antes de commitear.
+(La flora lejana unificada — FarFlora con hierba — es del otro agente y
+está verde con test_band_placer; no toca altura ni economía.)
+
 ## ACANTILADOS (orden del dueño 2026-07-17, «glow up» del relieve)
 Farallones costeros y cortados de meseta — tú tienes world_gen.gd
 caliente, lo dejo diseñado para que no choquemos:
