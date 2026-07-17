@@ -14,6 +14,8 @@ const PINES: Array = ["Pine_1", "Pine_2", "Pine_3", "Pine_4", "Pine_5"]
 const ACCENT: Array = ["TwistedTree_1"]
 
 static var _scenes: Dictionary = {}
+## Piezas por modelo para MultiMesh (FarFlora); el janitor las limpia.
+static var _model_parts: Dictionary = {}
 # La conserva el janitor (release_static_caches); hoy sin uso activo.
 static var _canopy_materials: Dictionary = {}
 static var _trunk_mat: ShaderMaterial
@@ -49,6 +51,34 @@ static func build_visual(seed_value: int, young: bool = false) -> Node3D:
 	var s: float = lerpf(0.88, 1.14, rng.randf())
 	root.scale = Vector3.ONE * (0.45 if young else s)
 	return root
+
+
+## Piezas (mesh + transform local) de un modelo, para instanciarlo en
+## MultiMesh (FarFlora: los bosques del mundo entero sin coste de nodos).
+static func model_parts(model_name: String) -> Array[Dictionary]:
+	if _model_parts.has(model_name):
+		return _model_parts[model_name]
+	var parts: Array[Dictionary] = []
+	var model: Node3D = _scene(model_name).instantiate()
+	var meshes: Array = []
+	_collect_meshes(model, meshes)
+	for mi: MeshInstance3D in meshes:
+		parts.append({"mesh": mi.mesh, "xform": mi.transform})
+	model.free()
+	_model_parts[model_name] = parts
+	return parts
+
+
+## Elige el modelo con la MISMA lógica de build_visual (frondoso domina,
+## pino 25%, carmesí 5%) — para que la flora lejana respire igual.
+static func pick_model(rng: RandomNumberGenerator, force_pines: bool = false) -> String:
+	var roll: int = rng.randi_range(0, 99)
+	var pool: Array = COMMON
+	if force_pines or (roll >= 70 and roll < 95):
+		pool = PINES
+	elif roll >= 95:
+		pool = ACCENT
+	return pool[rng.randi_range(0, pool.size() - 1)]
 
 
 ## Devuelve un seed cercano al dado cuyo roll caiga en la franja pedida

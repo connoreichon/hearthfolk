@@ -10,6 +10,8 @@ var world_gen: WorldGen
 var nav_parent: Node3D
 ## Terreno lejano: sus parches se ocultan cuando llega el chunk real.
 var far_terrain: FarTerrain
+## Bosques lejanos: sus árboles visuales se retiran cuando llega el detalle.
+var far_flora: FarFlora
 
 var _chunks: Dictionary = {}
 
@@ -39,6 +41,8 @@ func ensure_active_around(point: Vector3, radius: float = 96.0) -> int:
 			chunk.populate(world_gen)
 			if far_terrain != null:
 				far_terrain.hide_patch(coord)
+			if far_flora != null:
+				far_flora.hide_cell(coord)
 			created += 1
 	return created
 

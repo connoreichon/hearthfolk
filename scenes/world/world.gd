@@ -199,11 +199,16 @@ func _setup_world_gen() -> void:
 	map_counts = {}
 	var far: FarTerrain = FarTerrain.create(world_gen)
 	add_child(far)
+	# Los bosques del MUNDO ENTERO, visibles antes incluso de sembrar
+	# (orden del dueño): flora visual barata que cede el sitio al detalle.
+	var flora: FarFlora = FarFlora.create(world_gen)
+	add_child(flora)
 	_chunks = ChunkManager.new()
 	_chunks.name = "ChunkManager"
 	_chunks.world_gen = world_gen
 	_chunks.nav_parent = nav_region
 	_chunks.far_terrain = far
+	_chunks.far_flora = flora
 	add_child(_chunks)
 	MapGenerator.spawn_water(self, world_gen)
 	# Rejilla de tráfico (S3): las sendas emergen por donde caminan los colonos.

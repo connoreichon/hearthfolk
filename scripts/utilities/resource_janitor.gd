@@ -9,6 +9,7 @@ static func release_static_caches() -> void:
 	MeshLib._materials.clear()
 	TreeGen._canopy_materials.clear()
 	TreeGen._scenes.clear()
+	TreeGen._model_parts.clear()
 	TreeGen._trunk_mat = null
 	PropGen._wind_materials.clear()
 	PropGen._mesh_cache.clear()
