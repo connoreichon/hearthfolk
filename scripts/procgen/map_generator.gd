@@ -25,6 +25,16 @@ static func terrain_material(palette: PaletteData) -> ShaderMaterial:
 	noise_tex.noise = tex_noise
 	noise_tex.seamless = true
 	mat.set_shader_parameter(&"noise_tex", noise_tex)
+	# Terreno PINTADO por bioma (texturas seamless propias, estilo MegaKit)
+	for pair: Array in [
+		["grass_tex", "terrain_grass"], ["dirt_tex", "terrain_dirt"],
+		["sand_tex", "terrain_sand"], ["rock_tex", "terrain_rock"],
+		["snow_tex", "terrain_snow"],
+	]:
+		mat.set_shader_parameter(
+			pair[0], load("res://assets/textures/terrain/%s.png" % pair[1])
+		)
+	mat.set_shader_parameter(&"tex_mix_on", 1.0)
 	_shared_material = mat
 	return mat
 
