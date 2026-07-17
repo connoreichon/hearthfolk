@@ -406,6 +406,10 @@ func _plan_wood() -> void:
 ## (la tala se come el bosque), la aldea encarga plantar brotes en los
 ## claros. El bosque es un huerto lento — trabajo del repoblador.
 func _plan_replant() -> void:
+	# Lujo de aldea ESTABLE: con la leña justa o poca gente, ni un brazo
+	# se aparta de la tala, el acarreo o las obras.
+	if GameState.get_resource(&"wood") < WOOD_TARGET or population() < 5:
+		return
 	var alive: int = 0
 	for node: Node in get_tree().get_nodes_in_group(&"trees"):
 		var tree: TreeEntity = node as TreeEntity

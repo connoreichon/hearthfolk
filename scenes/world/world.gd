@@ -577,3 +577,9 @@ func _setup_day_night() -> void:
 	# Las hogueras las descubre DayNight por grupo cada frame: los
 	# campamentos pueden nacer después de este _ready (siembra de bandas).
 	add_child(day_night)
+	# METEOROLOGÍA (Build 004): sombras de nubes que cruzan el valle,
+	# frentes de lluvia en las zonas húmedas y nieve en el frío.
+	var weather: WeatherSystem = WeatherSystem.new()
+	weather.name = "Weather"
+	weather.set_day_night(day_night)
+	add_child(weather)

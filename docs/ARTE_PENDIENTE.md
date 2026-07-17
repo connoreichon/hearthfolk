@@ -11,6 +11,24 @@
 (La flora lejana unificada — FarFlora con hierba — es del otro agente y
 está verde con test_band_placer; no toca altura ni economía.)
 
+## VALLES, CASCADAS Y OASIS (orden del dueño 2026-07-17b — relieve vivo)
+Sigues teniendo world_gen caliente; diseño listo para tu tanda:
+- **VALLES**: entre las cordilleras de la tundra y los macizos, un canal
+  ancho de fondo plano (donde _mountain_noise cruza entre dos umbrales,
+  deprimir suavemente): pradera fértil flanqueada de montaña — sitio de
+  asentamiento con carácter.
+- **CASCADAS**: donde river_mask > 0.3 Y el desnivel local supera ~2,5 m
+  en <8 m (river cruzando el borde de un altiplano): NO alisar — dejar el
+  salto y poner PROP de cascada (planos de espuma + partículas + audio
+  chapoteo si hay stream). Detectables muestreando el cauce.
+- **OASIS de verdad (bioma DESIERTO)**: 1-3 depresiones circulares por
+  ruido cellular raro en árido pleno: hundir a WATER_LEVEL−0.3 (charca),
+  anillo de palmera/juncos alrededor (ya tienes PalmTree). El agua de la
+  charca la pinta el plano global.
+- El WeatherSystem nuevo (scripts/world/weather_system.gd, del agente de
+  sistemas) consulta arid/snow_weight para lluvia/nieve — no lo toques,
+  pero si añades biomas nuevos que deban ser secos/húmedos, dilo.
+
 ## ACANTILADOS (orden del dueño 2026-07-17, «glow up» del relieve)
 Farallones costeros y cortados de meseta — tú tienes world_gen.gd
 caliente, lo dejo diseñado para que no choquemos:

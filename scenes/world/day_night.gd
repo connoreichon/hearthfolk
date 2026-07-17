@@ -7,6 +7,10 @@ var sun: DirectionalLight3D
 var environment: Environment
 var sky_material: ProceduralSkyMaterial
 
+## Atenuación por el TIEMPO atmosférico (WeatherSystem): 0 = despejado,
+## ~0.22 = bajo un frente de lluvia (la luz se apaga un punto).
+var weather_dim: float = 0.0
+
 var _color_gradient: Gradient = load("res://data/config/daylight_gradient.tres")
 var _energy_curve: Curve = load("res://data/config/daylight_energy.tres")
 var _flicker_noise: FastNoiseLite = FastNoiseLite.new()
@@ -41,7 +45,7 @@ func _process(delta: float) -> void:
 	if season == SimClock.Season.WINTER:
 		color = color.lerp(Color("#AFC4D8"), 0.3)
 	sun.light_color = color
-	sun.light_energy = _energy_curve.sample_baked(t) * season_energy[season]
+	sun.light_energy = (_energy_curve.sample_baked(t) * season_energy[season] * (1.0 - weather_dim))
 
 	var night_f: float = 1.0 - clampf(inverse_lerp(0.14, 0.9, sun.light_energy), 0.0, 1.0)
 	if sky_material != null:
