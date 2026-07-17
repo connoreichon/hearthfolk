@@ -215,11 +215,14 @@ func _plant_grass(
 			WorldGen.Biome.PLAYA:
 				density = 0.18
 			WorldGen.Biome.DESIERTO:
-				density = 0.05
+				density = 0.02
 		if rng.randf() > density:
 			continue
 		var h: float = world_gen.height(x, z)
 		if h < WorldGen.WATER_LEVEL + 0.2:
+			continue
+		# Roquedo alpino desnudo: la hierba no trepa a la alta montaña
+		if h > 10.0:
 			continue
 		var basis: Basis = Basis(Vector3.UP, rng.randf() * TAU)
 		# Altura de tobillo/rodilla: la mata wispy a escala natural tapaba

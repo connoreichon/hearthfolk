@@ -94,9 +94,10 @@ void fragment() {
 	vec3 dune_sand = mix(dune_flat, tex_detile(sand_tex, tuv, detile_k), tex_mix_on);
 	vec3 savanna = mix(dry_grass, dune_sand, smoothstep(0.45, 0.85, n_broad));
 	grass = mix(grass, savanna, arid_w * 0.9);
-	// Nucleo del DESIERTO: arena mandando (la sabana es la orla de hierba seca)
+	// Nucleo del DESIERTO: TODO arena salvo los oasis de ribera (la sabana
+	// queda como la orla de hierba seca de transicion)
 	float desert_w = smoothstep(0.80, 0.92, arid_w);
-	grass = mix(grass, dune_sand * (0.97 + 0.06 * n_micro), desert_w * (0.72 + 0.28 * n_broad));
+	grass = mix(grass, dune_sand * (0.97 + 0.06 * n_micro), desert_w * (0.90 + 0.10 * n_broad));
 	// PLAYA: la banda costera es ARENA — pisa cualquier tinte de bioma
 	vec3 beach_sand = mix(dune_flat, tex_detile(sand_tex, tuv * 1.3, detile_k), tex_mix_on);
 	beach_sand *= 0.98 + 0.10 * n_fine;
@@ -107,8 +108,9 @@ void fragment() {
 	vec3 rock = mix(rock_flat, tex_detile(rock_tex, tuv * 1.6, detile_k), tex_mix_on);
 	base = mix(base, rock, smoothstep(0.3, 0.52, slope));
 	// MONTAÑA: roca por altura (ladera alta) y NIEVE PERMANENTE en la cima
-	base = mix(base, rock, smoothstep(6.5, 9.5, v_world_pos.y) * 0.85);
-	float peak_snow = smoothstep(10.0, 13.5, v_world_pos.y);
+	// (bandas para las cordilleras v2: mesetas 9/15 m, cumbres hasta 26 m)
+	base = mix(base, rock, smoothstep(9.0, 14.5, v_world_pos.y) * 0.85);
+	float peak_snow = smoothstep(15.0, 20.5, v_world_pos.y);
 	vec3 peak_col = mix(vec3(0.90, 0.92, 0.95), snow_painted, tex_mix_on);
 	base = mix(base, peak_col, peak_snow * (0.75 + n_fine * 0.25));
 	// Orilla húmeda: banda oscura junto al nivel del agua (-0.55)

@@ -36,6 +36,10 @@ var _clearing_noise: FastNoiseLite
 var _sea_noise: FastNoiseLite
 var _mountain_noise: FastNoiseLite
 var _climate_noise: FastNoiseLite
+var _crest_noise: FastNoiseLite
+var _cliff_noise: FastNoiseLite
+## Eje de latitud del clima (frío hacia -eje, cálido hacia +eje).
+var _climate_axis: Vector2 = Vector2.RIGHT
 ## Qué bordes del mapa son MAR (+X, −X, +Z, −Z): elegidos por semilla —
 ## cada mundo tiene su costa, siempre distinta (estilo WorldBox procedural).
 var _sea_edges: Array[bool] = [false, false, false, false]
@@ -87,15 +91,31 @@ func _init(seed_value: int, half: float = DEFAULT_HALF) -> void:
 	_mountain_noise = FastNoiseLite.new()
 	_mountain_noise.seed = seed_value + 818
 	_mountain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_mountain_noise.frequency = 0.0011
-	# CLIMA (Build 004, orden del dueño): un solo ruido de MUY baja
-	# frecuencia parte el mundo en regiones — el extremo frío es TUNDRA
-	# NEVADA con montañas, el cálido SABANA seca con oasis. Al ser el mismo
-	# eje, nieve y desierto siempre caen en puntas opuestas del mapa.
+	_mountain_noise.frequency = 0.0016
+	# CLIMA GEOGRÁFICO (v2, orden del dueño: «los biomas cálidos lejos de
+	# los fríos»): el clima es un EJE tipo latitud — frío en una punta del
+	# mapa, desierto en la opuesta, templado en medio. El ruido solo ondula
+	# la frontera; ya no hay manchas que peguen nieve con palmeras.
 	_climate_noise = FastNoiseLite.new()
 	_climate_noise.seed = seed_value + 404
 	_climate_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_climate_noise.frequency = 0.0013
+	var axis_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	axis_rng.seed = seed_value + 405
+	var axis_angle: float = axis_rng.randf() * TAU
+	_climate_axis = Vector2(cos(axis_angle), sin(axis_angle))
+	# CORDILLERAS (v2): crestas LINEALES ridged; el ruido de montaña regional
+	# decide dónde viven las sierras y las crestas les dan el filo.
+	_crest_noise = FastNoiseLite.new()
+	_crest_noise.seed = seed_value + 819
+	_crest_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_crest_noise.frequency = 0.0042
+	# ACANTILADOS (encargo del agente de sistemas): qué tramos de costa son
+	# farallón en vez de playa.
+	_cliff_noise = FastNoiseLite.new()
+	_cliff_noise.seed = seed_value + 515
+	_cliff_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_cliff_noise.frequency = 0.002
 
 
 ## Altura del terreno en cualquier punto del mundo gigante: lomas suaves
@@ -112,38 +132,53 @@ func height(x: float, z: float) -> float:
 	var hill: float = _hill_noise.get_noise_2d(x, z)
 	if hill > 0.15:
 		h += smoothstep(0.15, 0.75, hill) * 5.5
-	# MONTAÑAS: macizos raros que ROMPEN el horizonte (nieve arriba, roca en
-	# la ladera). Sus núcleos son murallas naturales — no se cruzan a pie.
+	# CORDILLERAS v2 («montañas de verdad»): el ruido regional decide DÓNDE
+	# viven las sierras; las crestas ridged (1-|ruido|) les dan filo lineal.
+	# Dos sistemas con alturas distintas: la GRAN cordillera (lóbulos
+	# positivos, hasta ~22 m) y una sierra media (lóbulos negativos, ~10 m).
 	var mountain: float = _mountain_noise.get_noise_2d(x, z)
-	if mountain > 0.32:
-		h += smoothstep(0.32, 0.85, mountain) * 13.0
-	# TUNDRA NEVADA con carácter: en la región fría las colinas crecen a
-	# montaña Y los macizos se encadenan en CORDILLERA — el frío ES altitud,
-	# como en la vida real (el norte helado es sierra, no pradera blanca).
+	var crest: float = 1.0 - absf(_crest_noise.get_noise_2d(x, z))
+	var range_big: float = smoothstep(0.22, 0.6, mountain)
+	if range_big > 0.0:
+		h += range_big * (3.5 + smoothstep(0.50, 0.90, crest) * 21.0)
+	var range_mid: float = smoothstep(0.24, 0.6, -mountain)
+	if range_mid > 0.0:
+		h += range_mid * smoothstep(0.58, 0.92, crest) * 11.0
+	# El frío ES altitud: hacia el polo del mapa la gran cordillera crece
+	# aún más (nieves perpetuas) y las colinas se quiebran en sierra.
 	var snow: float = snow_weight(x, z)
 	if snow > 0.0:
 		h += snow * maxf(hill, 0.0) * 7.0
-		h += snow * smoothstep(0.05, 0.6, maxf(mountain, 0.0)) * 6.0
-	# DESIERTO: dunas onduladas donde el clima árido aprieta (suaves,
-	# navegables: el desierto se camina, las dunas dan el paisaje).
+		h += snow * range_big * 5.0
+	# DESIERTO: dunas GRANDES rodantes + rizado fino — mar de arena que se
+	# camina (pendientes suaves), con el paisaje ondulado de un erg real.
 	var arid: float = arid_weight(x, z)
 	if arid > 0.6:
+		var dune_w: float = smoothstep(0.6, 1.0, arid)
+		var dune_big: float = maxf(_warp_noise.get_noise_2d(x * 0.9 + 500.0, z * 0.9), 0.0)
 		var ripple: float = maxf(_warp_noise.get_noise_2d(x * 2.2, z * 2.2), 0.0)
-		h += smoothstep(0.6, 1.0, arid) * ripple * 1.7
-	# ALTIPLANOS: por encima de 9 m el relieve se comprime — las cumbres se
-	# vuelven mesetas amplias donde se puede vivir (montaña alta habitable).
+		h += dune_w * (dune_big * 2.4 + ripple * 1.2)
+	# ALTIPLANOS por TERRAZAS: la montaña se escalona en dos mesetas
+	# habitables (9 m y ~15 m) antes de la cumbre — perfiles de mesa, no rampa.
 	if h > 9.0:
-		h = 9.0 + (h - 9.0) * 0.55
-	# Río: canal donde el ruido cruza cero. La tala manda sobre el relieve:
-	# en el corazón del cauce (mask ≥ 0.55) el lecho SIEMPRE se hunde bajo
-	# el agua, aunque cruce colinas — el río corta valles, no flota.
+		var over: float = h - 9.0
+		h = 9.0 + over * 0.5 + smoothstep(2.0, 6.0, over) * 4.0
+	# ACANTILADOS (encargo del agente de sistemas): donde el ruido de
+	# farallón manda, la costa NO se funde hacia el fondo — cae en vertical.
+	var cliff: float = smoothstep(0.3, 0.55, _cliff_noise.get_noise_2d(x, z))
 	var carve: float = river_mask(x, z)
-	h = lerpf(h, WATER_LEVEL - 0.9, smoothstep(0.18, 0.55, carve))
-	# Mar: más hondo que los ríos, con plataforma costera suave (la playa
-	# la pinta la banda húmeda del shader).
 	var sea: float = sea_mask(x, z)
-	h = lerpf(h, WATER_LEVEL - 1.1, smoothstep(0.3, 0.85, sea))
-	return clampf(h, -1.8, 18.0)
+	var river_only: float = maxf(carve - sea, 0.0)
+	h = lerpf(h, WATER_LEVEL - 0.9, smoothstep(0.18, 0.55, river_only))
+	var sea_drop: float = lerpf(
+		smoothstep(0.3, 0.85, sea), smoothstep(0.55, 0.68, sea), cliff
+	)
+	# El alzado del farallón SOLO existe en la franja costera (sin esta
+	# puerta, un río interior con ruido de farallón flotaba sobre el agua).
+	var coast_gate: float = smoothstep(0.02, 0.3, sea)
+	var cliff_base: float = h + cliff * coast_gate * (1.0 - sea_drop) * 3.5
+	h = lerpf(cliff_base, WATER_LEVEL - 1.1, sea_drop)
+	return clampf(h, -1.8, 26.0)
 
 
 ## Cercanía al agua 0..1 (1 = centro del cauce O mar adentro). El río es la
@@ -180,10 +215,19 @@ func is_water(x: float, z: float) -> bool:
 	return river_mask(x, z) > 0.55
 
 
+## Latitud climática -1.2..1.2 (negativo = frío, positivo = cálido): eje
+## fijo por semilla + ondulación de frontera. Garantiza que el hielo y el
+## desierto viven en puntas OPUESTAS del mapa (~300 m mínimo de separación).
+func _climate_t(x: float, z: float) -> float:
+	var t: float = (x * _climate_axis.x + z * _climate_axis.y) / map_half
+	t += _climate_noise.get_noise_2d(x, z) * 0.35
+	return clampf(t, -1.2, 1.2)
+
+
 ## Región fría 0..1 (tundra nevada). Se ATENÚA junto al mar — la costa es
 ## templada: la nieve vive tierra adentro, lejos del agua (orden del dueño).
 func snow_weight(x: float, z: float) -> float:
-	var cold: float = smoothstep(0.28, 0.6, _climate_noise.get_noise_2d(x, z))
+	var cold: float = smoothstep(0.30, 0.62, -_climate_t(x, z))
 	return cold * (1.0 - sea_mask(x, z))
 
 
@@ -194,9 +238,9 @@ func beach_weight(x: float, z: float) -> float:
 	return smoothstep(0.02, 0.10, sea) * (1.0 - smoothstep(0.28, 0.45, sea))
 
 
-## Región árida 0..1 (sabana y desierto): el extremo cálido del clima.
+## Región árida 0..1 (sabana y desierto): el extremo cálido del eje.
 func arid_weight(x: float, z: float) -> float:
-	return smoothstep(0.28, 0.6, -_climate_noise.get_noise_2d(x, z))
+	return smoothstep(0.30, 0.62, _climate_t(x, z))
 
 
 ## Tinte de clima para el vértice (canal A del COLOR): 0 = nieve plena,

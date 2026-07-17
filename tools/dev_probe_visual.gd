@@ -20,7 +20,28 @@ const VIEWS: Array = [
 	["playa", 0.38, "bioma:7", 0.0],
 	["desierto", 0.40, "bioma:8", 0.0],
 	["cordillera", 0.42, "bioma:5", 0.0],
+	# El punto más ALTO del mapa: las cumbres de la gran cordillera
+	["cumbres", 0.45, "cima", 0.0],
 ]
+
+
+## Punto más alto del mapa (rejilla gruesa): el corazón de la cordillera.
+func _find_peak(world_gen: WorldGen) -> Vector3:
+	var best: Vector3 = Vector3.ZERO
+	var best_h: float = -99.0
+	var step: float = 16.0
+	var half: float = world_gen.map_half - 10.0
+	var x: float = -half
+	while x < half:
+		var z: float = -half
+		while z < half:
+			var h: float = world_gen.height(x, z)
+			if h > best_h:
+				best_h = h
+				best = Vector3(x, h, z)
+			z += step
+		x += step
+	return best
 
 
 ## Corazón del bioma pedido: rejilla densa y puntuación por vecinos del
@@ -88,7 +109,19 @@ func _run() -> void:
 		var snow: float = float(view[3]) if view.size() > 3 else 0.0
 		RenderingServer.global_shader_parameter_set(&"snow_amount", snow)
 		var encuadre: String = String(view[2])
-		if encuadre.begins_with("bioma:"):
+		if encuadre == "cima":
+			var world_gen_peak: WorldGen = game_state.get("world_gen")
+			var peak: Vector3 = _find_peak(world_gen_peak)
+			print("PROBE cima=%s" % str(peak))
+			var mgr: Node = root.find_child("ChunkManager", true, false)
+			if mgr != null:
+				mgr.call("ensure_active_around", peak)
+			# Perfil de cordillera: cámara baja y lejana mirando hacia arriba
+			cam.global_position = peak + Vector3(85.0, -peak.y * 0.55, 110.0)
+			cam.look_at(peak + Vector3(0.0, 2.0, 0.0))
+			for _f: int in 90:
+				await process_frame
+		elif encuadre.begins_with("bioma:"):
 			var target: int = int(encuadre.get_slice(":", 1))
 			var world_gen: WorldGen = game_state.get("world_gen")
 			print("PROBE bioma target=%d world_gen=%s" % [target, str(world_gen)])
