@@ -6,7 +6,9 @@ extends Node3D
 ## Sin colisión ni props; cuando un chunk real se activa, su parche se
 ## oculta (el detalle manda). Ligeramente hundido para evitar z-fighting.
 
-const PATCH_DIVISIONS: int = 8
+## 16 divisiones (celda de 4 m, antes 8): las ORILLAS lejanas de ríos y
+## lagos dejan de escalonarse en dientes de sierra desde el águila.
+const PATCH_DIVISIONS: int = 16
 const SINK: float = 0.12
 
 var _patches: Dictionary = {}

@@ -36,8 +36,14 @@ static func paint(world_gen: WorldGen, size: int = 512) -> Image:
 			if h < WorldGen.WATER_LEVEL:
 				var depth: float = clampf((WorldGen.WATER_LEVEL - h) / 1.25, 0.0, 1.0)
 				color = shore.lerp(deep, depth)
+				# Antialias de costa: el filo del agua se funde con la arena
+				# (sin escalones de píxel en ríos ni lagos)
+				var to_land: float = clampf((h - WorldGen.WATER_LEVEL + 0.07) / 0.07, 0.0, 1.0)
+				color = color.lerp(sand, to_land * 0.55)
 			elif h < WorldGen.WATER_LEVEL + 0.4:
 				color = sand
+				var to_water: float = clampf(1.0 - (h - WorldGen.WATER_LEVEL) / 0.09, 0.0, 1.0)
+				color = color.lerp(shore, to_water * 0.45)
 			elif h > SNOW_LINE:
 				color = snow
 			elif h > ROCK_LINE:

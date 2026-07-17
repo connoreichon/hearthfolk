@@ -34,6 +34,10 @@ void fragment() {
 	body += vec3(0.22) * sparkle * 0.25;
 	ALBEDO = mix(body, foam_color.rgb, foam_band);
 	ALPHA = mix(mix(deep_color.a, water_color.a, shallow), foam_color.a, foam_band);
+	// ORILLA FUNDIDA: donde el agua es finísima, se desvanece en la arena
+	// en vez de cortar — adiós al diente de sierra de la línea de costa
+	// (el corte duro delataba la malla del terreno bajo el plano de agua).
+	ALPHA *= smoothstep(0.015, 0.4, depth_diff);
 	ROUGHNESS = 0.18;
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
