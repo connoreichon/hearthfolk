@@ -135,7 +135,7 @@ func _on_sim_tick(dt: float) -> void:
 		_wardrobe_timer = 12.0
 		var camp: CampEntity = home_camp()
 		if camp != null:
-			visual.set_wardrobe(camp.wardrobe_tier(), camp.cloth_tint())
+			visual.set_wardrobe(camp.wardrobe_tier(), camp.cloth_tint(), camp.wardrobe_climate())
 		else:
 			visual.set_wardrobe(0)
 

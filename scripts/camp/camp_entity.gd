@@ -273,6 +273,16 @@ func cloth_tint() -> Color:
 	return CLOTH_TINTS.get(home_biome, Color("#C8A96B"))
 
 
+## Clima del hogar: manda sobre CÓMO se abriga la aldea (orden del dueño:
+## los ropajes se desarrollan según las necesidades del bioma).
+func wardrobe_climate() -> StringName:
+	if home_biome == WorldGen.Biome.NIEVE:
+		return &"frio"
+	if home_biome == WorldGen.Biome.SABANA or home_biome == WorldGen.Biome.DESIERTO:
+		return &"calido"
+	return &"templado"
+
+
 ## Guardarropa que viste la aldea (orden del dueño «empiezan casi sin
 ## ropa»): 0 taparrabos (campamento) · 1 túnica (≥1 casa) · 2 ropa entera
 ## (≥4 casas, rango Pueblo). La ropa PROGRESA con el asentamiento.

@@ -97,8 +97,11 @@ static func apply_living(
 		var src: BaseMaterial3D = mi.mesh.surface_get_material(i) as BaseMaterial3D
 		if src == null or src.albedo_texture == null:
 			continue
-		var is_foliage: bool = src.resource_name.containsn("leaf") \
+		var is_foliage: bool = (
+			src.resource_name.containsn("leaf")
 			or src.resource_name.containsn("leaves")
+			or src.resource_name.containsn("green")
+		)
 		var s: float = sway if is_foliage else 0.0
 		var season_k: float = season if is_foliage else 0.0
 		mi.set_surface_override_material(
@@ -180,6 +183,35 @@ static func flower_patch(seed_value: int) -> Node3D:
 		mi.scale = Vector3.ONE * rng.randf_range(0.8, 1.15)
 		root.add_child(mi)
 	return root
+
+
+## Malla del Ultimate Nature Pack (assets/models/ultimate/).
+static func ult_mesh(prop: String) -> Mesh:
+	var key: String = "ult:" + prop
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var scene: PackedScene = load("res://assets/models/ultimate/" + prop + ".gltf")
+	var inst: Node = scene.instantiate()
+	var mesh: Mesh = _first_mesh(inst)
+	inst.free()
+	_mesh_cache[key] = mesh
+	return mesh
+
+
+## CACTUS del desierto (algunos en flor). Sin otoño, casi sin nieve.
+static func cactus(seed_value: int) -> MeshInstance3D:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var variants: Array = [
+		"Cactus_1", "Cactus_2", "Cactus_3", "CactusFlowers_3", "CactusFlowers_4"
+	]
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.mesh = ult_mesh(variants[rng.randi_range(0, variants.size() - 1)])
+	apply_living(mi, 0.0, 1.5, 0.0, 0.5)
+	mi.name = "Cactus"
+	mi.rotation.y = rng.randf() * TAU
+	mi.scale = Vector3.ONE * rng.randf_range(0.8, 1.25)
+	return mi
 
 
 ## Árbol SECO (tundra/sabana): silueta desnuda pintada, decorativo.

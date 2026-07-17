@@ -44,6 +44,11 @@ var _data: CitizenData
 ## Guardarropa por progreso (orden del dueño «empiezan casi sin ropa»):
 ## −1 sin aplicar · 0 taparrabos (pieles mínimas) · 1 túnica · 2 ropa entera.
 var _wardrobe_tier: int = -1
+## Clima del hogar: &"frio" (pieles y gorro) · &"calido" (linos y paño) ·
+## &"templado". La ropa se ADAPTA al bioma (orden del dueño).
+var _wardrobe_climate: StringName = &""
+var _head_gear: MeshInstance3D
+var _cape: MeshInstance3D
 
 
 func setup(data: CitizenData, look_seed: int) -> void:
@@ -173,10 +178,13 @@ func hands_node() -> Marker3D:
 ## EMPIEZAN casi sin ropa y se visten conforme su aldea crece.
 ## 0 = taparrabos de pieles (torso y piernas desnudos) · 1 = túnica sencilla
 ## (piernas desnudas) · 2 = ropa entera con cinturón. Idempotente.
-func set_wardrobe(tier: int, biome_tint: Color = Color(0, 0, 0, 0)) -> void:
-	if _data == null or tier == _wardrobe_tier:
+func set_wardrobe(
+	tier: int, biome_tint: Color = Color(0, 0, 0, 0), climate: StringName = &"templado"
+) -> void:
+	if _data == null or (tier == _wardrobe_tier and climate == _wardrobe_climate):
 		return
 	_wardrobe_tier = tier
+	_wardrobe_climate = climate
 	var skin: Color = _data.skin_color
 	var pelt: Color = Color("#7A5A3C")
 	# Ropa teñida por el BIOMA del hogar (aldeas del mismo bioma visten
@@ -185,6 +193,12 @@ func set_wardrobe(tier: int, biome_tint: Color = Color(0, 0, 0, 0)) -> void:
 	var shirt: Color = _data.shirt_color
 	if biome_tint.a > 0.0:
 		shirt = _data.shirt_color.lerp(biome_tint, 0.55)
+	# La necesidad del clima moldea el paño: pieles espesas en el frío,
+	# linos claros bajo el sol de la sabana.
+	if climate == &"frio":
+		shirt = shirt.lerp(Color("#6B5340"), 0.45).darkened(0.06)
+	elif climate == &"calido":
+		shirt = shirt.lerp(Color("#E8DCC0"), 0.45)
 	match tier:
 		0:
 			_chest.material_override = MeshLib.matte(skin)
@@ -211,6 +225,40 @@ func set_wardrobe(tier: int, biome_tint: Color = Color(0, 0, 0, 0)) -> void:
 				mesh.material_override = MeshLib.matte(_data.pants_color)
 			_loincloth.visible = false
 			_belt.visible = true
+	_apply_climate_gear(tier, climate, pelt)
+
+
+## Prendas del clima (orden del dueño: el ajuar se desarrolla según las
+## necesidades del bioma, era a era): gorro y capa de PIELES en la tundra,
+## paño de LINO contra el sol en la sabana. Llegan con la 1ª era de ropa.
+func _apply_climate_gear(tier: int, climate: StringName, pelt: Color) -> void:
+	if _head_gear != null:
+		_head_gear.queue_free()
+		_head_gear = null
+	if _cape != null:
+		_cape.queue_free()
+		_cape = null
+	if tier < 1 or _head == null:
+		return
+	if climate == &"frio":
+		_head_gear = MeshLib.mesh_instance(
+			MeshLib.low_sphere(0.175, 5, 8, 0.68), pelt.darkened(0.18), "FurCap"
+		)
+		_head_gear.position = Vector3(0.0, 0.27, -0.005)
+		_head.add_child(_head_gear)
+		if tier >= 2:
+			# Capa de abrigo sobre los hombros: la 2ª era ya sabe coser
+			_cape = MeshLib.mesh_instance(
+				MeshLib.beveled_box(Vector3(0.42, 0.1, 0.26), 0.03), pelt.darkened(0.05), "FurCape"
+			)
+			_cape.position = Vector3(0.0, 0.5, -0.01)
+			_torso.add_child(_cape)
+	elif climate == &"calido":
+		_head_gear = MeshLib.mesh_instance(
+			MeshLib.beveled_box(Vector3(0.2, 0.055, 0.2), 0.02), Color("#EAE0C8"), "SunWrap"
+		)
+		_head_gear.position = Vector3(0.0, 0.27, 0.0)
+		_head.add_child(_head_gear)
 
 
 ## Coloca (o retira) la herramienta del oficio a la espalda. Idempotente:

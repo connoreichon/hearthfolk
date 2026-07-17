@@ -10,6 +10,8 @@ const ROOTS_BY_BIOME: Dictionary = {
 	WorldGen.Biome.CLARO: ["Claro", "Floresta", "Abejar", "Rosal", "Lirio"],
 	WorldGen.Biome.NIEVE: ["Ventisca", "Escarcha", "Nevero", "Carámbano", "Invernal"],
 	WorldGen.Biome.SABANA: ["Solana", "Arenal", "Espejismo", "Secarral", "Oasis"],
+	WorldGen.Biome.PLAYA: ["Cala", "Marea", "Salitre", "Conchal", "Bahía"],
+	WorldGen.Biome.DESIERTO: ["Duna", "Calima", "Erial", "Sequío", "Miraje"],
 }
 
 const SUFFIXES: Array[String] = [

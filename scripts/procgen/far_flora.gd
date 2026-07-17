@@ -7,9 +7,10 @@ extends Node3D
 ## árboles-entidad (talables) toman el relevo en esa celda.
 
 const CELL: float = 64.0
-## Rejilla de muestreo por celda: paso ~8 m con jitter (≈ mirada de lejos
-## del Poisson real; el canon de cerca lo pone TerrainChunk.populate).
-const GRID: int = 8
+## Rejilla de muestreo por celda: paso ~6,4 m con jitter (≈ mirada de
+## lejos del Poisson real, que bajó a radio 3,9; el canon de cerca lo pone
+## TerrainChunk.populate). Mundo DENSO también en la distancia.
+const GRID: int = 10
 
 ## Vector2i celda → Array[Dictionary {model: String, index: int}]
 var _cells: Dictionary = {}

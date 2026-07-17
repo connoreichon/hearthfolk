@@ -22,6 +22,7 @@ uniform float map_extent = 1024.0;
 global uniform vec4 season_grass_tint;
 global uniform float snow_amount;
 
+varying float v_beach;    // COLOR.r = banda de playa (arena junto al mar)
 varying float v_forest;   // COLOR.g = bosque (0 pradera .. 1 fronda)
 varying float v_highland; // COLOR.b = colinas / tierras altas
 varying float v_climate;  // COLOR.a = clima (0 nieve · 0.5 templado · 1 árido)
@@ -29,6 +30,7 @@ varying vec3 v_world_pos;
 varying vec3 v_normal_w;
 
 void vertex() {
+	v_beach = COLOR.r;
 	v_forest = COLOR.g;
 	v_highland = COLOR.b;
 	v_climate = COLOR.a;
@@ -92,6 +94,13 @@ void fragment() {
 	vec3 dune_sand = mix(dune_flat, tex_detile(sand_tex, tuv, detile_k), tex_mix_on);
 	vec3 savanna = mix(dry_grass, dune_sand, smoothstep(0.45, 0.85, n_broad));
 	grass = mix(grass, savanna, arid_w * 0.9);
+	// Nucleo del DESIERTO: arena mandando (la sabana es la orla de hierba seca)
+	float desert_w = smoothstep(0.80, 0.92, arid_w);
+	grass = mix(grass, dune_sand * (0.97 + 0.06 * n_micro), desert_w * (0.72 + 0.28 * n_broad));
+	// PLAYA: la banda costera es ARENA — pisa cualquier tinte de bioma
+	vec3 beach_sand = mix(dune_flat, tex_detile(sand_tex, tuv * 1.3, detile_k), tex_mix_on);
+	beach_sand *= 0.98 + 0.10 * n_fine;
+	grass = mix(grass, beach_sand, smoothstep(0.15, 0.7, v_beach));
 	vec3 base = mix(grass, dirt, dirt_amount);
 	// Roca asomando en pendientes fuertes (textura pintada de piedra)
 	vec3 rock_flat = mix(vec3(0.48, 0.49, 0.48), vec3(0.56, 0.55, 0.52), n_fine);

@@ -6,7 +6,7 @@ extends RefCounted
 ## las colisiones solo cachean lo que la física necesita. Determinista por
 ## semilla: mismo seed → mismo mundo, punto a punto.
 
-enum Biome { PRADERA, BOSQUE, RIBERA, COLINAS, CLARO, NIEVE, SABANA }
+enum Biome { PRADERA, BOSQUE, RIBERA, COLINAS, CLARO, NIEVE, SABANA, PLAYA, DESIERTO }
 
 const WATER_LEVEL: float = -0.55
 
@@ -18,6 +18,8 @@ const TREE_DENSITY: Dictionary = {
 	Biome.CLARO: 0.1,
 	Biome.NIEVE: 0.55,
 	Biome.SABANA: 0.12,
+	Biome.PLAYA: 0.45,
+	Biome.DESIERTO: 0.1,
 }
 ## Lado por defecto del mapa gigante: 1024 m (16×16 chunks de 64 m).
 const DEFAULT_HALF: float = 512.0
@@ -116,10 +118,22 @@ func height(x: float, z: float) -> float:
 	if mountain > 0.32:
 		h += smoothstep(0.32, 0.85, mountain) * 13.0
 	# TUNDRA NEVADA con carácter: en la región fría las colinas crecen a
-	# montaña (el norte helado es tierra alta y quebrada, no pradera blanca).
+	# montaña Y los macizos se encadenan en CORDILLERA — el frío ES altitud,
+	# como en la vida real (el norte helado es sierra, no pradera blanca).
 	var snow: float = snow_weight(x, z)
 	if snow > 0.0:
 		h += snow * maxf(hill, 0.0) * 7.0
+		h += snow * smoothstep(0.05, 0.6, maxf(mountain, 0.0)) * 6.0
+	# DESIERTO: dunas onduladas donde el clima árido aprieta (suaves,
+	# navegables: el desierto se camina, las dunas dan el paisaje).
+	var arid: float = arid_weight(x, z)
+	if arid > 0.6:
+		var ripple: float = maxf(_warp_noise.get_noise_2d(x * 2.2, z * 2.2), 0.0)
+		h += smoothstep(0.6, 1.0, arid) * ripple * 1.7
+	# ALTIPLANOS: por encima de 9 m el relieve se comprime — las cumbres se
+	# vuelven mesetas amplias donde se puede vivir (montaña alta habitable).
+	if h > 9.0:
+		h = 9.0 + (h - 9.0) * 0.55
 	# Río: canal donde el ruido cruza cero. La tala manda sobre el relieve:
 	# en el corazón del cauce (mask ≥ 0.55) el lecho SIEMPRE se hunde bajo
 	# el agua, aunque cruce colinas — el río corta valles, no flota.
@@ -173,6 +187,13 @@ func snow_weight(x: float, z: float) -> float:
 	return cold * (1.0 - sea_mask(x, z))
 
 
+## Banda de PLAYA 0..1: la franja de tierra pegada al mar (arena, palmeras).
+## Nace donde la plataforma costera aún es tierra firme y muere mar adentro.
+func beach_weight(x: float, z: float) -> float:
+	var sea: float = sea_mask(x, z)
+	return smoothstep(0.02, 0.10, sea) * (1.0 - smoothstep(0.28, 0.45, sea))
+
+
 ## Región árida 0..1 (sabana y desierto): el extremo cálido del clima.
 func arid_weight(x: float, z: float) -> float:
 	return smoothstep(0.28, 0.6, -_climate_noise.get_noise_2d(x, z))
@@ -184,17 +205,26 @@ func climate_tint(x: float, z: float) -> float:
 	return clampf(0.5 + arid_weight(x, z) * 0.5 - snow_weight(x, z) * 0.5, 0.0, 1.0)
 
 
-## Clima extremo del punto (NIEVE/SABANA) o -1 si es templado.
+## Clima extremo del punto (NIEVE/SABANA/DESIERTO) o -1 si es templado.
+## El corazón árido es DESIERTO de verdad (dunas, cactus); la SABANA es su
+## orla de transición — gradiente realista de seco a muy seco.
 func _climate_biome(x: float, z: float) -> int:
 	if snow_weight(x, z) > 0.55:
 		return Biome.NIEVE
-	if arid_weight(x, z) > 0.55:
+	var arid: float = arid_weight(x, z)
+	if arid > 0.82:
+		return Biome.DESIERTO
+	if arid > 0.55:
 		return Biome.SABANA
 	return -1
 
 
 ## Bioma del punto (fronteras suaves por ruido deformado; ART_DIRECTION_003).
 func biome(x: float, z: float) -> int:
+	# La PLAYA manda en la costa: siempre pegada al mar, con palmeras…
+	# salvo en la región fría — una costa helada no cría palmeras.
+	if beach_weight(x, z) > 0.5 and snow_weight(x, z) < 0.4:
+		return Biome.PLAYA
 	if river_mask(x, z) > 0.25:
 		return Biome.RIBERA
 	# Los climas extremos mandan sobre los biomas templados: tundra nevada
@@ -209,9 +239,7 @@ func biome(x: float, z: float) -> int:
 	var wz: float = z + _warp_noise.get_noise_2d(x + 977.0, z - 553.0) * 45.0
 	if _clearing_noise.get_noise_2d(wx, wz) > 0.86:
 		return Biome.CLARO
-	if _biome_noise.get_noise_2d(wx, wz) > 0.2:
-		return Biome.BOSQUE
-	return Biome.PRADERA
+	return Biome.BOSQUE if _biome_noise.get_noise_2d(wx, wz) > 0.2 else Biome.PRADERA
 
 
 ## Peso CONTINUO de bosque 0..1 (mismo eje que biome() pero suave): tinta

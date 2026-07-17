@@ -46,7 +46,7 @@ static func create(world_gen: WorldGen, chunk_coord: Vector2i) -> TerrainChunk:
 			var wz: float = origin_z + float(iz) * step
 			heights[iz * side + ix] = world_gen.height(wx, wz)
 			tints[iz * side + ix] = Color(
-				0.0,
+				world_gen.beach_weight(wx, wz),
 				world_gen.forest_weight(wx, wz),
 				world_gen.highland_weight(wx, wz),
 				world_gen.climate_tint(wx, wz)
@@ -97,8 +97,9 @@ func populate(world_gen: WorldGen) -> void:
 		# Nada brota sumergido (lagos e islas de la banda del cauce incluidos)
 		if h < WorldGen.WATER_LEVEL + 0.15:
 			continue
-		# Línea de árboles: en la montaña alta solo roca y nieve
-		if h > 8.0:
+		# Línea de árboles: sube a 9.5 — los ALTIPLANOS son habitables y con
+		# abetos; solo la roca de cumbre queda desnuda
+		if h > 9.5:
 			continue
 		var slope_x: float = world_gen.height(x + 1.0, z) - h
 		var slope_z: float = world_gen.height(x, z + 1.0) - h
@@ -107,15 +108,37 @@ func populate(world_gen: WorldGen) -> void:
 		var which: int = world_gen.biome(x, z)
 		var roll: float = rng.randf()
 		var density: float = world_gen.tree_density(which)
-		# SABANA: sus pocos árboles se apiñan junto al agua — los OASIS.
-		if which == WorldGen.Biome.SABANA and world_gen.river_mask(x, z) < 0.05:
+		# SABANA y DESIERTO: sus pocos árboles se apiñan junto al agua — los
+		# OASIS (palmeras en el desierto, como debe ser).
+		if (
+			which in [WorldGen.Biome.SABANA, WorldGen.Biome.DESIERTO]
+			and world_gen.river_mask(x, z) < 0.05
+		):
 			density = 0.0
 		if roll < 0.24 * density and tree_index < TREE_ID_STRIDE - 1:
 			var tree_seed: int = rng.randi()
-			# TUNDRA: bosque de coníferas — el seed se sesga a pino y ese
-			# sesgo persiste en el guardado (el seed ES el estado).
-			if which == WorldGen.Biome.NIEVE:
-				tree_seed = TreeGen.seed_for_pines(tree_seed)
+			# ESPECIE por bioma vía franja del seed (persiste en el guardado):
+			# tundra→abetos, playa/oasis→palmeras, ribera→algún sauce.
+			match which:
+				WorldGen.Biome.NIEVE:
+					tree_seed = TreeGen.seed_for_pines(tree_seed)
+				WorldGen.Biome.PLAYA, WorldGen.Biome.DESIERTO:
+					tree_seed = TreeGen.seed_for_band(
+						tree_seed, TreeGen.BAND_PALMS_LO, TreeGen.BAND_PALMS_HI
+					)
+				WorldGen.Biome.RIBERA:
+					if rng.randf() < 0.3:
+						tree_seed = TreeGen.seed_for_band(
+							tree_seed, TreeGen.BAND_WILLOWS_LO, TreeGen.BAND_WILLOWS_HI
+						)
+					else:
+						tree_seed = TreeGen.seed_for_band(
+							tree_seed, TreeGen.BAND_TEMPERATE_LO, TreeGen.BAND_TEMPERATE_HI
+						)
+				_:
+					tree_seed = TreeGen.seed_for_band(
+						tree_seed, TreeGen.BAND_TEMPERATE_LO, TreeGen.BAND_TEMPERATE_HI
+					)
 			var tree: TreeEntity = TreeEntity.create(tree_seed, rng.randf() < 0.25)
 			tree.entity_id = TREE_ID_BASE + linear * TREE_ID_STRIDE + tree_index
 			tree_index += 1
@@ -129,12 +152,18 @@ func populate(world_gen: WorldGen) -> void:
 			_place_local(rock, x, h - 0.06, z, rng)
 		elif (
 			roll < 0.38
-			and which not in [WorldGen.Biome.COLINAS, WorldGen.Biome.NIEVE, WorldGen.Biome.SABANA]
+			and which not in [
+				WorldGen.Biome.COLINAS, WorldGen.Biome.NIEVE, WorldGen.Biome.SABANA,
+				WorldGen.Biome.PLAYA, WorldGen.Biome.DESIERTO,
+			]
 		):
 			_place_local(PropGen.bush(rng.randi()), x, h, z, rng)
 		elif roll < 0.40 and which == WorldGen.Biome.BOSQUE:
 			# Corros de setas: vida de suelo de bosque (solo decorativo)
 			_place_local(PropGen.mushroom_patch(rng.randi()), x, h, z, rng)
+		elif roll < 0.45 and which == WorldGen.Biome.DESIERTO:
+			# El DESIERTO cría cactus (algunos en flor), no matorral verde
+			_place_local(PropGen.cactus(rng.randi()), x, h - 0.02, z, rng)
 		elif roll < 0.42 and which in [WorldGen.Biome.NIEVE, WorldGen.Biome.SABANA]:
 			# Flora DURA de los biomas extremos: árboles secos desnudos
 			_place_local(PropGen.dead_tree(rng.randi()), x, h - 0.02, z, rng)
@@ -183,6 +212,10 @@ func _plant_grass(
 				density = 0.22
 			WorldGen.Biome.SABANA:
 				density = 0.5
+			WorldGen.Biome.PLAYA:
+				density = 0.18
+			WorldGen.Biome.DESIERTO:
+				density = 0.05
 		if rng.randf() > density:
 			continue
 		var h: float = world_gen.height(x, z)

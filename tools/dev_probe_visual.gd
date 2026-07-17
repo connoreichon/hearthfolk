@@ -16,7 +16,40 @@ const VIEWS: Array = [
 	# Invierno forzado: prueba de la NIEVE dinámica en copas/props/suelo
 	["invierno", 0.40, "aldea", 1.0],
 	["invierno_retrato", 0.55, "retrato", 1.0],
+	# Biomas nuevos: la sonda los localiza escaneando el world_gen
+	["playa", 0.38, "bioma:7", 0.0],
+	["desierto", 0.40, "bioma:8", 0.0],
+	["cordillera", 0.42, "bioma:5", 0.0],
 ]
+
+
+## Corazón del bioma pedido: rejilla densa y puntuación por vecinos del
+## mismo bioma (evita apuntar a un borde fino o a un falso positivo).
+func _find_biome_spot(world_gen: WorldGen, target: int) -> Vector3:
+	var best: Vector3 = Vector3.ZERO
+	var best_score: int = -1
+	var step: float = 12.0
+	var half: float = world_gen.map_half - 10.0
+	var x: float = -half
+	while x < half:
+		var z: float = -half
+		while z < half:
+			if world_gen.biome(x, z) == target:
+				var h: float = world_gen.height(x, z)
+				if h > WorldGen.WATER_LEVEL + 0.1:
+					var score: int = 0
+					for off: Vector2 in [
+						Vector2(step, 0), Vector2(-step, 0),
+						Vector2(0, step), Vector2(0, -step), Vector2(step, step),
+					]:
+						if world_gen.biome(x + off.x, z + off.y) == target:
+							score += 1
+					if score > best_score:
+						best_score = score
+						best = Vector3(x, h, z)
+			z += step
+		x += step
+	return best
 
 
 func _initialize() -> void:
@@ -54,18 +87,35 @@ func _run() -> void:
 		sim_clock.set("time_of_day", float(view[1]))
 		var snow: float = float(view[3]) if view.size() > 3 else 0.0
 		RenderingServer.global_shader_parameter_set(&"snow_amount", snow)
-		match String(view[2]):
-			"aguila":
-				cam.global_position = Vector3(0.0, 640.0, 260.0)
-				cam.look_at(Vector3(0.0, 0.0, -40.0))
-			"retrato":
-				var citizens: Array[Node] = get_nodes_in_group(&"citizens")
-				var subject: Node3D = citizens[0] as Node3D
-				cam.global_position = subject.global_position + Vector3(1.6, 1.5, 2.4)
-				cam.look_at(subject.global_position + Vector3(0.0, 1.0, 0.0))
-			_:
-				cam.global_position = camp.global_position + Vector3(10.0, 9.0, 16.0)
-				cam.look_at(camp.global_position + Vector3(0.0, 1.0, 0.0))
+		var encuadre: String = String(view[2])
+		if encuadre.begins_with("bioma:"):
+			var target: int = int(encuadre.get_slice(":", 1))
+			var world_gen: WorldGen = game_state.get("world_gen")
+			print("PROBE bioma target=%d world_gen=%s" % [target, str(world_gen)])
+			var spot: Vector3 = _find_biome_spot(world_gen, target)
+			print("PROBE bioma spot=%s" % str(spot))
+			# Activar los chunks de DETALLE alrededor del punto (palmeras,
+			# cactus, abetos... solo brotan en chunks activos)
+			var chunk_mgr: Node = root.find_child("ChunkManager", true, false)
+			if chunk_mgr != null:
+				chunk_mgr.call("ensure_active_around", spot)
+			cam.global_position = spot + Vector3(14.0, 11.0, 20.0)
+			cam.look_at(spot + Vector3(0.0, 1.5, 0.0))
+			for _f: int in 90:
+				await process_frame
+		else:
+			match encuadre:
+				"aguila":
+					cam.global_position = Vector3(0.0, 640.0, 260.0)
+					cam.look_at(Vector3(0.0, 0.0, -40.0))
+				"retrato":
+					var citizens: Array[Node] = get_nodes_in_group(&"citizens")
+					var subject: Node3D = citizens[0] as Node3D
+					cam.global_position = subject.global_position + Vector3(1.6, 1.5, 2.4)
+					cam.look_at(subject.global_position + Vector3(0.0, 1.0, 0.0))
+				_:
+					cam.global_position = camp.global_position + Vector3(10.0, 9.0, 16.0)
+					cam.look_at(camp.global_position + Vector3(0.0, 1.0, 0.0))
 		# Un segundo real: DayNight interpola la luz a la nueva hora
 		for _f: int in 65:
 			await process_frame
