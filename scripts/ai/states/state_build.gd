@@ -16,6 +16,9 @@ func enter() -> void:
 	citizen.stop_moving()
 	citizen.face_towards(site.global_position)
 	citizen.visual.mode = &"work"
+	# La maza sale de la espalda: martilleo corto y seco
+	citizen.visual.set_work_style(&"build", 0.55)
+	citizen.visual.equip_tool()
 
 
 func tick(dt: float) -> void:
@@ -39,3 +42,4 @@ func tick(dt: float) -> void:
 
 func exit() -> void:
 	citizen.visual.mode = &"idle"
+	citizen.visual.stow_tool()

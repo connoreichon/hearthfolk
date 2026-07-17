@@ -9,8 +9,13 @@ const ARM_SWING_DEG: float = 20.0
 const LEAN_DEG: float = 3.0
 
 var mode: StringName = &"idle"
+## Estilo del trabajo en curso: &"chop" hachazo ancho · &"build" martilleo ·
+## &"farm" azadonazo · &"plant" siembra agachado. Fijado por los estados.
+var work_style: StringName = &"chop"
 
 var _phase: float = 0.0
+var _work_cycle: float = 0.85
+var _hand_tool: Node3D
 var _speed: float = 0.0
 var _look_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _look_timer: float = 0.0
@@ -243,6 +248,46 @@ func refresh_tool() -> void:
 	set_profession(_data.profession if _data != null else &"")
 
 
+## SACA la herramienta: de la espalda a la mano derecha, con un toque de
+## resorte. Colgada del brazo, GOLPEA con él en _animate_work — se VE usar
+## el hacha, la maza, la azada o la pala (orden del dueño).
+func equip_tool() -> void:
+	if _data == null or not _data.has_tools or _hand_tool != null or _arm_r == null:
+		return
+	var prop: Node3D = ProfessionProp.build(_data.profession)
+	if prop == null:
+		return
+	if _tool_prop != null and is_instance_valid(_tool_prop):
+		_tool_prop.visible = false
+	# Empuñadura: el mango sigue el eje del brazo; la cabeza mira al frente
+	prop.position = Vector3(0.02, -0.5, 0.05)
+	prop.rotation_degrees = Vector3(100.0, 0.0, 0.0)
+	_arm_r.add_child(prop)
+	prop.scale = Vector3.ONE * 0.55
+	var tween: Tween = prop.create_tween()
+	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(prop, "scale", Vector3.ONE, 0.16)
+	_hand_tool = prop
+
+
+## GUARDA la herramienta: fuera de la mano, de vuelta a la espalda.
+func stow_tool() -> void:
+	if _hand_tool != null:
+		if is_instance_valid(_hand_tool):
+			_hand_tool.queue_free()
+		_hand_tool = null
+	if _tool_prop != null and is_instance_valid(_tool_prop):
+		_tool_prop.visible = true
+
+
+## Estilo y compás del trabajo: cada oficio golpea distinto, y el ciclo se
+## sincroniza con el golpe real (la tala baja el hacha cuando muerde).
+func set_work_style(style: StringName, cycle_seconds: float = 0.85) -> void:
+	work_style = style
+	_work_cycle = clampf(cycle_seconds, 0.35, 2.4)
+	_work_t = 0.0
+
+
 func _process(delta: float) -> void:
 	if _speed > 0.1:
 		_animate_walk(delta)
@@ -299,21 +344,48 @@ func _animate_idle(delta: float) -> void:
 	_head.rotation.y = lerp_angle(_head.rotation.y, _look_target, k * 0.6)
 
 
-## Talar/construir: brazos en arco con impacto brusco y squash del cuerpo.
+## Trabajar: cada oficio tiene SU gesto (orden del dueño: que se vea usar
+## la herramienta). El ciclo lo marca el estado (sincronía con el golpe).
 func _animate_work(delta: float) -> void:
 	_work_t += delta
-	var cycle: float = fmod(_work_t, 0.85) / 0.85
-	var arc: float
-	if cycle < 0.7:
-		arc = lerpf(-95.0, 10.0, ease(cycle / 0.7, 0.6))
-	else:
-		arc = lerpf(10.0, -95.0, (cycle - 0.7) / 0.3)
-	_arm_l.rotation.x = deg_to_rad(arc)
-	_arm_r.rotation.x = deg_to_rad(arc)
-	_torso.rotation.x = deg_to_rad(12.0 + arc * 0.08)
-	var squash: float = 1.0 - (0.06 if cycle >= 0.68 and cycle <= 0.78 else 0.0)
-	_hips.scale = Vector3(1.0, squash, 1.0)
+	var cycle: float = fmod(_work_t, _work_cycle) / _work_cycle
+	match work_style:
+		&"build":
+			# Martilleo corto y seco, de arriba abajo
+			_swing_arms(cycle, -55.0, 8.0, 0.55, 10.0)
+		&"farm":
+			# Azadonazo: arco medio con la espalda doblada
+			_swing_arms(cycle, -75.0, 18.0, 0.65, 20.0)
+		&"plant":
+			# Sembrar: casi en cuclillas, manos suaves hacia la tierra
+			var k: float = 1.0 - exp(-6.0 * delta)
+			var dip: float = sin(cycle * TAU) * 8.0
+			_arm_l.rotation.x = lerp_angle(_arm_l.rotation.x, deg_to_rad(-38.0 + dip), k)
+			_arm_r.rotation.x = lerp_angle(_arm_r.rotation.x, deg_to_rad(-42.0 - dip), k)
+			_torso.rotation.x = lerp_angle(_torso.rotation.x, deg_to_rad(26.0), k)
+			_leg_l.rotation.x = lerp_angle(_leg_l.rotation.x, deg_to_rad(38.0), k)
+			_leg_r.rotation.x = lerp_angle(_leg_r.rotation.x, deg_to_rad(30.0), k)
+			_hips.position.y = lerpf(_hips.position.y, _base_hips_y * 0.72, k)
+			return
+		_:
+			# Hachazo ancho: el gesto clásico del leñador
+			_swing_arms(cycle, -95.0, 10.0, 0.7, 12.0)
 	_hips.position.y = _base_hips_y
+
+
+## Arco de golpeo: la mano de la HERRAMIENTA lleva la fuerza; la otra
+## acompaña a medias (más humano que dos brazos clavados en espejo).
+func _swing_arms(cycle: float, from_deg: float, to_deg: float, hit_at: float, lean: float) -> void:
+	var arc: float
+	if cycle < hit_at:
+		arc = lerpf(from_deg, to_deg, ease(cycle / hit_at, 0.6))
+	else:
+		arc = lerpf(to_deg, from_deg, (cycle - hit_at) / (1.0 - hit_at))
+	_arm_r.rotation.x = deg_to_rad(arc)
+	_arm_l.rotation.x = deg_to_rad(arc * 0.45 - 8.0)
+	_torso.rotation.x = deg_to_rad(lean + arc * 0.08)
+	var squash: float = 1.0 - (0.06 if absf(cycle - hit_at) < 0.06 else 0.0)
+	_hips.scale = Vector3(1.0, squash, 1.0)
 
 
 ## Dormir: tumbado, respiración lenta (§5.4).

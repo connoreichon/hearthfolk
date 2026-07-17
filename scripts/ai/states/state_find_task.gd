@@ -26,7 +26,7 @@ func tick(_dt: float) -> void:
 	var task: TaskBoard.Task = TaskBoard.best_task_for(
 		citizen.entity_id,
 		citizen.global_position,
-		[&"farm_harvest", &"haul", &"supply", &"chop", &"build", &"farm_plant"],
+		[&"farm_harvest", &"haul", &"supply", &"chop", &"build", &"farm_plant", &"plant"],
 		citizen.band_id,
 		Professions.favored_kinds(citizen.data.profession)
 	)
@@ -40,6 +40,14 @@ func tick(_dt: float) -> void:
 	):
 		citizen.state_machine.change(&"Wander")
 		return
+	# Repoblar no tiene entidad destino: el punto viaja en el payload
+	if task.kind == &"plant":
+		var pos: Array = task.payload.get("pos", [])
+		if pos.size() == 3:
+			var spot: Vector3 = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
+			if citizen.global_position.distance_to(spot) > MAX_TASK_DISTANCE:
+				citizen.state_machine.change(&"Wander")
+				return
 	if not TaskBoard.claim(task.id, citizen.entity_id):
 		citizen.state_machine.change(&"Wander")
 		return
@@ -48,5 +56,7 @@ func tick(_dt: float) -> void:
 		citizen.state_machine.change(&"Supply")
 	elif task.kind == &"farm_plant" or task.kind == &"farm_harvest":
 		citizen.state_machine.change(&"Farm")
+	elif task.kind == &"plant":
+		citizen.state_machine.change(&"Plant")
 	else:
 		citizen.state_machine.change(&"MoveToResource")

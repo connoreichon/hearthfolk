@@ -43,6 +43,9 @@ func tick(dt: float) -> void:
 		citizen.stop_moving()
 		citizen.face_towards(field.plot_position(plot))
 		citizen.visual.mode = &"work"
+		# La azada sale de la espalda: azadonazo con la espalda doblada
+		citizen.visual.set_work_style(&"farm", 0.7)
+		citizen.visual.equip_tool()
 		_arrived = true
 		_work_left = FarmField.WORK_SECONDS
 		return
@@ -60,6 +63,7 @@ func tick(dt: float) -> void:
 
 func exit() -> void:
 	citizen.visual.mode = &"idle"
+	citizen.visual.stow_tool()
 
 
 func on_stuck() -> void:

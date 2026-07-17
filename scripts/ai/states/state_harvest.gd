@@ -21,6 +21,9 @@ func enter() -> void:
 	citizen.visual.mode = &"work"
 	citizen.face_towards(target.global_position)
 	_hit_timer = HIT_INTERVAL / citizen.effective_work_speed(&"chop")
+	# El hacha SALE de la espalda y el gesto marca el compás del golpe real
+	citizen.visual.set_work_style(&"chop", _hit_timer)
+	citizen.visual.equip_tool()
 
 
 func tick(dt: float) -> void:
@@ -42,3 +45,4 @@ func tick(dt: float) -> void:
 
 func exit() -> void:
 	citizen.visual.mode = &"idle"
+	citizen.visual.stow_tool()

@@ -16,6 +16,8 @@ static func build(profession: StringName) -> Node3D:
 			return _mallet()
 		&"recolector":
 			return _basket()
+		&"repoblador":
+			return _spade()
 		_:
 			return null
 
@@ -67,6 +69,27 @@ static func _mallet() -> Node3D:
 	)
 	head.position = Vector3(0.0, 0.24, 0.0)
 	root.add_child(head)
+	return root
+
+
+static func _spade() -> Node3D:
+	var palette: PaletteData = PaletteData.get_default()
+	var root: Node3D = Node3D.new()
+	root.name = "ToolSpade"
+	var handle: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.cylinder(0.02, 0.02, 0.55, 6), palette.wood_light, "Handle"
+	)
+	root.add_child(handle)
+	var blade: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.09, 0.13, 0.02), 0.012), palette.stone, "Blade"
+	)
+	blade.position = Vector3(0.0, -0.32, 0.0)
+	root.add_child(blade)
+	var grip: MeshInstance3D = MeshLib.mesh_instance(
+		MeshLib.beveled_box(Vector3(0.09, 0.03, 0.03), 0.01), palette.wood, "Grip"
+	)
+	grip.position = Vector3(0.0, 0.28, 0.0)
+	root.add_child(grip)
 	return root
 
 

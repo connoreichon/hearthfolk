@@ -159,6 +159,15 @@ func best_task_for(
 	return best
 
 
+## Tareas vivas (libres o reclamadas) de un tipo dado.
+func count_kind(kind: StringName) -> int:
+	var total: int = 0
+	for task: Task in _tasks.values():
+		if task.kind == kind:
+			total += 1
+	return total
+
+
 func stats() -> Dictionary:
 	var free: int = 0
 	var claimed: int = 0

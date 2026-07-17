@@ -3,13 +3,16 @@ class_name Professions
 ## familias de trabajo y preferencia de tareas. Catálogo EXTENSIBLE:
 ## un oficio nuevo = una entrada aquí + aptitudes en TraitCatalog.
 
-const LIST: Array[StringName] = [&"lenador", &"agricultor", &"constructor", &"recolector"]
+const LIST: Array[StringName] = [
+	&"lenador", &"agricultor", &"constructor", &"recolector", &"repoblador"
+]
 
 const NAMES: Dictionary = {
 	&"lenador": "Leñador",
 	&"agricultor": "Agricultor",
 	&"constructor": "Constructor",
 	&"recolector": "Recolector",
+	&"repoblador": "Repoblador",
 	&"": "Sin oficio",
 }
 
@@ -19,6 +22,7 @@ const FAMILY: Dictionary = {
 	&"agricultor": &"farm",
 	&"constructor": &"build",
 	&"recolector": &"forage",
+	&"repoblador": &"plant",
 }
 
 ## Tareas del tablón que el oficio prefiere (bonus en best_task_for).
@@ -27,6 +31,7 @@ const FAVORED_KINDS: Dictionary = {
 	&"agricultor": [&"farm_plant", &"farm_harvest"],
 	&"constructor": [&"build", &"supply"],
 	&"recolector": [&"haul"],
+	&"repoblador": [&"plant"],
 }
 
 ## Mezcla de atributos por familia de trabajo (pesos de S2_DESIGN §3).
@@ -36,6 +41,7 @@ const FAMILY_ATTRS: Dictionary = {
 	&"build": {&"dex": 0.7, &"dil": 0.3},
 	&"haul": {&"str": 0.5, &"dil": 0.5},
 	&"forage": {&"per": 0.6, &"dil": 0.4},
+	&"plant": {&"gre": 0.5, &"dil": 0.5},
 }
 
 ## Histéresis anti-flapping: el oficio actual defiende su puesto (§5).

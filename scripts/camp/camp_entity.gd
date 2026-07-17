@@ -392,6 +392,51 @@ func _plan_wood() -> void:
 			return
 
 
+## REPOBLAR (Build 004, oficio nuevo): si el territorio se queda calvo
+## (la tala se come el bosque), la aldea encarga plantar brotes en los
+## claros. El bosque es un huerto lento — trabajo del repoblador.
+func _plan_replant() -> void:
+	var alive: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"trees"):
+		var tree: TreeEntity = node as TreeEntity
+		if tree == null or tree.felled:
+			continue
+		if (
+			tree.global_position.distance_squared_to(global_position)
+			< (TERRITORY_RADIUS * TERRITORY_RADIUS)
+		):
+			alive += 1
+	if alive >= 9:
+		return
+	if TaskBoard.count_kind(&"plant") >= 2:
+		return
+	# Un claro seco y llano del territorio, lejos de la hoguera y de otros
+	# árboles (que el bosque nuevo respire).
+	var world_gen: WorldGen = GameState.world_gen
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = GameState.rng.randi()
+	for _i: int in 20:
+		var ang: float = rng.randf() * TAU
+		var dist: float = rng.randf_range(9.0, TERRITORY_RADIUS - 4.0)
+		var x: float = global_position.x + cos(ang) * dist
+		var z: float = global_position.z + sin(ang) * dist
+		var h: float = world_gen.height(x, z)
+		if h < WorldGen.WATER_LEVEL + 0.3 or world_gen.river_mask(x, z) > 0.08:
+			continue
+		if GameState.terrain.get_slope_deg(x, z) > 20.0:
+			continue
+		var crowded: bool = false
+		for node: Node in get_tree().get_nodes_in_group(&"trees"):
+			var tree: Node3D = node as Node3D
+			if tree != null and tree.global_position.distance_squared_to(Vector3(x, h, z)) < 9.0:
+				crowded = true
+				break
+		if crowded:
+			continue
+		TaskBoard.publish(&"plant", 0, {"band": band_id, "pos": [x, h, z]}, 8)
+		return
+
+
 ## S2 — Infraestructura autoconstruida (docs/S2_DESIGN.md §8): la aldea
 ## rotura SU huerto cuando la comida aprieta y levanta SU cobertizo de
 ## suministros cuando la población crece. Misma maquinaria que el jugador.
@@ -401,6 +446,7 @@ func _plan_infrastructure() -> void:
 	_plan_home()
 	_plan_upgrades()
 	_plan_well()
+	_plan_replant()
 
 
 ## Vida de pueblo: al subir a Pueblo (≥4 casas), la aldea levanta SU POZO

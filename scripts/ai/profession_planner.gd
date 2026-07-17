@@ -83,6 +83,8 @@ func _needs_for_band(band: int) -> Dictionary:
 		needs[&"agricultor"] = 0.05
 	# Constructor: obra pendiente de la aldea = urgencia máxima
 	needs[&"constructor"] = 1.0 if _band_has_pending_site(camp) else 0.05
+	# Repoblador: el bosque talado pide manos que planten (tareas vivas)
+	needs[&"repoblador"] = 0.75 if TaskBoard.count_kind(&"plant") > 0 else 0.05
 	return needs
 
 

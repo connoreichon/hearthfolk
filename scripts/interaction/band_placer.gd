@@ -36,6 +36,13 @@ var _group_label: Label
 var _remaining_label: Label
 var _cursor_label: Label
 var _last_camp_pos: Vector3 = Vector3.ZERO
+## Propuestas de asentamiento (modo UN CLIC): puntos buenos ya explorados.
+var _proposals: Array[Vector3] = []
+var _proposal_sizes: Array[int] = []
+var _proposal_salt: int = 0
+var _manual_row: HBoxContainer
+var _proposal_row: HBoxContainer
+var _hint_label: Label
 
 
 func setup(world: WorldRoot, tools: ToolManager, hud: CanvasLayer) -> void:
@@ -60,6 +67,8 @@ func _ready() -> void:
 		_hud.visible = false
 	_build_ui()
 	_refresh_labels()
+	# Los exploradores hablan primero: propuestas listas nada más abrir
+	_generate_proposals()
 
 
 func _build_ui() -> void:
@@ -119,41 +128,62 @@ func _build_ui() -> void:
 	title.add_theme_font_size_override(&"font_size", 22)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
-	var hint: Label = Label.new()
-	hint.text = (
-		"Clic en el mapa: asentar un grupo · Mayús+clic: todos juntos\n"
-		+ "La distancia entre aldeas escribirá su historia: vecinas… o mundos aparte"
+	_hint_label = Label.new()
+	_hint_label.text = (
+		"Tus exploradores han marcado buenos emplazamientos: agua, madera y llano.\n"
+		+ "Acepta, sortea otros… o clica el mapa y reparte a tu gusto (Mayús: todos juntos)."
 	)
-	hint.add_theme_color_override(&"font_color", Color(palette.ui_text, 0.8))
-	hint.add_theme_font_size_override(&"font_size", 14)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(hint)
-	var controls: HBoxContainer = HBoxContainer.new()
-	controls.add_theme_constant_override(&"separation", 14)
-	controls.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(controls)
+	_hint_label.add_theme_color_override(&"font_color", Color(palette.ui_text, 0.8))
+	_hint_label.add_theme_font_size_override(&"font_size", 14)
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_hint_label)
+	# Fila de PROPUESTAS (modo un clic, el camino cómodo)
+	_proposal_row = HBoxContainer.new()
+	_proposal_row.add_theme_constant_override(&"separation", 14)
+	_proposal_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(_proposal_row)
+	var go_button: Button = Button.new()
+	go_button.text = "⚑  ¡En marcha!"
+	go_button.custom_minimum_size = Vector2(170.0, 40.0)
+	go_button.focus_mode = Control.FOCUS_NONE
+	go_button.pressed.connect(_accept_proposals)
+	UiCraft.style_button(go_button)
+	_proposal_row.add_child(go_button)
+	var reroll: Button = Button.new()
+	reroll.text = "Sortear otros destinos"
+	reroll.custom_minimum_size = Vector2(190.0, 40.0)
+	reroll.focus_mode = Control.FOCUS_NONE
+	reroll.pressed.connect(_reroll_proposals)
+	UiCraft.style_button(reroll)
+	_proposal_row.add_child(reroll)
+	# Fila MANUAL (aparece al primer clic en el mapa)
+	_manual_row = HBoxContainer.new()
+	_manual_row.add_theme_constant_override(&"separation", 14)
+	_manual_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_manual_row.visible = false
+	box.add_child(_manual_row)
 	var minus: Button = Button.new()
 	minus.text = "−"
 	minus.custom_minimum_size = Vector2(44.0, 36.0)
 	minus.focus_mode = Control.FOCUS_NONE
 	minus.pressed.connect(_change_group.bind(-1))
 	UiCraft.style_button(minus)
-	controls.add_child(minus)
+	_manual_row.add_child(minus)
 	_group_label = Label.new()
 	_group_label.add_theme_color_override(&"font_color", palette.ui_text)
 	_group_label.add_theme_font_size_override(&"font_size", 18)
-	controls.add_child(_group_label)
+	_manual_row.add_child(_group_label)
 	var plus: Button = Button.new()
 	plus.text = "+"
 	plus.custom_minimum_size = Vector2(44.0, 36.0)
 	plus.focus_mode = Control.FOCUS_NONE
 	plus.pressed.connect(_change_group.bind(1))
 	UiCraft.style_button(plus)
-	controls.add_child(plus)
+	_manual_row.add_child(plus)
 	_remaining_label = Label.new()
 	_remaining_label.add_theme_color_override(&"font_color", palette.accent)
 	_remaining_label.add_theme_font_size_override(&"font_size", 18)
-	controls.add_child(_remaining_label)
+	_manual_row.add_child(_remaining_label)
 	# Etiqueta que sigue al cursor: bioma y validez del punto. Contorno
 	# oscuro: sin él, el verde sobre la pradera del mapa era invisible.
 	_cursor_label = Label.new()
@@ -162,6 +192,138 @@ func _build_ui() -> void:
 	_cursor_label.add_theme_color_override(&"font_outline_color", palette.ui_panel)
 	_cursor_label.visible = false
 	layer.add_child(_cursor_label)
+
+
+## ---- MODO UN CLIC: los exploradores proponen, tú decides ----
+
+
+## Reparte a la gente en grupos de ~4 (10 → 4+4+2).
+func _band_split() -> Array[int]:
+	var sizes: Array[int] = []
+	var left: int = remaining
+	while left > 0:
+		var take: int = mini(4, left)
+		# Evitar un grupo suelto de 1: mejor 3+2 que 4+1
+		if left == 5:
+			take = 3
+		sizes.append(take)
+		left -= take
+	return sizes
+
+
+## Busca los mejores emplazamientos del valle: válidos, con agua y madera
+## a mano, llanos, y BIEN SEPARADOS entre sí (cada aldea, su historia).
+func _generate_proposals() -> void:
+	_proposals.clear()
+	_proposal_sizes.clear()
+	var world_gen: WorldGen = GameState.world_gen
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = GameState.derive_seed(["propuestas", _proposal_salt])
+	var half: float = world_gen.map_half - 40.0
+	var candidates: Array[Dictionary] = []
+	for _i: int in 260:
+		var point: Vector3 = Vector3(
+			rng.randf_range(-half, half), 0.0, rng.randf_range(-half, half)
+		)
+		point.y = world_gen.height(point.x, point.z)
+		if not _is_valid(point):
+			continue
+		candidates.append({"p": point, "s": _site_score(world_gen, point)})
+	candidates.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool: return float(a["s"]) > float(b["s"])
+	)
+	var sizes: Array[int] = _band_split()
+	for candidate: Dictionary in candidates:
+		if _proposals.size() >= sizes.size():
+			break
+		var point: Vector3 = candidate["p"]
+		var far_enough: bool = true
+		for chosen: Vector3 in _proposals:
+			if chosen.distance_to(point) < 110.0:
+				far_enough = false
+				break
+		if far_enough:
+			_proposals.append(point)
+	for i: int in _proposals.size():
+		_proposal_sizes.append(sizes[i])
+	_refresh_proposal_pins()
+
+
+## Puntuación de un emplazamiento: agua cerca (pero seco), madera a mano,
+## llano, y clima amable. Los exploradores saben lo que buscan.
+func _site_score(world_gen: WorldGen, point: Vector3) -> float:
+	var score: float = 0.0
+	var water_near: float = 0.0
+	var forest_near: float = 0.0
+	for i: int in 8:
+		var ang: float = TAU * float(i) / 8.0
+		var px: float = point.x + cos(ang) * 22.0
+		var pz: float = point.z + sin(ang) * 22.0
+		water_near = maxf(water_near, world_gen.river_mask(px, pz))
+		forest_near += world_gen.forest_weight(px, pz)
+	score += minf(water_near / 0.3, 1.0) * 1.2
+	score += minf(forest_near / 8.0 / 0.35, 1.0)
+	var terrain: TerrainData = GameState.terrain
+	score -= terrain.get_slope_deg(point.x, point.z) * 0.03
+	var extreme: int = world_gen.biome(point.x, point.z)
+	if extreme == WorldGen.Biome.NIEVE or extreme == WorldGen.Biome.SABANA:
+		score -= 0.8
+	return score
+
+
+func _refresh_proposal_pins() -> void:
+	if _map_view == null:
+		return
+	_map_view.proposals.clear()
+	for point: Vector3 in _proposals:
+		_map_view.proposals.append(world_to_map(point, _map_view.size))
+	_map_view.queue_redraw()
+
+
+## «¡En marcha!»: las propuestas se convierten en aldeas, de una tacada.
+func _accept_proposals() -> void:
+	if _proposals.is_empty() or remaining <= 0:
+		return
+	AudioDirector.play_ui(&"ui_confirm")
+	var points: Array[Vector3] = _proposals.duplicate()
+	var sizes: Array[int] = _proposal_sizes.duplicate()
+	_proposals.clear()
+	_map_view.proposals.clear()
+	for i: int in points.size():
+		if remaining <= 0:
+			break
+		var px: Vector2 = world_to_map(points[i], _map_view.size)
+		_map_view.markers.append(px)
+		_map_view.start_pulse(px)
+		drop_band(points[i], mini(sizes[i], remaining))
+	# Si el reparto no cupo entero (mapa hostil), lo que quede es manual
+	if remaining > 0:
+		_enter_manual_mode()
+
+
+func _reroll_proposals() -> void:
+	_proposal_salt += 1
+	AudioDirector.play_ui(&"ui_click")
+	_generate_proposals()
+
+
+## El primer clic manual toma el mando: fuera propuestas, contador clásico.
+func _enter_manual_mode() -> void:
+	_proposals.clear()
+	_proposal_sizes.clear()
+	if _map_view != null:
+		_map_view.proposals.clear()
+		_map_view.queue_redraw()
+	if _proposal_row != null:
+		_proposal_row.visible = false
+	if _manual_row != null:
+		_manual_row.visible = true
+	if _hint_label != null:
+		_hint_label.text = (
+			"Clic en el mapa: asentar un grupo · Mayús+clic: todos juntos\n"
+			+ "La distancia entre aldeas escribirá su historia: vecinas… o mundos aparte"
+		)
+	_refresh_labels()
 
 
 func _change_group(delta: int) -> void:
@@ -180,6 +342,12 @@ func _refresh_labels() -> void:
 
 
 ## Píxel del mapa → punto del mundo (el mapa cubre map_half×2 centrado en 0).
+## Punto del mundo → píxel del mapa (inversa de map_to_world).
+func world_to_map(point: Vector3, view_size: Vector2) -> Vector2:
+	var half: float = GameState.world_gen.map_half
+	return Vector2((point.x / half + 1.0) * 0.5, (point.z / half + 1.0) * 0.5) * view_size
+
+
 func map_to_world(px: Vector2, view_size: Vector2) -> Vector3:
 	var half: float = GameState.world_gen.map_half
 	var wx: float = (px.x / view_size.x * 2.0 - 1.0) * half
@@ -220,6 +388,9 @@ func on_map_click(px: Vector2, everyone: bool) -> void:
 	# colonos de más sobre pending_settlers.
 	if remaining <= 0:
 		return
+	# El primer clic manual descarta las propuestas: tú tomas el mando.
+	if not _proposals.is_empty():
+		_enter_manual_mode()
 	var point: Vector3 = map_to_world(px, _map_view.size)
 	if not _is_valid(point):
 		AudioDirector.play_ui(&"ui_error")
@@ -393,6 +564,8 @@ class MapView:
 	var cursor_valid: bool = false
 	## Píxeles del mapa donde ya arde una hoguera (una por banda soltada).
 	var markers: Array[Vector2] = []
+	## Emplazamientos PROPUESTOS por los exploradores (hogueras fantasma).
+	var proposals: Array[Vector2] = []
 	## Pulso de fundación: onda que se expande desde la última hoguera.
 	var pulse_t: float = 2.0
 	var pulse_at: Vector2 = Vector2.ZERO
@@ -413,6 +586,11 @@ class MapView:
 
 	func _draw() -> void:
 		draw_texture_rect(map_texture, Rect2(Vector2.ZERO, size), false)
+		for pin: Vector2 in proposals:
+			# Hoguera fantasma: propuesta de los exploradores, aún sin prender
+			draw_arc(pin, 10.0, 0.0, TAU, 40, Color(1.0, 0.83, 0.54, 0.9), 2.0, true)
+			draw_circle(pin, 4.4, Color(0.16, 0.13, 0.1, 0.75))
+			draw_circle(pin, 3.0, Color(0.91, 0.44, 0.23, 0.85))
 		for marker: Vector2 in markers:
 			# Hoguera recién prendida: brasa sagrada sobre el pergamino
 			draw_circle(marker, 7.0, Color("#2A2119"))
