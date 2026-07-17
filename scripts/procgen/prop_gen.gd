@@ -7,6 +7,7 @@ class_name PropGen
 const PROPS_DIR: String = "res://assets/models/props/"
 const MK_DIR: String = "res://assets/models/props2/"
 const WIND_SHADER: Shader = preload("res://shaders/wind.gdshader")
+const CANOPY_SHADER: Shader = preload("res://shaders/canopy_wind.gdshader")
 
 # Sotobosque del Stylized Nature MegaKit (Quaternius CC0): texturas pintadas
 # a mano, mismos materiales importados que los árboles (nada de albedo plano).
@@ -68,6 +69,43 @@ static func mk_instance(prop: String) -> MeshInstance3D:
 	return mi
 
 
+## Material VIVO (canopy_wind) para una superficie texturizada: viento +
+## otoño + nieve dinámica en las caras que miran al cielo. Cacheado.
+static func living_material(
+	tex: Texture2D, sway: float, height_ref: float, season: float, snow: float
+) -> ShaderMaterial:
+	var key: String = "%s|%.2f|%.1f|%.1f|%.1f" % [tex.get_rid(), sway, height_ref, season, snow]
+	if _wind_materials.has(key):
+		return _wind_materials[key]
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = CANOPY_SHADER
+	mat.set_shader_parameter(&"albedo_tex", tex)
+	mat.set_shader_parameter(&"sway_strength", sway)
+	mat.set_shader_parameter(&"height_ref", height_ref)
+	mat.set_shader_parameter(&"season_mix", season)
+	mat.set_shader_parameter(&"snow_mix", snow)
+	_wind_materials[key] = mat
+	return mat
+
+
+## Aplica el material vivo a TODAS las superficies texturizadas de la malla
+## (hojas: viento+otoño; corteza/roca: quieto, solo nieve).
+static func apply_living(
+	mi: MeshInstance3D, sway: float, height_ref: float, season: float, snow: float
+) -> void:
+	for i: int in mi.mesh.get_surface_count():
+		var src: BaseMaterial3D = mi.mesh.surface_get_material(i) as BaseMaterial3D
+		if src == null or src.albedo_texture == null:
+			continue
+		var is_foliage: bool = src.resource_name.containsn("leaf") \
+			or src.resource_name.containsn("leaves")
+		var s: float = sway if is_foliage else 0.0
+		var season_k: float = season if is_foliage else 0.0
+		mi.set_surface_override_material(
+			i, living_material(src.albedo_texture, s, height_ref, season_k, snow)
+		)
+
+
 ## MeshInstance3D de un prop: color horneado + viento/estaciones del shader.
 static func prop_instance(
 	prop: String, sway: float, height_ref: float, season: float, snow: float
@@ -84,6 +122,7 @@ static func rock(seed_value: int, big: bool) -> MeshInstance3D:
 	rng.seed = seed_value
 	var variants: Array = MK_ROCKS_BIG if big else MK_ROCKS_SMALL
 	var mi: MeshInstance3D = mk_instance(variants[rng.randi_range(0, variants.size() - 1)])
+	apply_living(mi, 0.0, 1.0, 0.0, 1.0)  # nieve dinámica sobre la piedra
 	mi.name = "Rock"
 	mi.rotation.y = rng.randf() * TAU
 	var s: float = rng.randf_range(0.8, 1.25)
@@ -101,6 +140,7 @@ static func bush(seed_value: int) -> Node3D:
 	var mi: MeshInstance3D = mk_instance(
 		MK_BUSHES[rng.randi_range(0, MK_BUSHES.size() - 1)]
 	)
+	apply_living(mi, 0.05, 0.9, 1.0, 1.0)  # viento + otoño + nieve
 	mi.rotation.y = rng.randf() * TAU
 	mi.scale = Vector3.ONE * rng.randf_range(0.85, 1.2)
 	root.add_child(mi)
@@ -133,12 +173,26 @@ static func flower_patch(seed_value: int) -> Node3D:
 		var mi: MeshInstance3D = mk_instance(
 			MK_FLOWERS[rng.randi_range(0, MK_FLOWERS.size() - 1)]
 		)
+		apply_living(mi, 0.05, 0.4, 0.0, 1.0)  # brisa + nieve encima
 		mi.name = "Flower%d" % flower_i
 		mi.position = Vector3(rng.randf_range(-0.8, 0.8), 0.0, rng.randf_range(-0.8, 0.8))
 		mi.rotation.y = rng.randf() * TAU
 		mi.scale = Vector3.ONE * rng.randf_range(0.8, 1.15)
 		root.add_child(mi)
 	return root
+
+
+## Árbol SECO (tundra/sabana): silueta desnuda pintada, decorativo.
+static func dead_tree(seed_value: int) -> MeshInstance3D:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var variants: Array = ["DeadTree_1", "DeadTree_2", "DeadTree_3"]
+	var mi: MeshInstance3D = mk_instance(variants[rng.randi_range(0, variants.size() - 1)])
+	apply_living(mi, 0.0, 4.0, 0.0, 1.0)  # quieto, sin otoño, acumula nieve
+	mi.name = "DeadTree"
+	mi.rotation.y = rng.randf() * TAU
+	mi.scale = Vector3.ONE * rng.randf_range(0.85, 1.15)
+	return mi
 
 
 ## Corro de setas del bosque (solo decorativo).
@@ -151,6 +205,7 @@ static func mushroom_patch(seed_value: int) -> Node3D:
 		var mi: MeshInstance3D = mk_instance(
 			MK_MUSHROOMS[rng.randi_range(0, MK_MUSHROOMS.size() - 1)]
 		)
+		apply_living(mi, 0.0, 1.0, 0.0, 1.0)  # nieve en el sombrero
 		mi.name = "Mushroom%d" % shroom_i
 		mi.position = Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.4, 0.4))
 		mi.rotation.y = rng.randf() * TAU

@@ -5,14 +5,17 @@ extends SceneTree
 ##   godot --path . --resolution 1920x1080 -s tools/dev_probe_visual.gd -- --tag antes
 
 const SEED: int = 4242
-## Vistas: nombre → [time_of_day, tipo de encuadre]
+## Vistas: nombre → [time_of_day, tipo de encuadre, nieve 0-1]
 const VIEWS: Array = [
-	["amanecer", 0.09, "aldea"],
-	["dorada", 0.62, "aldea"],
-	["mediodia", 0.37, "aldea"],
-	["noche", 0.85, "aldea"],
-	["aguila", 0.55, "aguila"],
-	["retrato", 0.60, "retrato"],
+	["amanecer", 0.09, "aldea", 0.0],
+	["dorada", 0.62, "aldea", 0.0],
+	["mediodia", 0.37, "aldea", 0.0],
+	["noche", 0.85, "aldea", 0.0],
+	["aguila", 0.55, "aguila", 0.0],
+	["retrato", 0.60, "retrato", 0.0],
+	# Invierno forzado: prueba de la NIEVE dinámica en copas/props/suelo
+	["invierno", 0.40, "aldea", 1.0],
+	["invierno_retrato", 0.55, "retrato", 1.0],
 ]
 
 
@@ -49,6 +52,8 @@ func _run() -> void:
 	for view: Array in VIEWS:
 		var view_name: String = view[0]
 		sim_clock.set("time_of_day", float(view[1]))
+		var snow: float = float(view[3]) if view.size() > 3 else 0.0
+		RenderingServer.global_shader_parameter_set(&"snow_amount", snow)
 		match String(view[2]):
 			"aguila":
 				cam.global_position = Vector3(0.0, 640.0, 260.0)

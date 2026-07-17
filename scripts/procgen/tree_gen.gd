@@ -45,6 +45,9 @@ static func build_visual(seed_value: int, young: bool = false) -> Node3D:
 		mi.get_parent().remove_child(mi)
 		root.add_child(mi)
 		mi.transform = xform
+		# Copa VIVA: viento, tinte de otoño y nieve que se acumula/derrite
+		# con el snow_amount global (la corteza queda quieta, solo nieva).
+		PropGen.apply_living(mi, 0.05, 4.5, 1.0, 1.0)
 	model.free()
 
 	root.rotation.y = rng.randf() * TAU

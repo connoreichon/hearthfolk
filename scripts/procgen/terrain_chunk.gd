@@ -80,7 +80,9 @@ func populate(world_gen: WorldGen) -> void:
 	var linear: int = (coord.x + 128) * 256 + (coord.y + 128)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = GameState.derive_seed(["chunk", coord.x, coord.y])
-	var points: Array[Vector2] = Poisson.sample(Vector2(CHUNK_SIZE, CHUNK_SIZE), 4.4, rng)
+	# Radio 3.9 (antes 4.4): mundo más DENSO — menos calvas entre árboles
+	# y props; el roll de cada punto decide qué brota.
+	var points: Array[Vector2] = Poisson.sample(Vector2(CHUNK_SIZE, CHUNK_SIZE), 3.9, rng)
 	var origin_x: float = float(coord.x) * CHUNK_SIZE
 	var origin_z: float = float(coord.y) * CHUNK_SIZE
 	var tree_index: int = 0
@@ -122,23 +124,30 @@ func populate(world_gen: WorldGen) -> void:
 			tree.rotation.y = rng.randf() * TAU
 			tree.scale = Vector3.ONE * rng.randf_range(0.88, 1.12)
 			add_child(tree)
-		elif roll < 0.27:
+		elif roll < 0.31:
 			var rock: MeshInstance3D = PropGen.rock(rng.randi(), false)
 			_place_local(rock, x, h - 0.06, z, rng)
 		elif (
-			roll < 0.32
+			roll < 0.38
 			and which not in [WorldGen.Biome.COLINAS, WorldGen.Biome.NIEVE, WorldGen.Biome.SABANA]
 		):
 			_place_local(PropGen.bush(rng.randi()), x, h, z, rng)
-		elif roll < 0.335 and which == WorldGen.Biome.BOSQUE:
+		elif roll < 0.40 and which == WorldGen.Biome.BOSQUE:
 			# Corros de setas: vida de suelo de bosque (solo decorativo)
 			_place_local(PropGen.mushroom_patch(rng.randi()), x, h, z, rng)
+		elif roll < 0.42 and which in [WorldGen.Biome.NIEVE, WorldGen.Biome.SABANA]:
+			# Flora DURA de los biomas extremos: árboles secos desnudos
+			_place_local(PropGen.dead_tree(rng.randi()), x, h - 0.02, z, rng)
 		elif (
-			roll < 0.40
-			and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA, WorldGen.Biome.RIBERA]
+			roll < 0.47
+			and which in [
+				WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA,
+				WorldGen.Biome.RIBERA, WorldGen.Biome.BOSQUE,
+			]
 		):
+			# En bosque el mix trae helechos/tréboles: suelo forestal vivo
 			_place_local(PropGen.flower_patch(rng.randi()), x, h, z, rng)
-		elif roll < 0.413 and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA]:
+		elif roll < 0.483 and which in [WorldGen.Biome.CLARO, WorldGen.Biome.PRADERA]:
 			# Fauna ambiental: un conejo que salta por el prado (solo visual)
 			var rabbit: Rabbit = Rabbit.new()
 			rabbit.position = Vector3(x - position.x, h + 0.03, z - position.z)
@@ -154,9 +163,9 @@ func _plant_grass(
 	var palette: PaletteData = PaletteData.get_default()
 	var transforms: Array[Transform3D] = []
 	var colors: Array[Color] = []
-	# 1000 intentos (antes 1400): la mata modelada tiene más triángulos que el
-	# quad cruzado; menos instancias con mejor silueta ganan en ambos frentes.
-	for _i: int in 1000:
+	# 1500 intentos: pradera DENSA (la mata wispy es barata y el usuario
+	# quería menos calvas entre hierbas).
+	for _i: int in 1500:
 		var x: float = origin_x + rng.randf() * CHUNK_SIZE
 		var z: float = origin_z + rng.randf() * CHUNK_SIZE
 		if not world_gen.is_inside(x, z, 2.0):
@@ -165,15 +174,15 @@ func _plant_grass(
 		var density: float = 1.0
 		match which:
 			WorldGen.Biome.BOSQUE:
-				density = 0.45
+				density = 0.62
 			WorldGen.Biome.COLINAS:
-				density = 0.35
+				density = 0.45
 			WorldGen.Biome.RIBERA:
-				density = 0.7
+				density = 0.8
 			WorldGen.Biome.NIEVE:
-				density = 0.12
+				density = 0.22
 			WorldGen.Biome.SABANA:
-				density = 0.4
+				density = 0.5
 		if rng.randf() > density:
 			continue
 		var h: float = world_gen.height(x, z)
