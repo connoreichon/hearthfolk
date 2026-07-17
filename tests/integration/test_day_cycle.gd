@@ -49,7 +49,9 @@ func test_night_sends_everyone_to_rest_and_fire_lights() -> void:
 		await _tree.process_frame
 	SimClock.time_of_day = 0.76
 	var resting: int = 0
-	for _f: int in 900:
+	# 1400 (antes 900): desde el arranque «a puños» nadie pierde 7 s
+	# tallando al inicio — al caer la noche del test alguno anda más lejos.
+	for _f: int in 1400:
 		await _tree.process_frame
 		resting = 0
 		for citizen: Node in _tree.get_nodes_in_group(&"citizens"):

@@ -64,7 +64,14 @@ func test_camp_marks_trees_for_wood() -> void:
 	var local: TaskBoard.Task = TaskBoard.best_task_for(
 		999999, marked.global_position, [&"chop"], camp.band_id
 	)
-	assert_true(local != null, "un colono de SU banda sí")
+	# Desde el arranque «a puños» los colonos ya no pierden 7 s tallando:
+	# la tarea puede estar RECLAMADA por uno de la banda antes de llegar
+	# aquí — para el sellado por banda vale igual (ese es el propósito).
+	var claimed_by_own: bool = false
+	if task.claimed_by != -1:
+		var claimer: Citizen = EntityRegistry.get_node_by_id(task.claimed_by) as Citizen
+		claimed_by_own = claimer != null and claimer.band_id == camp.band_id
+	assert_true(local != null or claimed_by_own, "un colono de SU banda sí")
 
 
 func test_wander_stays_near_home_camp() -> void:

@@ -1,13 +1,13 @@
 class_name StateCraft
 extends CitizenState
-## Tallar las PRIMERAS herramientas rudimentarias (orden del dueño): el
-## colono se sienta junto a su hoguera y talla hacha y azada con cantos y
-## ramas del entorno (tiempo, no inventario — es material suelto). Al
-## terminar, su herramienta de oficio aparece a la espalda y trabaja más
-## rápido. Minas, picos y metales llegan en Build 004.
+## Tallar las PRIMERAS herramientas rudimentarias: solo cuando la VELADA
+## enseñó el secreto de la piedra tallada (saber de la aldea) y hay
+## MADERA de verdad en la despensa — 1 madera + un buen rato junto al
+## fuego. Antes de eso, todo el mundo trabaja a puños (orden del dueño).
 
-const CRAFT_SECONDS: float = 7.0
-const TIMEOUT: float = 40.0
+const CRAFT_SECONDS: float = 14.0
+const WOOD_COST: int = 1
+const TIMEOUT: float = 50.0
 
 var _crafting: bool = false
 var _timer: float = 0.0
@@ -47,6 +47,10 @@ func tick(dt: float) -> void:
 		citizen.stop_moving()
 		if camp != null:
 			citizen.face_towards(camp.global_position)
+		# El material se paga POR ADELANTADO: sin madera no hay mango
+		if not GameState.take_resource(&"wood", WOOD_COST):
+			citizen.state_machine.change(&"FindTask")
+			return
 		citizen.visual.mode = &"work"
 		_crafting = true
 		_timer = CRAFT_SECONDS

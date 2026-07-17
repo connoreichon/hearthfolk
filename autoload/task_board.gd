@@ -80,7 +80,10 @@ func release(task_id: int, citizen_id: int, reason: StringName) -> void:
 func complete(task_id: int) -> void:
 	if not _tasks.has(task_id):
 		return
+	var task: Task = _tasks[task_id]
 	_tasks.erase(task_id)
+	# El saber nace del trabajo hecho: quién y qué, antes de olvidar la tarea
+	EventBus.work_done.emit(task.kind, task.claimed_by)
 	EventBus.task_completed.emit(task_id)
 
 

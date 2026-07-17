@@ -559,6 +559,9 @@ func _spawn_citizens(center: Vector3 = Vector3.ZERO) -> void:
 	for i: int in names.size():
 		var citizen: Citizen = CITIZEN_SCENE.instantiate()
 		citizen.data = load("res://data/citizens/%s.tres" % names[i])
+		# Modo automático (tests/compat): fundadores YA equipados — la
+		# progresión a puños + velada se vive en las partidas sembradas.
+		citizen.data.has_tools = true
 		citizen.band_id = 0
 		add_child(citizen)
 		var ang: float = TAU * float(i) / float(names.size()) + 0.7

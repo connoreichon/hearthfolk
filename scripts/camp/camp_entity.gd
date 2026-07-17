@@ -9,6 +9,20 @@ extends Node3D
 
 ## Radio del territorio del campamento (S1; crecerá con el rango en S8).
 const TERRITORY_RADIUS: float = 30.0
+## SABER DE LAS VELADAS (Build 004, orden del dueño: «primero a puños»):
+## el trabajo del día deja chispas; por la noche, la aldea las comparte
+## alrededor del fuego. Con saber suficiente llegan las primeras recetas.
+const LORE_TOOLS: float = 6.0
+## Chispas de saber por tipo de trabajo terminado.
+const LORE_BY_KIND: Dictionary = {
+	&"chop": 0.8,
+	&"build": 1.0,
+	&"supply": 0.4,
+	&"haul": 0.4,
+	&"farm_plant": 0.5,
+	&"farm_harvest": 0.5,
+	&"plant": 0.7,
+}
 ## Leña objetivo del asentamiento: por debajo, el campamento marca árboles.
 const WOOD_TARGET: int = 24
 ## Receta de la primera casa (nivel 1); mejora sola a cabaña y casa de piedra.
@@ -32,6 +46,10 @@ var settlement_name: String = ""
 var home_biome: int = WorldGen.Biome.PRADERA
 ## El pozo de la plaza (vida de pueblo): uno por aldea, al subir a Pueblo.
 var has_well: bool = false
+## Saber acumulado de la aldea (persistido) y chispas del día en curso.
+var lore: float = 0.0
+var _lore_today: float = 0.0
+var _lore_toast_done: bool = false
 
 var _plan_timer: float = 0.0
 ## Pasadas seguidas (1 cada 15 s de sim) con la despensa en crisis: el
@@ -322,6 +340,7 @@ func save_data() -> Dictionary:
 		"name": settlement_name,
 		"biome": home_biome,
 		"well": has_well,
+		"lore": lore,
 		"pos": [global_position.x, global_position.y, global_position.z],
 	}
 
@@ -337,6 +356,8 @@ func load_data(d: Dictionary) -> void:
 	has_well = bool(d.get("well", false))
 	if has_well:
 		_raise_well()
+	lore = float(d.get("lore", 0.0))
+	_lore_toast_done = knows_tools()
 
 
 func _ready() -> void:
@@ -345,10 +366,57 @@ func _ready() -> void:
 	if entity_id == 0:
 		entity_id = EntityRegistry.register(self, &"camp")
 	SimClock.sim_tick.connect(_on_sim_tick)
+	EventBus.work_done.connect(_on_work_done)
+	SimClock.phase_changed.connect(_on_phase_changed)
 
 
 func _exit_tree() -> void:
 	EntityRegistry.unregister(entity_id)
+
+
+## ---- SABER DE LAS VELADAS (Build 004) ----
+
+
+## ¿La aldea aprendió ya a tallar herramientas de piedra?
+func knows_tools() -> bool:
+	return lore >= LORE_TOOLS
+
+
+## Cada trabajo TERMINADO por gente de esta banda deja su chispa.
+func _on_work_done(kind: StringName, worker_id: int) -> void:
+	if not is_inside_tree():
+		return
+	var worker: Citizen = EntityRegistry.get_node_by_id(worker_id) as Citizen
+	if worker == null or worker.band_id != band_id:
+		return
+	_lore_today += float(LORE_BY_KIND.get(kind, 0.3))
+
+
+## LA VELADA: al caer la noche, la aldea comparte lo aprendido alrededor
+## del fuego. Si hay corro (≥3 junto a la hoguera), el saber CUNDE (×1.5).
+func _on_phase_changed(phase: int) -> void:
+	if not is_inside_tree() or phase != SimClock.Phase.NIGHT or _lore_today <= 0.0:
+		return
+	var corro: int = 0
+	for node: Node in get_tree().get_nodes_in_group(&"citizens"):
+		var citizen: Citizen = node as Citizen
+		if citizen == null or citizen.band_id != band_id:
+			continue
+		if citizen.global_position.distance_to(global_position) < 9.0:
+			corro += 1
+	var gained: float = _lore_today * (1.5 if corro >= 3 else 1.0)
+	var knew: bool = knows_tools()
+	lore += gained
+	_lore_today = 0.0
+	FloatingText.spawn(
+		self, global_position + Vector3(0.0, 2.2, 0.0), "+%.0f saber" % gained, Color("#FFD38A")
+	)
+	if not knew and knows_tools() and not _lore_toast_done:
+		_lore_toast_done = true
+		EventBus.toast.emit(
+			"En la velada de %s, las manos aprendieron a tallar la piedra" % settlement_name,
+			&"success"
+		)
 
 
 func _on_sim_tick(dt: float) -> void:

@@ -20,6 +20,8 @@ signal task_published(task_id: int, kind: StringName)
 signal task_claimed(task_id: int, citizen_id: int)
 signal task_released(task_id: int, reason: StringName)
 signal task_completed(task_id: int)
+## Un trabajo TERMINADO deja poso (Saber de las Veladas, Build 004).
+signal work_done(kind: StringName, worker_id: int)
 
 # --- Construcción ---
 signal zone_confirmed(zone_id: int, rect: Rect2, kind: StringName)

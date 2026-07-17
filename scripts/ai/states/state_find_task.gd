@@ -18,11 +18,15 @@ func tick(_dt: float) -> void:
 	if SimClock.is_night():
 		citizen.state_machine.change(&"ReturnToSettlement")
 		return
-	# Sin herramientas no se trabaja a gusto: PRIMERO tallarse las suyas
-	# junto a la hoguera (orden del dueño: empiezan sin nada).
+	# Sin herramientas se trabaja A PUÑOS, como los pioneros (orden del
+	# dueño: «¿con qué se las han fabricado? ¡si acaban de llegar!»). Solo
+	# cuando la VELADA enseñó a tallar Y hay madera en la despensa, el
+	# colono se sienta junto al fuego a hacerse las suyas.
 	if not citizen.data.has_tools:
-		citizen.state_machine.change(&"Craft")
-		return
+		var camp: CampEntity = citizen.home_camp()
+		if camp != null and camp.knows_tools() and GameState.get_resource(&"wood") >= 1:
+			citizen.state_machine.change(&"Craft")
+			return
 	var task: TaskBoard.Task = TaskBoard.best_task_for(
 		citizen.entity_id,
 		citizen.global_position,
